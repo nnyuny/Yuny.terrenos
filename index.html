@@ -1183,7 +1183,11 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
 .geosampa-ctrl-list summary::-webkit-details-marker { display:none; }
 .geosampa-ctrl-list summary::marker { content:''; }
 .geosampa-subgroup-arrow { display:inline-block; margin-left:auto; transition:transform .15s; }
-.geosampa-ctrl-list details[open] .geosampa-subgroup-arrow { transform:rotate(180deg); }
+/* Combinador direto (>) em cada etapa: só gira a setinha do <details> que é
+   o pai IMEDIATO dela — evita que abrir o subgrupo "GeoSampa" (de fora) gire
+   também as setinhas dos sub-subgrupos aninhados (Cadastral, Metrô...) que
+   continuam fechados por dentro. */
+.geosampa-ctrl-list details.geosampa-subgroup[open] > summary > .geosampa-subgroup-arrow { transform:rotate(180deg); }
 .geosampa-subgroup-list { display:flex; flex-direction:column; gap:4px; margin-top:4px; }
 /* Botões dentro de qualquer subgrupo (COMAER, GeoSampa) ficam visualmente
    "aninhados": menores, com fundo mais sutil e uma linha de indentação à
@@ -1223,6 +1227,15 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
   box-shadow:0 1px 4px rgba(0,0,0,.3);
 }
 .geosampa-group-label:first-child { margin-top:0; }
+/* Rótulo de grupo virou <summary> de um <details> aninhado — fica clicável
+   (some/mostra as camadas daquele tema só ao clicar no título), com a mesma
+   setinha giratória usada no nível de fora (GeoSampa/COMAER/Concorrentes). */
+summary.geosampa-group-label {
+  cursor:pointer; display:flex; align-items:center; gap:6px; user-select:none;
+}
+/* Indenta visualmente os sub-subgrupos (Cadastral, Metrô...) dentro do
+   subgrupo GeoSampa, pra ficar claro que estão um nível mais fundo. */
+.geosampa-subgroup-list > details.geosampa-subgroup > .geosampa-subgroup-list { margin-left:4px; }
 /* No celular a lista de camadas some por padrão — só uma setinha discreta pra
    abrir/fechar, em vez de 10 botões cobrindo o mapa inteiro. */
 @media (max-width:768px){
@@ -1692,28 +1705,48 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
         <details class="geosampa-subgroup">
           <summary class="geosampa-btn" title="Camadas de consulta menos frequente do GeoSampa">📡 GeoSampa <span class="geosampa-subgroup-arrow">▾</span></summary>
           <div class="geosampa-subgroup-list">
-            <div class="geosampa-group-label">🏘️ Cadastral</div>
-            <button class="geosampa-btn" id="btn-geo-lotes" onclick="toggleGeoLayer('lotes')" title="Contorno de cada lote cadastrado no GeoSampa (aproxime o zoom) — clique num lote pra ver Setor/Quadra/Lote">🏘 Lotes</button>
-            <button class="geosampa-btn" id="btn-geo-zona" onclick="toggleGeoLayer('zona')" title="Zoneamento oficial (LPUOS) de cada lote — colore por zona (ZC, ZM, ZEU etc.) e mostra os parâmetros construtivos ao clicar">🏙 Zoneamento</button>
-            <button class="geosampa-btn" id="btn-geo-ouc" onclick="toggleOucLayer()" title="Perímetros de Operações Urbanas Consorciadas e Áreas de Intervenção Urbana (setor/subsetor quando disponível)">🏛 Operações Urbanas</button>
-            <div class="geosampa-group-label">🚇 Metrô</div>
-            <button class="geosampa-btn" id="btn-geo-metro" onclick="toggleMetroLayer()" title="Linhas e estações de Metrô existentes (dados: Prefeitura de SP / Metrô-SP)">🚇 Metrô</button>
-            <button class="geosampa-btn" id="btn-geo-metro-projeto" onclick="toggleMetroProjetoLayer()" title="Linhas e estações de Metrô em projeto/planejamento (traçado sujeito a alterações — dados 2016/2025)">🚧 Metrô Projeto</button>
-            <button class="geosampa-btn" id="btn-geo-trem" onclick="toggleTremLayer()" title="Linhas e estações de Trem Metropolitano (CPTM/ViaMobilidade) em operação — traçado das linhas é esquemático (reta entre as estações reais), estações com coordenada exata (GeoSampa)">🚆 Trem</button>
-            <button class="geosampa-btn" id="btn-geo-trem-projeto" onclick="toggleTremProjetoLayer()" title="Linhas e estações de Trem Metropolitano em projeto/planejamento (Expresso Aeroporto, Linha 14-Ônix, extensões Jade/Esmeralda, ligação Alphaville-Campo Limpo) — traçado sujeito a alterações">🚧 Trem Projeto</button>
-            <div class="geosampa-group-label">☣️ Contaminação</div>
-            <button class="geosampa-btn" id="btn-geo-contamReab" onclick="toggleContamReabLayer()" title="Áreas contaminadas já reabilitadas (SVMA) — verde. Clique num polígono pra ver classificação, contaminante e restrição.">☣️ Área Contaminada Reabilitada</button>
-            <button class="geosampa-btn" id="btn-geo-contamSuspeita" onclick="toggleContamSuspeitaLayer()" title="Áreas potenciais/suspeitas de contaminação (SIGAC) — vermelho. Clique num polígono pra ver o lote/processo.">☣️ Área Suspeita de Contaminação</button>
-            <div class="geosampa-group-label">📜 Plantas & Restrições</div>
-            <button class="geosampa-btn" id="btn-geo-areaPublica" onclick="toggleGeoLayer('areaPublica')" title="Cadastro de Área Pública (CAP)">🏛️ Área Pública (CAP)</button>
-            <button class="geosampa-btn" id="btn-geo-arruamento" onclick="toggleGeoLayer('arruamento')" title="Arruamento aprovado (ARR)">🛣️ Arruamento (ARR)</button>
-            <button class="geosampa-btn" id="btn-geo-passagem" onclick="toggleGeoLayer('passagem')" title="Passagem (PS)">🚶 Passagem (PS)</button>
-            <button class="geosampa-btn" id="btn-geo-decretoDupDis" onclick="toggleGeoLayer('decretoDupDis')" title="Plantas de Decreto de Utilidade Pública / Interesse Social (DUP/DIS)">📜 Planta de Decreto (DUP/DIS)</button>
-            <button class="geosampa-btn" id="btn-geo-expropriatoria" onclick="toggleGeoLayer('expropriatoria')" title="Plantas Expropriatórias">📜 Planta Expropriatória</button>
-            <button class="geosampa-btn" id="btn-geo-infra-viaria" onclick="toggleInfraViariaLayer()" title="Lei de Melhoramento Viário (perímetro indicativo de área afetada por abertura/alargamento de via — a certidão oficial é pelo Portal 156) e Faixa Não Edificável (faixa non aedificandi ao longo de córregos, do antigo Código de Obras de 1992) — dados do GeoSampa">🛣️ Melhoramento Viário / Faixa Não Edif.</button>
-            <div class="geosampa-group-label">🏺 Patrimônio & Ambiente</div>
-            <button class="geosampa-btn" id="btn-geo-patrimonio" onclick="togglePatrimonioLayer()" title="Bens tombados (CONPRESP/CONDEPHAAT/IPHAN) — imóveis com restrição de demolição/reforma por tombamento">🏺 Patrimônio Histórico</button>
-            <button class="geosampa-btn" id="btn-geo-ambiental" onclick="toggleAmbientalLayer()" title="Áreas de Proteção Ambiental (APA Bororé-Colônia, APA Capivari-Monos) e corredores verdes — restrição ambiental à ocupação">🌳 Restrições Ambientais</button>
+            <details class="geosampa-subgroup">
+              <summary class="geosampa-group-label">🏘️ Cadastral <span class="geosampa-subgroup-arrow">▾</span></summary>
+              <div class="geosampa-subgroup-list">
+                <button class="geosampa-btn" id="btn-geo-lotes" onclick="toggleGeoLayer('lotes')" title="Contorno de cada lote cadastrado no GeoSampa (aproxime o zoom) — clique num lote pra ver Setor/Quadra/Lote">🏘 Lotes</button>
+                <button class="geosampa-btn" id="btn-geo-zona" onclick="toggleGeoLayer('zona')" title="Zoneamento oficial (LPUOS) de cada lote — colore por zona (ZC, ZM, ZEU etc.) e mostra os parâmetros construtivos ao clicar">🏙 Zoneamento</button>
+                <button class="geosampa-btn" id="btn-geo-ouc" onclick="toggleOucLayer()" title="Perímetros de Operações Urbanas Consorciadas e Áreas de Intervenção Urbana (setor/subsetor quando disponível)">🏛 Operações Urbanas</button>
+              </div>
+            </details>
+            <details class="geosampa-subgroup">
+              <summary class="geosampa-group-label">🚇 Metrô <span class="geosampa-subgroup-arrow">▾</span></summary>
+              <div class="geosampa-subgroup-list">
+                <button class="geosampa-btn" id="btn-geo-metro" onclick="toggleMetroLayer()" title="Linhas e estações de Metrô existentes (dados: Prefeitura de SP / Metrô-SP)">🚇 Metrô</button>
+                <button class="geosampa-btn" id="btn-geo-metro-projeto" onclick="toggleMetroProjetoLayer()" title="Linhas e estações de Metrô em projeto/planejamento (traçado sujeito a alterações — dados 2016/2025)">🚧 Metrô Projeto</button>
+                <button class="geosampa-btn" id="btn-geo-trem" onclick="toggleTremLayer()" title="Linhas e estações de Trem Metropolitano (CPTM/ViaMobilidade) em operação — traçado das linhas é esquemático (reta entre as estações reais), estações com coordenada exata (GeoSampa)">🚆 Trem</button>
+                <button class="geosampa-btn" id="btn-geo-trem-projeto" onclick="toggleTremProjetoLayer()" title="Linhas e estações de Trem Metropolitano em projeto/planejamento (Expresso Aeroporto, Linha 14-Ônix, extensões Jade/Esmeralda, ligação Alphaville-Campo Limpo) — traçado sujeito a alterações">🚧 Trem Projeto</button>
+              </div>
+            </details>
+            <details class="geosampa-subgroup">
+              <summary class="geosampa-group-label">☣️ Contaminação <span class="geosampa-subgroup-arrow">▾</span></summary>
+              <div class="geosampa-subgroup-list">
+                <button class="geosampa-btn" id="btn-geo-contamReab" onclick="toggleContamReabLayer()" title="Áreas contaminadas já reabilitadas (SVMA) — verde. Clique num polígono pra ver classificação, contaminante e restrição.">☣️ Área Contaminada Reabilitada</button>
+                <button class="geosampa-btn" id="btn-geo-contamSuspeita" onclick="toggleContamSuspeitaLayer()" title="Áreas potenciais/suspeitas de contaminação (SIGAC) — vermelho. Clique num polígono pra ver o lote/processo.">☣️ Área Suspeita de Contaminação</button>
+              </div>
+            </details>
+            <details class="geosampa-subgroup">
+              <summary class="geosampa-group-label">📜 Plantas &amp; Restrições <span class="geosampa-subgroup-arrow">▾</span></summary>
+              <div class="geosampa-subgroup-list">
+                <button class="geosampa-btn" id="btn-geo-areaPublica" onclick="toggleGeoLayer('areaPublica')" title="Cadastro de Área Pública (CAP)">🏛️ Área Pública (CAP)</button>
+                <button class="geosampa-btn" id="btn-geo-arruamento" onclick="toggleGeoLayer('arruamento')" title="Arruamento aprovado (ARR)">🛣️ Arruamento (ARR)</button>
+                <button class="geosampa-btn" id="btn-geo-passagem" onclick="toggleGeoLayer('passagem')" title="Passagem (PS)">🚶 Passagem (PS)</button>
+                <button class="geosampa-btn" id="btn-geo-decretoDupDis" onclick="toggleGeoLayer('decretoDupDis')" title="Plantas de Decreto de Utilidade Pública / Interesse Social (DUP/DIS)">📜 Planta de Decreto (DUP/DIS)</button>
+                <button class="geosampa-btn" id="btn-geo-expropriatoria" onclick="toggleGeoLayer('expropriatoria')" title="Plantas Expropriatórias">📜 Planta Expropriatória</button>
+                <button class="geosampa-btn" id="btn-geo-infra-viaria" onclick="toggleInfraViariaLayer()" title="Lei de Melhoramento Viário (perímetro indicativo de área afetada por abertura/alargamento de via — a certidão oficial é pelo Portal 156) e Faixa Não Edificável (faixa non aedificandi ao longo de córregos, do antigo Código de Obras de 1992) — dados do GeoSampa">🛣️ Melhoramento Viário / Faixa Não Edif.</button>
+              </div>
+            </details>
+            <details class="geosampa-subgroup">
+              <summary class="geosampa-group-label">🏺 Patrimônio &amp; Ambiente <span class="geosampa-subgroup-arrow">▾</span></summary>
+              <div class="geosampa-subgroup-list">
+                <button class="geosampa-btn" id="btn-geo-patrimonio" onclick="togglePatrimonioLayer()" title="Bens tombados (CONPRESP/CONDEPHAAT/IPHAN) — imóveis com restrição de demolição/reforma por tombamento">🏺 Patrimônio Histórico</button>
+                <button class="geosampa-btn" id="btn-geo-ambiental" onclick="toggleAmbientalLayer()" title="Áreas de Proteção Ambiental (APA Bororé-Colônia, APA Capivari-Monos) e corredores verdes — restrição ambiental à ocupação">🌳 Restrições Ambientais</button>
+              </div>
+            </details>
           </div>
         </details>
         <details class="geosampa-subgroup">
@@ -1729,16 +1762,20 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
           <summary class="geosampa-btn" title="Concorrentes geocodificados e camadas de mercado relacionadas (preço real de venda, imóveis à venda online)">🏢 Concorrentes <span class="geosampa-subgroup-arrow">▾</span></summary>
           <div class="geosampa-subgroup-list">
             <button class="geosampa-btn" id="btn-geo-conc" onclick="toggleConcorrentes()" title="Lançamentos curados no Radar de Empreendimentos (com foto)">🏢 Concorrentes</button>
-            <div class="geosampa-group-label">📊 Lançamentos (base Mercado) por ano</div>
-            <div style="display:flex;flex-wrap:wrap;gap:4px;margin:0 0 2px 4px;">
-              <button class="geosampa-btn" id="btn-geo-merc-2026" onclick="toggleConcorrentesMercado(2026)" title="Lançamentos de 2026 da base de Pesquisa de Mercado (mesma da aba Mercado)" style="flex:0 0 auto;margin-left:0;">2026</button>
-              <button class="geosampa-btn" id="btn-geo-merc-2025" onclick="toggleConcorrentesMercado(2025)" title="Lançamentos de 2025 da base de Pesquisa de Mercado (mesma da aba Mercado)" style="flex:0 0 auto;margin-left:0;">2025</button>
-              <button class="geosampa-btn" id="btn-geo-merc-2024" onclick="toggleConcorrentesMercado(2024)" title="Lançamentos de 2024 da base de Pesquisa de Mercado (mesma da aba Mercado)" style="flex:0 0 auto;margin-left:0;">2024</button>
-              <button class="geosampa-btn" id="btn-geo-merc-2023" onclick="toggleConcorrentesMercado(2023)" title="Lançamentos de 2023 da base de Pesquisa de Mercado (mesma da aba Mercado)" style="flex:0 0 auto;margin-left:0;">2023</button>
-              <button class="geosampa-btn" id="btn-geo-merc-2022" onclick="toggleConcorrentesMercado(2022)" title="Lançamentos de 2022 da base de Pesquisa de Mercado (mesma da aba Mercado)" style="flex:0 0 auto;margin-left:0;">2022</button>
-            </div>
-            <button class="geosampa-btn" id="btn-geo-merc-batch" onclick="iniciarGeocodeBatchMercado()" title="Geocodifica TODOS os lançamentos da Pesquisa de Mercado (todos os anos) de uma vez só, em background no servidor. Uma vez feito, fica salvo pra sempre — os pins aparecem na hora, sem precisar geocodificar de novo (nem pra você, nem pra ninguém que usar o app depois).">🌍 Pré-geocodificar tudo</button>
-            <div id="geo-merc-batch-status" style="display:none;font-size:12px;font-weight:700;color:#fde68a;background:rgba(0,0,0,.25);border-radius:6px;padding:4px 8px;margin:2px 4px 4px 4px;line-height:1.4;"></div>
+            <details class="geosampa-subgroup">
+              <summary class="geosampa-group-label">📊 Lançamentos (base Mercado) por ano <span class="geosampa-subgroup-arrow">▾</span></summary>
+              <div class="geosampa-subgroup-list">
+                <div style="display:flex;flex-wrap:wrap;gap:4px;margin:0 0 2px 4px;">
+                  <button class="geosampa-btn" id="btn-geo-merc-2026" onclick="toggleConcorrentesMercado(2026)" title="Lançamentos de 2026 da base de Pesquisa de Mercado (mesma da aba Mercado)" style="flex:0 0 auto;margin-left:0;">2026</button>
+                  <button class="geosampa-btn" id="btn-geo-merc-2025" onclick="toggleConcorrentesMercado(2025)" title="Lançamentos de 2025 da base de Pesquisa de Mercado (mesma da aba Mercado)" style="flex:0 0 auto;margin-left:0;">2025</button>
+                  <button class="geosampa-btn" id="btn-geo-merc-2024" onclick="toggleConcorrentesMercado(2024)" title="Lançamentos de 2024 da base de Pesquisa de Mercado (mesma da aba Mercado)" style="flex:0 0 auto;margin-left:0;">2024</button>
+                  <button class="geosampa-btn" id="btn-geo-merc-2023" onclick="toggleConcorrentesMercado(2023)" title="Lançamentos de 2023 da base de Pesquisa de Mercado (mesma da aba Mercado)" style="flex:0 0 auto;margin-left:0;">2023</button>
+                  <button class="geosampa-btn" id="btn-geo-merc-2022" onclick="toggleConcorrentesMercado(2022)" title="Lançamentos de 2022 da base de Pesquisa de Mercado (mesma da aba Mercado)" style="flex:0 0 auto;margin-left:0;">2022</button>
+                </div>
+                <button class="geosampa-btn" id="btn-geo-merc-batch" onclick="iniciarGeocodeBatchMercado()" title="Geocodifica TODOS os lançamentos da Pesquisa de Mercado (todos os anos) de uma vez só, em background no servidor. Uma vez feito, fica salvo pra sempre — os pins aparecem na hora, sem precisar geocodificar de novo (nem pra você, nem pra ninguém que usar o app depois).">🌍 Pré-geocodificar tudo</button>
+                <div id="geo-merc-batch-status" style="display:none;font-size:12px;font-weight:700;color:#fde68a;background:rgba(0,0,0,.25);border-radius:6px;padding:4px 8px;margin:2px 4px 4px 4px;line-height:1.4;"></div>
+              </div>
+            </details>
             <button class="geosampa-btn" id="btn-geo-itbiheat" onclick="toggleItbiHeatLayer()" title="Colorir os lotes pelo preço real de venda (ITBI) — aproxime o zoom">💰 Mapa Preços</button>
             <button class="geosampa-btn" id="btn-geo-itbipontos" onclick="toggleItbiPontosLayer()" title="Um ponto por lote com transação de ITBI nos últimos anos (tamanho = nº de transações) — estilo Atlas Dados">🔶 Transações ITBI</button>
             <button class="geosampa-btn" id="btn-geo-avenda" onclick="toggleAvendaMapMode()" title="Verificar se o imóvel está à venda online">🏠 À Venda</button>
@@ -2009,56 +2046,59 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
         <label>Observações <span style="font-weight:400;color:var(--muted);">(opcional)</span></label>
         <textarea id="f-obs" rows="3" placeholder="Notas gerais sobre o terreno..."></textarea>
       </div>
-      <div class="field-row">
-        <div class="field"><label>Setor</label><input type="text" id="f-setor" placeholder="ex: Consolação"></div>
-        <div class="field"><label>Quadra</label><input type="text" id="f-quadra" placeholder="ex: Q12"></div>
+      <div class="field-row" style="margin-bottom:6px;">
+        <div class="field" style="margin-bottom:0;"><label>Setor</label><input type="text" id="f-setor" placeholder="ex: Consolação"></div>
+        <div class="field" style="margin-bottom:0;"><label>Quadra</label><input type="text" id="f-quadra" placeholder="ex: Q12"></div>
       </div>
-      <div class="field" style="padding-bottom:4px;">
+      <div class="field" style="margin-bottom:6px;">
         <button type="button" onclick="buscarPorSetorQuadra()"
-          style="width:100%;font-size:12px;padding:7px;border:1px solid #0ea5e944;border-radius:var(--radius);background:#e0f2fe;color:#0369a1;cursor:pointer;font-weight:600;">
+          style="width:100%;font-size:12px;padding:6px;border:1px solid #0ea5e944;border-radius:var(--radius);background:#e0f2fe;color:#0369a1;cursor:pointer;font-weight:600;">
           🔍 Ver lotes deste Setor/Quadra no mapa
         </button>
       </div>
-      <div class="field" style="padding-bottom:4px;">
+      <div class="field" style="margin-bottom:6px;">
         <button type="button" onclick="_abrirGeoSampaSetorQuadra()"
           title="O site do GeoSampa não aceita link direto pra um Setor/Quadra — abre a página deles e já copia o código pra você colar no campo de busca."
-          style="width:100%;font-size:12px;padding:7px;border:1px solid #6b728044;border-radius:var(--radius);background:#f3f4f6;color:#374151;cursor:pointer;font-weight:600;">
+          style="width:100%;font-size:12px;padding:6px;border:1px solid #6b728044;border-radius:var(--radius);background:#f3f4f6;color:#374151;cursor:pointer;font-weight:600;">
           🌐 Abrir no GeoSampa (Setor/Quadra copiado)
         </button>
       </div>
-      <div class="field" style="padding-bottom:4px;">
+      <div class="field" style="margin-bottom:6px;">
         <button type="button" onclick="_regenerarPrintQuadraFiscal()"
           title="Refaz o print automático de demarcação (lotes com SQL/área) e salva na subpasta 'Quadra Fiscal' — use se o print não tiver sido salvo ao cadastrar o terreno."
-          style="width:100%;font-size:12px;padding:7px;border:1px solid #6b728044;border-radius:var(--radius);background:#f3f4f6;color:#374151;cursor:pointer;font-weight:600;">
+          style="width:100%;font-size:12px;padding:6px;border:1px solid #6b728044;border-radius:var(--radius);background:#f3f4f6;color:#374151;cursor:pointer;font-weight:600;">
           🗺️ Gerar/atualizar print da Quadra Fiscal
         </button>
       </div>
-      <div class="field">
+      <div class="field" style="margin-bottom:8px;">
         <label>Lotes (SQL)</label>
         <!-- Wrapper com rolagem horizontal: a grade de colunas (SQL + Área + IPTU
-        + 3 botões de ação) precisa de ~300px fixos + a largura do SQL, que não
-        cabe nos ~472px úteis do modal (520px - padding) — sem isso, o botão
-        🏛 (IPTU) ficava cortado na borda direita do modal, impossível de
-        clicar de verdade (bug real: cliques no botão não faziam nada). Cada
-        linha (cabeçalho/dados/total) ganha min-width pra rolar junto. -->
+        + 2 botões de ação) precisa de ~270px fixos + a largura do SQL, que não
+        cabe nos ~472px úteis do modal (520px - padding). Cada linha
+        (cabeçalho/dados/total) ganha min-width pra rolar junto.
+        IPTU: era um campo pra digitar o valor + botão 🏛 que abria um portal
+        com login que não funcionava direito. Trocado pelo mesmo link simples
+        "2ª via →" já usado (e testado, funciona) na Ficha de Aquisição — só
+        abre o portal oficial de 2ª via de notificação, sem tentar automatizar
+        login nem guardar valor manual (que não era usado em nenhum outro
+        lugar do app além do total aqui embaixo). -->
         <div style="overflow-x:auto;">
-        <div style="display:grid;grid-template-columns:1fr 90px 100px 32px 28px 28px;gap:4px;margin-bottom:4px;padding:0 2px;min-width:480px;">
+        <div style="display:grid;grid-template-columns:1fr 90px 70px 32px 28px;gap:4px;margin-bottom:2px;padding:0 2px;min-width:440px;">
           <span style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;">SQL</span>
           <span style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;text-align:right;">Área (m²)</span>
-          <span style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;text-align:right;">IPTU anual (R$)</span>
-          <span></span><span></span><span></span>
+          <span style="font-size:10px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;text-align:center;">IPTU</span>
+          <span></span><span></span>
         </div>
-        <div id="f-lotes-list" style="display:flex;flex-direction:column;gap:6px;margin-bottom:6px;min-width:480px;"></div>
-        <div style="display:grid;grid-template-columns:1fr 90px 100px 32px 28px 28px;gap:4px;margin:4px 0 8px;padding:4px 2px;border-top:1px solid var(--border);min-width:480px;">
+        <div id="f-lotes-list" style="display:flex;flex-direction:column;gap:3px;margin-bottom:3px;min-width:440px;"></div>
+        <div style="display:grid;grid-template-columns:1fr 90px 70px 32px 28px;gap:4px;margin:2px 0 4px;padding:3px 2px;border-top:1px solid var(--border);min-width:440px;">
           <span style="font-size:11px;font-weight:700;color:var(--text);">Total</span>
           <span id="f-lotes-total" style="font-size:11px;font-weight:700;color:var(--accent);text-align:right;">—</span>
-          <span id="f-lotes-total-iptu" style="font-size:11px;font-weight:700;color:#d97706;text-align:right;">—</span>
           <span></span><span></span><span></span>
         </div>
         </div>
         <button type="button" id="btn-salvar-areas" onclick="salvarApenasAreas()"
-          style="display:none;font-size:11px;padding:5px 14px;border-radius:6px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-family:var(--sans);font-weight:600;margin-bottom:6px;">💾 Salvar áreas/IPTU</button>
-        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:4px;">
+          style="display:none;font-size:11px;padding:5px 14px;border-radius:6px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-family:var(--sans);font-weight:600;margin-bottom:6px;">💾 Salvar áreas</button>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;">
           <button type="button" onclick="startDrawMode()" title="Desenhar polígono manualmente no mapa"
             style="font-size:12px;padding:5px 14px;border-radius:6px;border:1px solid #0ea5e944;background:#e0f2fe;color:#0369a1;cursor:pointer;font-family:var(--sans);">✏️ Criar polígono</button>
           <button type="button" id="btn-lotes-poligono" onclick="toggleSelectLotes(true)" title="Clique nos lotes do GeoSampa para montar o polígono">🏘️ Criar polígono selecionando lotes</button>
@@ -7629,11 +7669,6 @@ function updateLotesTotal(fillArea = true){
     const areaInp = document.getElementById('f-area');
     if(areaInp && total>0) areaInp.value = total.toLocaleString('pt-BR')+' m²';
   }
-  const iptus = [...document.querySelectorAll('.f-lote-iptu')]
-    .map(el=>parseFloat(el.value)||0);
-  const totalIptu = iptus.reduce((s,a)=>s+a,0);
-  const elIptu = document.getElementById('f-lotes-total-iptu');
-  if(elIptu) elIptu.textContent = totalIptu>0 ? totalIptu.toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2}) : '—';
   // Recheca duplicata por sobreposição de lote toda vez que a lista muda —
   // pega o caso de recadastro sobre um terreno vencido/descartado mesmo
   // quando o endereço digitado é diferente do original.
@@ -7646,21 +7681,19 @@ async function salvarApenasAreas(){
   if(idx<0) return;
   const btn = document.getElementById('btn-salvar-areas');
   if(btn){ btn.textContent='⏳ Salvando…'; btn.disabled=true; }
-  const lotes_areas = {}, lotes = [], lotes_enderecos = {}, lotes_iptu = {};
+  const lotes_areas = {}, lotes = [], lotes_enderecos = {};
   [...document.querySelectorAll('#f-lotes-list > div')].forEach(row=>{
     const sql = row.querySelector('.f-lote-sql')?.value.trim();
     const area = parseFloat(row.querySelector('.f-lote-area')?.value)||0;
-    const iptu = parseFloat(row.querySelector('.f-lote-iptu')?.value)||0;
     const endereco = row.dataset.endereco||'';
-    if(sql){ lotes.push(sql); if(area) lotes_areas[sql] = area; if(iptu) lotes_iptu[sql] = iptu; if(endereco) lotes_enderecos[sql] = endereco; }
+    if(sql){ lotes.push(sql); if(area) lotes_areas[sql] = area; if(endereco) lotes_enderecos[sql] = endereco; }
   });
   terrenos[idx].lotes_areas = lotes_areas;
   terrenos[idx].lotes = lotes;
   terrenos[idx].lotes_enderecos = lotes_enderecos;
-  terrenos[idx].lotes_iptu = lotes_iptu;
-  await dbUpdateTerreno(editingId, {lotes_areas, lotes, lotes_enderecos, lotes_iptu}).catch(console.warn);
+  await dbUpdateTerreno(editingId, {lotes_areas, lotes, lotes_enderecos}).catch(console.warn);
   if(btn){ btn.textContent='✅ Salvo!'; btn.disabled=false; }
-  setTimeout(()=>{ if(btn) btn.textContent='💾 Salvar áreas/IPTU'; }, 2000);
+  setTimeout(()=>{ if(btn) btn.textContent='💾 Salvar áreas'; }, 2000);
   renderAtaSection();
 }
 
@@ -7747,28 +7780,25 @@ async function _autoZonaPorSql(sqlVal){
   }catch(e){ /* silencioso */ }
 }
 
-function addLoteInput(sql='', area='', iptuAnual=''){
+function addLoteInput(sql='', area=''){
   const list = document.getElementById('f-lotes-list');
   if(!list) return;
   const row = document.createElement('div');
-  row.style.cssText = 'display:grid;grid-template-columns:1fr 90px 100px 32px 28px 28px;gap:4px;align-items:center;min-width:480px;';
+  row.style.cssText = 'display:grid;grid-template-columns:1fr 90px 70px 32px 28px;gap:4px;align-items:center;min-width:440px;';
   row.innerHTML = `<input type="text" class="f-lote-sql" value="${sql}"
     placeholder="ex: 045.105.0036-1"
-    style="font-size:12px;padding:6px 8px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--mono);background:var(--surface);color:var(--text);">
+    style="font-size:12px;padding:3px 8px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--mono);background:var(--surface);color:var(--text);">
     <input type="number" class="f-lote-area" value="${area}" min="0" step="0.01" placeholder="m²"
     oninput="updateLotesTotal()"
-    style="font-size:12px;padding:6px 6px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--mono);background:var(--surface);color:var(--text);text-align:right;">
-    <input type="number" class="f-lote-iptu" value="${iptuAnual}" min="0" step="0.01" placeholder="R$/ano" title="Valor anual do IPTU deste lote — copie do portal aberto pelo botão 🏛"
-    oninput="updateLotesTotal(false)"
-    style="font-size:12px;padding:6px 6px;border:1px solid #f59e0b44;border-radius:var(--radius);background:#fffbeb;color:#92400e;text-align:right;">
+    style="font-size:12px;padding:3px 6px;border:1px solid var(--border);border-radius:var(--radius);font-family:var(--mono);background:var(--surface);color:var(--text);text-align:right;">
+    <a href="https://meuiptu.sf.prefeitura.sp.gov.br/servicos/2vianotificacao" target="_blank" class="ficha-link"
+    title="Abre o portal oficial de 2ª via de notificação de lançamento (Prefeitura SP) — requer Senha Web do proprietário"
+    style="font-size:11px;text-align:center;white-space:nowrap;">2ª via →</a>
     <button type="button" onclick="this.parentElement.remove();updateLotesTotal();"
-      style="padding:5px 8px;border:1px solid var(--border);border-radius:var(--radius);background:none;cursor:pointer;color:var(--muted);font-size:12px;">✕</button>
+      style="padding:3px 8px;border:1px solid var(--border);border-radius:var(--radius);background:none;cursor:pointer;color:var(--muted);font-size:12px;">✕</button>
     <button type="button" class="btn-geosampa-lote" title="Consultar dados no GeoSampa"
       onclick="consultarGeoSampa(this.parentElement.querySelector('.f-lote-sql').value, this)"
-      style="padding:4px 6px;border:1px solid #0ea5e944;border-radius:var(--radius);background:#e0f2fe;color:#0369a1;cursor:pointer;font-size:11px;">🗺</button>
-    <button type="button" class="btn-iptu-lote" title="Consultar valor do IPTU deste lote (Prefeitura SP)"
-      onclick="buscarIptuValorLote(this.parentElement.querySelector('.f-lote-sql').value, this)"
-      style="padding:4px 6px;border:1px solid #f59e0b44;border-radius:var(--radius);background:#fffbeb;color:#d97706;cursor:pointer;font-size:11px;">🏛</button>`;
+      style="padding:2px 6px;border:1px solid #0ea5e944;border-radius:var(--radius);background:#e0f2fe;color:#0369a1;cursor:pointer;font-size:11px;">🗺</button>`;
   list.appendChild(row);
   const sqlInp = row.querySelector('.f-lote-sql');
   // Auto-preencher setor/quadra ao adicionar SQL existente
@@ -8214,7 +8244,6 @@ function getLotesFromForm(){
     .map(row=>({
       sql:      row.querySelector('.f-lote-sql')?.value.trim()||'',
       area:     parseFloat(row.querySelector('.f-lote-area')?.value)||0,
-      iptu:     parseFloat(row.querySelector('.f-lote-iptu')?.value)||0,
       endereco: row.dataset.endereco||''
     })).filter(r=>r.sql);
 }
@@ -8225,7 +8254,7 @@ function setLotesInForm(lotes, lotes_areas={}, lotes_enderecos={}, lotes_iptu={}
   list.innerHTML = '';
   // fallback: se lotes está vazio mas lotes_areas tem dados, reconstruir de lotes_areas
   const sqlList = (lotes && lotes.length) ? lotes : Object.keys(lotes_areas||{});
-  sqlList.forEach(sql => addLoteInput(sql, lotes_areas[sql]||'', (lotes_iptu||{})[sql]||''));
+  sqlList.forEach(sql => addLoteInput(sql, lotes_areas[sql]||''));
   updateLotesTotal(false);
 }
 
@@ -8516,7 +8545,6 @@ async function saveTerreno(){
   const _existing = editingId ? (terrenos.find(t=>t.id===editingId)||{}) : {};
   const _lotesForm = getLotesFromForm();
   const _lotesAreas = {}; _lotesForm.forEach(x=>{ if(x.area) _lotesAreas[x.sql]=x.area; });
-  const _lotesIptu = {}; _lotesForm.forEach(x=>{ if(x.iptu) _lotesIptu[x.sql]=x.iptu; });
   const _lotesEnderecos = {}; _lotesForm.forEach(x=>{ if(x.endereco) _lotesEnderecos[x.sql]=x.endereco; });
   const _novoStatus = document.getElementById('f-status').value;
   const _dataForm    = document.getElementById('f-data').value;
@@ -8590,7 +8618,6 @@ async function saveTerreno(){
     quadra:    document.getElementById('f-quadra').value.trim(),
     lotes:     _lotesForm.map(x=>x.sql),
     lotes_areas: _lotesAreas,
-    lotes_iptu: _lotesIptu,
     lotes_enderecos: _lotesEnderecos,
     status:    _novoStatus,
     data:      _dataForm,
