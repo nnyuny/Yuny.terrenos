@@ -538,6 +538,15 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
 .btn-ata-add:hover { opacity:.85; }
 .geo-lote-tip { background:#1a3c4d; color:#fff; border:none; border-radius:6px; font-size:11px; font-weight:600; padding:4px 8px; box-shadow:0 2px 8px #0004; display:none !important; }
 #map.info-lote-on .geo-lote-tip { display:block !important; }
+/* Rótulo fixo (permanent) das Operações Urbanas — sempre visível sobre o
+   polígono, sem precisar clicar nem passar o mouse (pedido da Kamila). */
+.geo-ouc-label {
+  background:rgba(26,60,77,.88); color:#fff; border:none; border-radius:5px;
+  font-size:10px; font-weight:700; padding:2px 6px; box-shadow:0 1px 4px #0005;
+  text-align:center; white-space:normal; max-width:140px; line-height:1.25;
+  pointer-events:none;
+}
+.geo-ouc-label::before { display:none; } /* remove a setinha padrão do tooltip Leaflet */
 /* ── ITBI ── */
 .itbi-panel{background:#fff;border:1px solid var(--border);border-radius:10px;padding:14px 16px;margin-top:8px;}
 .itbi-panel-title{font-size:12px;font-weight:700;color:var(--navy,#1a3c4d);margin-bottom:10px;display:flex;align-items:center;gap:6px;}
@@ -1140,9 +1149,9 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
 }
 .geosampa-ctrl-list { display:flex; flex-direction:column; gap:4px; }
 .geosampa-toggle {
-  display:none; background:#2C2C2C; border:1.5px solid #2C2C2C; border-radius:8px;
-  padding:6px 9px; font-size:13px; cursor:pointer; color:#fff;
-  box-shadow:0 2px 8px rgba(0,0,0,.25); align-items:center; gap:4px;
+  display:none; background:#00B0B9; border:1.5px solid #00B0B9; border-radius:20px;
+  padding:9px 16px; font-size:14px; font-weight:700; cursor:pointer; color:#fff;
+  box-shadow:0 3px 10px rgba(0,0,0,.35); align-items:center; gap:6px;
 }
 #geosampa-toggle-arrow { display:inline-block; transition:transform .2s; }
 .geosampa-btn {
@@ -1154,10 +1163,10 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
 .geosampa-btn:hover { background:#3a3a3a; border-color:#3a3a3a; }
 .geosampa-btn.active { background:var(--accent); color:#fff; border-color:var(--accent); }
 .geosampa-clear-btn {
-  background:transparent; border:1.5px dashed rgba(255,255,255,.4); color:#ddd;
+  background:#2C2C2C; border:1.5px solid #666; color:#fff;
   justify-content:center;
 }
-.geosampa-clear-btn:hover { background:rgba(255,255,255,.1); border-color:#fff; color:#fff; }
+.geosampa-clear-btn:hover { background:#3a3a3a; border-color:#fff; color:#fff; }
 .geosampa-search-wrap {
   display:flex; align-items:center; gap:6px; background:#1a1a1a;
   border:1.5px solid #3a3a3a; border-radius:8px; padding:5px 8px;
@@ -1241,7 +1250,10 @@ summary.geosampa-group-label {
 @media (max-width:768px){
   .geosampa-toggle { display:flex; }
   .geosampa-ctrl-list { display:none; }
-  .geosampa-ctrl.aberto .geosampa-ctrl-list { display:flex; }
+  .geosampa-ctrl.aberto .geosampa-ctrl-list {
+    display:flex; max-height:70vh; overflow-y:auto; max-width:78vw;
+    background:#1a1a1acc; padding:8px; border-radius:10px; box-shadow:0 4px 16px rgba(0,0,0,.35);
+  }
   .geosampa-ctrl.aberto #geosampa-toggle-arrow { transform:rotate(180deg); }
 }
 
@@ -1378,19 +1390,23 @@ summary.geosampa-group-label {
 .merc-tamanho-donut-total{font-size:15px;font-weight:800;color:#1a3c4d;text-align:center;margin-top:10px;}
 .merc-tamanho-donut-yuny{font-size:11px;font-weight:700;color:#f97316;text-align:center;margin-top:4px;}
 @media (max-width:900px){ .merc-tamanho-cards{grid-template-columns:repeat(2,1fr);} }
-.merc-vocacao-wrap{display:flex;flex-direction:column;gap:12px;}
-.merc-vocacao-legend{display:flex;flex-wrap:wrap;gap:12px;font-size:11px;color:#6b7280;margin-bottom:2px;}
-.merc-vocacao-legend-item{display:flex;align-items:center;gap:5px;}
-.merc-vocacao-legend-swatch{width:10px;height:10px;border-radius:3px;display:inline-block;flex:none;}
-.merc-vocacao-regiao{border:1px solid #f3f4f6;border-radius:10px;padding:10px 14px 12px;background:#fafbfc;}
-.merc-vocacao-header{display:flex;justify-content:space-between;align-items:baseline;gap:10px;margin-bottom:6px;}
-.merc-vocacao-reg-nome{font-size:13px;font-weight:800;color:#1a3c4d;}
-.merc-vocacao-reg-total{font-size:11px;color:#9ca3af;white-space:nowrap;}
-.merc-vocacao-bar-row{display:flex;align-items:center;gap:8px;margin-top:5px;}
-.merc-vocacao-bar-label{flex:0 0 56px;font-size:9px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.03em;}
-.merc-vocacao-bar{flex:1;display:flex;height:22px;border-radius:5px;overflow:hidden;background:#eef0f2;}
-.merc-vocacao-seg{display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:800;color:#fff;white-space:nowrap;overflow:hidden;}
-.merc-vocacao-bar.is-estoque .merc-vocacao-seg{opacity:.55;}
+.merc-vocacao-wrap{display:flex;flex-direction:column;gap:10px;}
+/* Heatmap Região × Faixa de Tamanho (substituiu as barras empilhadas — a
+   Kamila achou a barra empilhada difícil de comparar região com região;
+   numa tabela/heatmap dá pra olhar a mesma coluna em todas as linhas). */
+.merc-vocacao-toggle{display:flex;gap:6px;}
+.merc-vocacao-toggle-btn{font-size:11px;font-weight:700;padding:5px 12px;border-radius:6px;border:1px solid #e5e7eb;background:#fff;color:#6b7280;cursor:pointer;font-family:var(--sans);}
+.merc-vocacao-toggle-btn:hover{border-color:#00B0B9;color:#00B0B9;}
+.merc-vocacao-toggle-btn.active{background:#00B0B9;border-color:#00B0B9;color:#fff;}
+.merc-vocacao-table-wrap{overflow-x:auto;}
+.merc-vocacao-table{width:100%;min-width:560px;border-collapse:separate;border-spacing:0;font-size:12px;}
+.merc-vocacao-table th{font-size:10px;font-weight:700;color:#9ca3af;text-transform:uppercase;letter-spacing:.03em;text-align:center;padding:6px 8px 8px;border-bottom:2px solid #f3f4f6;white-space:nowrap;}
+.merc-vocacao-table th:first-child{text-align:left;}
+.merc-vocacao-table td{text-align:center;font-weight:800;padding:12px 8px;border-bottom:4px solid #fff;}
+.merc-vocacao-th-reg{text-align:left !important;font-weight:800 !important;color:#1a3c4d;background:#fafbfc !important;white-space:nowrap;padding-right:16px !important;}
+.merc-vocacao-reg-total{font-size:10px;font-weight:600;color:#9ca3af;margin-top:2px;}
+.merc-vocacao-scale{display:flex;align-items:center;gap:6px;font-size:10px;color:#9ca3af;margin-top:2px;}
+.merc-vocacao-scale-bar{width:90px;height:8px;border-radius:4px;background:linear-gradient(90deg,#eef7f8,#00B0B9);}
 .merc-drill-panel{position:fixed;z-index:9999;background:#fff;border:1px solid #e5e7eb;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);padding:16px 18px;min-width:340px;max-width:500px;max-height:420px;overflow-y:auto;display:none;}
 .merc-drill-panel .dp-title{font-weight:700;color:#1a3c4d;font-size:13px;margin-bottom:10px;display:flex;align-items:center;justify-content:space-between;gap:8px;}
 .merc-drill-panel .dp-close{cursor:pointer;color:#9ca3af;font-size:18px;line-height:1;flex-shrink:0;padding:0 2px;}
@@ -1692,7 +1708,7 @@ summary.geosampa-group-label {
     <!-- GEOSAMPA TOGGLE -->
     <div class="geosampa-ctrl" id="geosampa-ctrl">
       <button class="geosampa-toggle" id="geosampa-toggle-btn" onclick="toggleGeoCtrlPanel()" title="Camadas do mapa">
-        <span id="geosampa-toggle-arrow">‹</span> 🗺️
+        🗺️ Camadas <span id="geosampa-toggle-arrow">‹</span>
       </button>
       <div class="geosampa-ctrl-list" id="geosampa-ctrl-list">
         <div class="geosampa-search-wrap">
@@ -1745,6 +1761,31 @@ summary.geosampa-group-label {
               <div class="geosampa-subgroup-list">
                 <button class="geosampa-btn" id="btn-geo-patrimonio" onclick="togglePatrimonioLayer()" title="Bens tombados (CONPRESP/CONDEPHAAT/IPHAN) — imóveis com restrição de demolição/reforma por tombamento">🏺 Patrimônio Histórico</button>
                 <button class="geosampa-btn" id="btn-geo-ambiental" onclick="toggleAmbientalLayer()" title="Áreas de Proteção Ambiental (APA Bororé-Colônia, APA Capivari-Monos) e corredores verdes — restrição ambiental à ocupação">🌳 Restrições Ambientais</button>
+                <details class="geosampa-subgroup">
+                  <summary class="geosampa-group-label">🏛️ Tombamento <span class="geosampa-subgroup-arrow">▾</span></summary>
+                  <div class="geosampa-subgroup-list">
+                    <button class="geosampa-btn" id="btn-geo-patcult-bairro_ambiental" onclick="togglePatcultLayer('bairro_ambiental')" title="Bairro Ambiental — área com conjunto de imóveis preservados pelo entorno/paisagem urbana">🏘️ Bairro Ambiental</button>
+                    <button class="geosampa-btn" id="btn-geo-patcult-lugar_paisagistico" onclick="togglePatcultLayer('lugar_paisagistico')" title="Lugar de Interesse Paisagístico — área com proteção paisagística (GeoSampa)">🌄 Lugar de Interesse Paisagístico</button>
+                    <button class="geosampa-btn" id="btn-geo-patcult-envoltoria_conpresp" onclick="togglePatcultLayer('envoltoria_conpresp')" title="Área Envoltória CONPRESP — entorno de bem tombado municipal, com restrição de gabarito/uso pra preservar a visada">🟡 Área Envoltória CONPRESP</button>
+                    <button class="geosampa-btn" id="btn-geo-patcult-envoltoria_condephaat" onclick="togglePatcultLayer('envoltoria_condephaat')" title="Área Envoltória CONDEPHAAT — entorno de bem tombado estadual, com restrição de gabarito/uso pra preservar a visada">🟠 Área Envoltória CONDEPHAAT</button>
+                    <button class="geosampa-btn" id="btn-geo-patcult-envoltoria_iphan" onclick="togglePatcultLayer('envoltoria_iphan')" title="Área Envoltória IPHAN — entorno de bem tombado federal, com restrição de gabarito/uso pra preservar a visada">🔵 Área Envoltória IPHAN</button>
+                    <button class="geosampa-btn" id="btn-geo-patcult-acervo_tombado" onclick="togglePatcultLayer('acervo_tombado')" title="Acervo Tombado — elementos tombados (mobiliário urbano, painéis, esculturas etc.), não o imóvel inteiro">🖼️ Acervo Tombado</button>
+                  </div>
+                </details>
+                <details class="geosampa-subgroup">
+                  <summary class="geosampa-group-label">⛏️ Arqueologia <span class="geosampa-subgroup-arrow">▾</span></summary>
+                  <div class="geosampa-subgroup-list">
+                    <button class="geosampa-btn" id="btn-geo-patcult-area_arqueologica" onclick="togglePatcultLayer('area_arqueologica')" title="Área de Interesse Arqueológico — perímetro com potencial arqueológico mapeado">⛏️ Área de Interesse Arqueológico</button>
+                    <button class="geosampa-btn" id="btn-geo-patcult-sitio_arqueologico" onclick="togglePatcultLayer('sitio_arqueologico')" title="Sítio Arqueológico — local com vestígios arqueológicos já identificados/registrados">🏺 Sítio Arqueológico</button>
+                    <button class="geosampa-btn" id="btn-geo-patcult-ocorrencia_arqueologica" onclick="togglePatcultLayer('ocorrencia_arqueologica')" title="Ocorrência Arqueológica — achado pontual registrado, sem virar sítio formal">🔍 Ocorrência Arqueológica</button>
+                    <button class="geosampa-btn" id="btn-geo-patcult-bem_arqueologico" onclick="togglePatcultLayer('bem_arqueologico')" title="Bem de Interesse Arqueológico — bem/imóvel com valor arqueológico reconhecido">🏛️ Bem de Interesse Arqueológico</button>
+                    <button class="geosampa-btn" id="btn-geo-patcult-bem_registrado" onclick="togglePatcultLayer('bem_registrado')" title="Bem Registrado — patrimônio imaterial/cultural registrado (não tombado)">📋 Bem Registrado</button>
+                    <button class="geosampa-btn" id="btn-geo-patcult-selo_valor_cultural" onclick="togglePatcultLayer('selo_valor_cultural')" title="Selo de Valor Cultural — reconhecimento municipal de valor cultural do imóvel/local">🏷️ Selo de Valor Cultural</button>
+                    <button class="geosampa-btn" id="btn-geo-patcult-memoria_paulistana" onclick="togglePatcultLayer('memoria_paulistana')" title="Inventário Memória Paulistana — cadastro municipal de imóveis com valor histórico/cultural pra referência (sem restrição de tombamento)">📖 Inventário Memória Paulistana</button>
+                    <button class="geosampa-btn" id="btn-geo-patcult-zepec_apc" onclick="togglePatcultLayer('zepec_apc')" title="ZEPEC-APC — Zona Especial de Preservação Cultural (Área de Proteção Cultural), instrumento do Plano Diretor">🏳️ ZEPEC-APC</button>
+                    <button class="geosampa-btn" id="btn-geo-patcult-monumento" onclick="togglePatcultLayer('monumento')" title="Monumento — estátuas, memoriais e outros marcos urbanos cadastrados">🗿 Monumento</button>
+                  </div>
+                </details>
               </div>
             </details>
           </div>
@@ -5539,6 +5580,127 @@ async function _loadVecPatrimonio(){
   }catch(e){ console.warn('[patrimonio]', e); }
 }
 
+// ─── Patrimônio Cultural — demais camadas (Tombamento + Arqueologia) ────────
+// A pedido da Kamila (print da árvore de camadas do próprio GeoSampa): além
+// do Bem Tombado (_loadVecPatrimonio acima), trouxe todo o resto da seção
+// "Patrimônio Cultural" — Bairro Ambiental, Lugar de Interesse Paisagístico,
+// as 3 Áreas Envoltória (CONPRESP/CONDEPHAAT/IPHAN), Acervo Tombado, e toda a
+// seção Arqueologia (Área/Sítio/Ocorrência/Bem arqueológico, Bem Registrado,
+// Selo de Valor Cultural, Inventário Memória Paulistana, ZEPEC-APC, Monumento).
+// Cada botão liga/desliga sua própria camada (_patcultActive[key]), mas todas
+// compartilham 1 layer group só (_vecPatcultLayer) e 1 endpoint genérico
+// (/api/geosampa-patcult?layer=<key>) que troca só o typeName no backend.
+// Não sei de antemão o nome exato de cada campo em cada camada (schemas
+// variam) — o popup tenta achar um "nome" por uma lista de candidatos comuns
+// e, além disso, sempre mostra uma tabela com TODAS as propriedades cruas
+// devolvidas pelo GeoSampa, pra nenhuma informação ficar escondida por eu não
+// ter adivinhado o nome certo do campo.
+const PATCULT_LABELS = {
+  bairro_ambiental:        'Bairro Ambiental',
+  lugar_paisagistico:      'Lugar de Interesse Paisagístico',
+  envoltoria_conpresp:     'Área Envoltória CONPRESP',
+  envoltoria_condephaat:   'Área Envoltória CONDEPHAAT',
+  envoltoria_iphan:        'Área Envoltória IPHAN',
+  acervo_tombado:          'Acervo Tombado',
+  area_arqueologica:       'Área de Interesse Arqueológico',
+  sitio_arqueologico:      'Sítio Arqueológico',
+  ocorrencia_arqueologica: 'Ocorrência Arqueológica',
+  bem_arqueologico:        'Bem de Interesse Arqueológico',
+  bem_registrado:          'Bem Registrado',
+  selo_valor_cultural:     'Selo de Valor Cultural',
+  memoria_paulistana:      'Inventário Memória Paulistana',
+  zepec_apc:               'ZEPEC-APC',
+  monumento:               'Monumento',
+};
+const PATCULT_CORES = {
+  bairro_ambiental:'#84cc16', lugar_paisagistico:'#f97316', envoltoria_conpresp:'#eab308',
+  envoltoria_condephaat:'#f59e0b', envoltoria_iphan:'#0ea5e9', acervo_tombado:'#a16207',
+  area_arqueologica:'#7c3aed', sitio_arqueologico:'#8b5cf6', ocorrencia_arqueologica:'#a855f7',
+  bem_arqueologico:'#c026d3', bem_registrado:'#db2777', selo_valor_cultural:'#e11d48',
+  memoria_paulistana:'#0d9488', zepec_apc:'#059669', monumento:'#78716c',
+};
+let _vecPatcultLayer = null;
+const _patcultActive = {};
+
+function togglePatcultLayer(key){
+  _patcultActive[key] = !_patcultActive[key];
+  const btn = document.getElementById('btn-geo-patcult-'+key);
+  if(btn) btn.classList.toggle('active', _patcultActive[key]);
+  const algumAtivo = Object.values(_patcultActive).some(Boolean);
+  if(_patcultActive[key] && map.getZoom() < VEC_PATRIMONIO_MIN){
+    showToast('🔍 Aproxime o zoom pra ver "'+(PATCULT_LABELS[key]||key)+'"');
+  }
+  if(algumAtivo) _loadVecPatcult();
+  else if(_vecPatcultLayer) _vecPatcultLayer.clearLayers();
+}
+
+async function _loadVecPatcult(){
+  const ativos = Object.keys(_patcultActive).filter(k=>_patcultActive[k]);
+  if(!ativos.length){ if(_vecPatcultLayer) _vecPatcultLayer.clearLayers(); return; }
+  const zoom = map.getZoom();
+  if(zoom < VEC_PATRIMONIO_MIN){
+    if(_vecPatcultLayer) _vecPatcultLayer.clearLayers();
+    return;
+  }
+  const b = map.getBounds();
+  const qs = `minLat=${b.getSouth()}&minLng=${b.getWest()}&maxLat=${b.getNorth()}&maxLng=${b.getEast()}&max=200`;
+  if(!_vecPatcultLayer){ _vecPatcultLayer = L.layerGroup().addTo(map); }
+  else { _vecPatcultLayer.clearLayers(); }
+  await Promise.all(ativos.map(async key=>{
+    try{
+      const r = await fetch(`${API_BASE}/api/geosampa-patcult?layer=${key}&${qs}`);
+      if(!r.ok) return;
+      const gj = await r.json();
+      const feats = gj.features||[];
+      if(!feats.length) return;
+      const isLonLat = _detectLonLat(feats);
+      const cor = PATCULT_CORES[key] || '#6b7280';
+      const label = PATCULT_LABELS[key] || key;
+      feats.forEach(f=>{
+        const p = f.properties||{};
+        const nome = _patcultNomeDe(p) || label;
+        const popupHtml = _patcultPopupHtml(label, nome, p);
+        if(f.geometry?.type === 'Point'){
+          const [x,y] = f.geometry.coordinates;
+          const latlng = isLonLat ? [y,x] : [x,y];
+          const marker = L.circleMarker(latlng, { radius:7, color:cor, weight:2, fillColor:cor, fillOpacity:0.75 });
+          marker.bindPopup(popupHtml);
+          marker.bindTooltip(label+': '+nome, { sticky:true, className:'geo-lote-tip' });
+          _vecPatcultLayer.addLayer(marker);
+          return;
+        }
+        _geomToLatLngs(f.geometry, isLonLat).forEach(latlngs=>{
+          if(!latlngs.length) return;
+          const poly = L.polygon(latlngs, { color:cor, weight:2, fillColor:cor, fillOpacity:0.18 });
+          poly.bindPopup(popupHtml);
+          poly.bindTooltip(label+': '+nome, { sticky:true, className:'geo-lote-tip' });
+          _vecPatcultLayer.addLayer(poly);
+        });
+      });
+    }catch(e){ console.warn(`[patcult:${key}]`, e); }
+  }));
+}
+
+// Tenta achar um campo de "nome" entre os candidatos mais comuns nas camadas
+// patrimonio_cultural_* do GeoSampa — os nomes de campo variam de camada pra
+// camada e não estão documentados publicamente, então tenta vários antes de
+// desistir (aí o popup cai pro rótulo genérico da camada + tabela crua).
+function _patcultNomeDe(p){
+  const candidatos = [
+    'nm_bem','nm_denominacao','nm_nome','tx_nome','nm_imovel','nm_edificacao',
+    'nm_bairro_ambiental','nm_lugar','nm_area_tombada','nm_sitio','nm_monumento',
+    'nm_bem_cultural','nm_endereco','ds_denominacao','ds_nome',
+  ];
+  for(const c of candidatos){ if(p[c]) return String(p[c]); }
+  return '';
+}
+function _patcultPopupHtml(label, nome, p){
+  const rows = Object.entries(p).filter(([,v])=>v!==null && v!=='' && typeof v!=='object')
+    .map(([k,v])=>`<tr><td style="color:#666;padding:2px 8px 2px 0;font-size:11px;font-family:monospace">${k}</td><td style="font-weight:600;font-size:11px">${escHtml(String(v))}</td></tr>`).join('');
+  return `<b style="font-size:13px">🏛️ ${escHtml(label)}</b><br><span style="color:#666">${escHtml(nome)}</span>`+
+    (rows ? `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px;color:#555;">Ver dados completos</summary><table style="margin-top:4px">${rows}</table></details>` : '');
+}
+
 // ─── Contaminação (Área Contaminada Reabilitada SVMA + Área Suspeita SIGAC) ──
 // Antes eram 2 camadas WMS raster (sem clique/observação) — a pedido da
 // Kamila, viraram polígonos vetoriais clicáveis, no mesmo padrão das outras
@@ -6367,6 +6529,16 @@ function _oucLei(props){
 function _oucLink(props){
   return props?.tx_link_lei_aprovacao || props?.tx_link_lei_mapa || '';
 }
+// Texto do rótulo fixo (sempre visível, sem precisar clicar/passar o mouse) —
+// a pedido da Kamila, pra identificar de cara qual operação urbana e, quando
+// aplicável, qual setor/subsetor está olhando.
+function _oucLabelText(layerKey, nome, gran){
+  if(layerKey === 'subsetor_ouc'){
+    return (gran && !gran.includes('não classificado')) ? `${nome} — ${gran}` : nome;
+  }
+  if(layerKey === 'pinheiros_parametro' || layerKey === 'pinheiros_perimetro') return gran;
+  return nome;
+}
 
 function toggleOucLayer(){
   _oucMode = !_oucMode;
@@ -6416,7 +6588,11 @@ async function _loadVecOUC(){
             `Lei: ${lei}` +
             (link ? `<br><a href="${link}" target="_blank" rel="noopener">Ver lei ↗</a>` : '')
           );
-          poly.bindTooltip(nome, { sticky:true, className:'geo-lote-tip' });
+          // Rótulo fixo (permanent:true) no centroide do polígono — mostra
+          // nome + setor/subsetor direto no mapa, sem precisar clicar.
+          poly.bindTooltip(_oucLabelText(layerKey, nome, gran), {
+            permanent:true, direction:'center', className:'geo-ouc-label', interactive:false
+          });
           _vecOucLayer.addLayer(poly);
         });
       });
@@ -6427,7 +6603,7 @@ async function _loadVecOUC(){
 // Debounce: carrega vetorial 400ms após parar de mover
 function _scheduleVecLoad(){
   clearTimeout(_vecMoveTimer);
-  _vecMoveTimer = setTimeout(()=>{ _loadVecLotes(); _loadVecItbiHeat(); _loadVecItbiPontos(); _loadVecPgvRua(); _loadVecOUC(); _loadVecPatrimonio(); _loadVecAmbiental(); _loadVecInfraViaria(); _loadVecContaminacao(); }, 400);
+  _vecMoveTimer = setTimeout(()=>{ _loadVecLotes(); _loadVecItbiHeat(); _loadVecItbiPontos(); _loadVecPgvRua(); _loadVecOUC(); _loadVecPatrimonio(); _loadVecPatcult(); _loadVecAmbiental(); _loadVecInfraViaria(); _loadVecContaminacao(); }, 400);
 }
 map.on('moveend', _scheduleVecLoad);
 map.on('zoomend', _scheduleVecLoad);
@@ -8106,11 +8282,93 @@ async function _preencherParamUrbNoPainelLote(sql, setor, quadra, lote){
     const feat = gj?.features?.[0];
     const c = feat ? _loteCentroid(feat) : null; // [lng, lat]
     if(!c) throw new Error('sem geometria');
-    const zona = await _paramUrbZonaReal(c[1], c[0]);
+    const lat = c[1], lng = c[0];
+
+    // Primeiro checa se o lote cai dentro de alguma Operação Urbana
+    // Consorciada ou da AIU Arco Pinheiros — nesses casos o Quadro 3 padrão
+    // da LPUOS NÃO vale, cada operação tem lei própria (mesma lógica já
+    // usada na Ficha de Aquisição/Estudo de Massa: _carregarOucInfo /
+    // _carregarPinheirosInfo). Só cai no zoneamento comum (LPUOS) se o lote
+    // estiver fora de qualquer operação mapeada.
+    let oucInfo = null, pinheirosInfo = null, pinheirosCod = '';
+    try{
+      const rOuc = await fetch(`${API_BASE}/api/geosampa-ouc?layer=subsetor_ouc&lat=${lat}&lng=${lng}`);
+      const gjOuc = await rOuc.json();
+      const fOuc = (gjOuc.features||[])[0];
+      if(fOuc){
+        const p = fOuc.properties||{};
+        oucInfo = {
+          operacao: String(p.nm_operacao_urbana||'').toUpperCase(),
+          setor: p.nm_setor_operacao_urbana || '',
+          subsetor: p.nm_subsetor_operacao_urbana || '',
+          lei: p.tx_lei_subsetor || '',
+        };
+      }
+    }catch(e){ console.warn('[geosampa-panel] ouc:', e); }
+    if(!oucInfo){
+      try{
+        const rPin = await fetch(`${API_BASE}/api/geosampa-ouc?layer=pinheiros_parametro&lat=${lat}&lng=${lng}`);
+        const gjPin = await rPin.json();
+        const fPin = (gjPin.features||[])[0];
+        if(fPin){
+          pinheirosCod = fPin.properties?.cd_parametro || '';
+          pinheirosInfo = AIU_PINHEIROS_PARAMS[pinheirosCod] || null;
+        }
+      }catch(e){ console.warn('[geosampa-panel] pinheiros:', e); }
+    }
+
     const stillThere = document.getElementById('geosampa-panel-zona');
     if(!stillThere) return; // painel fechado enquanto buscava
+
+    if(oucInfo){
+      const isFL = oucInfo.operacao === 'FARIA LIMA';
+      const setorTxt = [oucInfo.setor, oucInfo.subsetor].filter(Boolean).join(' / ');
+      const linhas = [
+        ['Operação Urbana', oucInfo.operacao || '—'],
+        ['Setor / Subsetor', setorTxt || '—'],
+      ];
+      if(isFL){
+        linhas.push(
+          ['CA máximo (toda a operação)', OUCFL_CA_PADRAO.toFixed(1)+' padrão (até '+OUCFL_CA_COTA_SOLID.toFixed(1)+' com Cota de Solidariedade)'],
+          ['Gabarito', 'Sem limite publicado (controlado por CA/CEPAC, não por altura)'],
+          ['Outorga onerosa', 'Paga em CEPAC — não é gratuita'],
+        );
+      } else {
+        if(oucInfo.lei) linhas.push(['Lei do subsetor', oucInfo.lei]);
+      }
+      stillThere.innerHTML = `<table style="width:100%;border-collapse:collapse;">
+        ${linhas.map(([label,value])=>`<tr>
+          <td style="padding:5px 10px;color:#555;font-size:12px;border-bottom:1px solid #eee;width:50%;font-weight:600;">${label}</td>
+          <td style="padding:5px 10px;color:#111;font-size:12px;border-bottom:1px solid #eee;">${escHtml(String(value))}</td>
+        </tr>`).join('')}
+      </table>
+      ${!isFL ? `<div style="padding:8px 10px;font-size:11px;color:#888;line-height:1.4;">⚠️ CA/gabarito dessa operação ainda não estão mapeados neste app — consulte a lei específica ou use o Estudo de Massa (parâmetros manuais).</div>` : ''}`;
+      return;
+    }
+
+    if(pinheirosInfo){
+      const linhas = [
+        ['Operação', 'AIU Arco Pinheiros'],
+        ['Código do parâmetro', pinheirosCod+' ('+pinheirosInfo.classificacao+')'],
+        ['CA máximo', String(pinheirosInfo.ca)],
+        ['Gabarito', pinheirosInfo.gab==='NA' ? 'Sem limite publicado' : pinheirosInfo.gab+' m'],
+      ];
+      if(pinheirosInfo.cotaParte) linhas.push(['Cota-parte mín.', pinheirosInfo.cotaParte+' m²/unid.']);
+      stillThere.innerHTML = `<table style="width:100%;border-collapse:collapse;">
+        ${linhas.map(([label,value])=>`<tr>
+          <td style="padding:5px 10px;color:#555;font-size:12px;border-bottom:1px solid #eee;width:50%;font-weight:600;">${label}</td>
+          <td style="padding:5px 10px;color:#111;font-size:12px;border-bottom:1px solid #eee;">${escHtml(String(value))}</td>
+        </tr>`).join('')}
+      </table>`;
+      return;
+    }
+
+    // Fora de qualquer Operação Urbana mapeada — segue o zoneamento comum (LPUOS)
+    const zona = await _paramUrbZonaReal(lat, lng);
+    const stillThere2 = document.getElementById('geosampa-panel-zona');
+    if(!stillThere2) return;
     if(!zona){
-      stillThere.innerHTML = `<div style="padding:8px 10px;font-size:11px;color:#888;">Não foi possível identificar a zona pela localização.</div>`;
+      stillThere2.innerHTML = `<div style="padding:8px 10px;font-size:11px;color:#888;">Não foi possível identificar a zona pela localização.</div>`;
       return;
     }
     const busca = _paramUrbBuscaZona(zona);
@@ -8120,7 +8378,7 @@ async function _preencherParamUrbNoPainelLote(sql, setor, quadra, lote){
       ['CA máximo', zp?.ca_max!=null ? zp.ca_max.toLocaleString('pt-BR') : (zp?.ca!=null ? zp.ca.toLocaleString('pt-BR') : '')],
       ['Gabarito', zp ? (zp.gab!=null ? zp.gab+' m' : 'Livre') : ''],
     ].filter(([,v])=>v!=='' && v!=null);
-    stillThere.innerHTML = `<table style="width:100%;border-collapse:collapse;">
+    stillThere2.innerHTML = `<table style="width:100%;border-collapse:collapse;">
       ${linhas.map(([label,value])=>`<tr>
         <td style="padding:5px 10px;color:#555;font-size:12px;border-bottom:1px solid #eee;width:50%;font-weight:600;">${label}</td>
         <td style="padding:5px 10px;color:#111;font-size:12px;border-bottom:1px solid #eee;">${escHtml(String(value))}</td>
@@ -23313,10 +23571,21 @@ function _mprospecBuscarMesmoProprietario(propEnc){
     </div>
   </div>
 
-  <!-- Vocação por Região — barras empilhadas Região × Faixa de Tamanho -->
+  <!-- Painel Faixas de Ticket (estilo Secovi) — junto do painel de Faixas de
+  Tamanho acima, já que são os dois "Unidades Lançadas por Faixa de X". -->
+  <div style="padding:14px 24px 4px;display:flex;align-items:center;gap:10px;">
+    <span style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;">💰 Unidades Lançadas por Faixa de Ticket</span>
+  </div>
+  <div class="merc-faixas-panel" id="merc-faixas-panel">
+    <div class="merc-faixas-body" id="merc-faixas-body">
+      <!-- Gerado por JS: _renderFaixasPanel() -->
+    </div>
+  </div>
+
+  <!-- Vocação por Região — heatmap Região × Faixa de Tamanho -->
   <div style="padding:14px 24px 0;">
     <span style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;">🏘️ Vocação por Região — % de Unidades por Faixa de Tamanho</span>
-    <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Perfil de metragem predominante em cada região — barra de cima é % Lançado, barra de baixo é % Estoque (ainda disponível). Ajuda a ver qual tipo de produto cada região "pede" e onde ainda sobra estoque.</div>
+    <div style="font-size:11px;color:#9ca3af;margin-top:2px;">Perfil de metragem predominante em cada região — quanto mais escura a célula, maior o % daquela faixa na região. Alterne entre Lançado e Estoque; passe o mouse numa célula pra ver os dois valores.</div>
   </div>
   <div style="padding:8px 24px 24px;">
     <div id="merc-tamanho-regiao-table" class="merc-vocacao-wrap"></div>
@@ -23450,16 +23719,6 @@ function _mprospecBuscarMesmoProprietario(propEnc){
       <div class="merc-chart-title">Empreendimentos Lançados × Período</div>
       <div class="merc-chart-wrap"><canvas id="merc-chart-lanc-periodo"></canvas></div>
       <div class="merc-chart-note">📊 Quantidade de empreendimentos lançados por período, empilhado por faixa de ticket. Selecione um ano ou meses para ver mês a mês.</div>
-    </div>
-  </div>
-
-  <!-- Painel Faixas de Ticket (estilo Secovi) -->
-  <div style="padding:4px 24px 4px;display:flex;align-items:center;gap:10px;">
-    <span style="font-size:11px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:.06em;">Unidades Lançadas por Faixa de Ticket</span>
-  </div>
-  <div class="merc-faixas-panel" id="merc-faixas-panel">
-    <div class="merc-faixas-body" id="merc-faixas-body">
-      <!-- Gerado por JS: _renderFaixasPanel() -->
     </div>
   </div>
 
@@ -26967,6 +27226,64 @@ function _renderTamanhoPanel(){
     });
   });
 
+  // Plugin Chart.js: fatias pequenas (abaixo do limiar de 4%) ficam finas
+  // demais pro número caber dentro — o datalabels interno some com elas (ver
+  // acima). Em vez de só sumir, desenha uma "chamada" (linha + cotovelo)
+  // puxando o rótulo pra fora do donut, com o valor em %.
+  function _makeDonutCalloutPlugin(getTotal, minPct){
+    minPct = minPct || 0.04;
+    return {
+      id: 'calloutSmallSlices',
+      afterDatasetsDraw(chart){
+        const meta = chart.getDatasetMeta(0);
+        if(!meta || !meta.data || !meta.data.length) return;
+        const total = getTotal();
+        if(!total) return;
+        const ds = chart.data.datasets[0];
+        const ctx = chart.ctx;
+        const small = [];
+        meta.data.forEach((arc, i) => {
+          const v = ds.data[i];
+          if(!v) return;
+          const pct = v/total;
+          if(pct > 0 && pct < minPct) small.push({ arc, i, v, pct });
+        });
+        if(!small.length) return;
+        small.sort((a,b)=> a.arc.startAngle - b.arc.startAngle);
+        ctx.save();
+        small.forEach((s, idx) => {
+          const arc = s.arc;
+          const mid = (arc.startAngle + arc.endAngle) / 2;
+          const cos = Math.cos(mid), sin = Math.sin(mid);
+          const cx = arc.x, cy = arc.y;
+          const rOut = arc.outerRadius;
+          const stagger = 8 + (idx % 3) * 7; // 8/15/22px alternados entre vizinhas
+          const r1 = rOut + 4;
+          const r2 = rOut + 4 + stagger;
+          const x1 = cx + cos*r1, y1 = cy + sin*r1;
+          const x2 = cx + cos*r2, y2 = cy + sin*r2;
+          const rightSide = cos >= 0;
+          const elbowLen = 14;
+          const x3 = x2 + (rightSide ? elbowLen : -elbowLen), y3 = y2;
+          const color = Array.isArray(ds.backgroundColor) ? ds.backgroundColor[s.i] : (ds.backgroundColor || '#9ca3af');
+          ctx.strokeStyle = color;
+          ctx.lineWidth = 1.3;
+          ctx.beginPath();
+          ctx.moveTo(x1,y1);
+          ctx.lineTo(x2,y2);
+          ctx.lineTo(x3,y3);
+          ctx.stroke();
+          ctx.fillStyle = '#374151';
+          ctx.font = '700 10px sans-serif';
+          ctx.textBaseline = 'middle';
+          ctx.textAlign = rightSide ? 'left' : 'right';
+          ctx.fillText(Math.round(s.pct*100)+'%', x3 + (rightSide?3:-3), y3);
+        });
+        ctx.restore();
+      }
+    };
+  }
+
   const donutCanvas = document.getElementById('merc-tamanho-donut');
   if(donutCanvas && totalUnid > 0){
     const donutDatasets = [{ data: donutData, backgroundColor: TAM_ORD.map(f=>TAM_COR[f]), borderWidth: 2, borderColor:'#fff', label:'Mercado' }];
@@ -26981,6 +27298,7 @@ function _renderTamanhoPanel(){
       },
       options:{
         responsive:true, maintainAspectRatio:false, cutout:'50%',
+        layout:{ padding:20 },
         plugins:{
           legend:{display:true, position:'bottom', labels:{font:{size:10}, boxWidth:11, padding:6}},
           tooltip:{callbacks:{
@@ -26998,13 +27316,27 @@ function _renderTamanhoPanel(){
             }
           }},
           datalabels:{
-            display: ctx => ctx.dataset.label !== 'YUNY',
+            // Fatias pequenas (poucos % do total) ficam finas demais pro
+            // número caber dentro — antes disso os rótulos de várias fatias
+            // finas se empilhavam uns em cima dos outros, ilegíveis. Some o
+            // número só nessas (a legenda embaixo já identifica a faixa, e o
+            // tooltip ao passar o mouse mostra o valor exato) — o plugin
+            // calloutSmallSlices abaixo puxa o rótulo pra fora do arco em vez
+            // de simplesmente escondê-lo.
+            display: ctx => {
+              if(ctx.dataset.label === 'YUNY') return false;
+              const v = ctx.dataset.data[ctx.dataIndex];
+              return !!(v && totalUnid && (v/totalUnid) >= 0.04);
+            },
             formatter:(v)=> v && totalUnid ? Math.round(v/totalUnid*100)+'%' : '',
             color:'#fff', font:{size:10, weight:'700'}
           }
         }
       },
-      plugins: typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : []
+      plugins: [
+        ...(typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : []),
+        _makeDonutCalloutPlugin(()=>totalUnid, 0.04)
+      ]
     });
   }
 
@@ -27054,6 +27386,7 @@ function _renderTamanhoPanel(){
         },
         options:{
           responsive:true, maintainAspectRatio:false, cutout:'50%',
+          layout:{ padding:20 },
           plugins:{
             legend:{display:true, position:'bottom', labels:{font:{size:10}, boxWidth:11, padding:6}},
             tooltip:{callbacks:{label:ctx=>{
@@ -27063,13 +27396,24 @@ function _renderTamanhoPanel(){
               return (isYuny?'YUNY · ':'')+ctx.label+': '+v.toLocaleString('pt-BR')+' ('+pct+'%)';
             }}},
             datalabels:{
-              display: ctx => ctx.dataset.label !== 'YUNY',
+              // Mesmo critério do donut de Tamanho: some o número nas fatias
+              // finas demais (<4% do total) pra não empilhar rótulos
+              // ilegíveis — a legenda e o tooltip continuam mostrando cada uma,
+              // e o plugin calloutSmallSlices puxa o rótulo pra fora do arco.
+              display: ctx => {
+                if(ctx.dataset.label === 'YUNY') return false;
+                const v = ctx.dataset.data[ctx.dataIndex];
+                return !!(v && ticketTotalUnid && (v/ticketTotalUnid) >= 0.04);
+              },
               formatter:(v)=> v && ticketTotalUnid ? Math.round(v/ticketTotalUnid*100)+'%' : '',
               color:'#fff', font:{size:10, weight:'700'}
             }
           }
         },
-        plugins: typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : []
+        plugins: [
+          ...(typeof ChartDataLabels !== 'undefined' ? [ChartDataLabels] : []),
+          _makeDonutCalloutPlugin(()=>ticketTotalUnid, 0.04)
+        ]
       });
     }
   }
@@ -27110,55 +27454,74 @@ const VOC_GROUPS = [
   { label:'Acima de 120m²', cor:'#1e1b4b', src:['121-180','181-220','acima-220'] },
 ];
 
+// 'unidades' (Lançado) ou 'estoque' — qual métrica colore o heatmap. Alternado
+// pelos botões renderizados acima da tabela (_vocSetMetric).
+let _vocMetric = 'unidades';
+
+function _vocSetMetric(m){
+  _vocMetric = m;
+  _renderTamanhoRegiaoTable();
+}
+
+// Interpola de quase-branco até o teal da marca conforme o %, pra dar o efeito
+// de heatmap (célula mais escura = maior concentração daquela faixa ali).
+function _vocacaoColorFor(pct){
+  const t = Math.max(0, Math.min(100, pct)) / 100;
+  const r = Math.round(238 + (0   - 238) * t);
+  const g = Math.round(247 + (176 - 247) * t);
+  const b = Math.round(248 + (185 - 248) * t);
+  return `rgb(${r},${g},${b})`;
+}
+
 function _renderTamanhoRegiaoTable(){
   const wrap = document.getElementById('merc-tamanho-regiao-table');
   if(!wrap || !_pesquisaDados?.meses_emps) return;
 
   const agg = _tamRegiaoAgg();
   const groupVal = (faixas, metric, g) => g.src.reduce((s,f)=>s+(faixas[f]?.[metric]||0),0);
+  const outraMetrica = _vocMetric==='unidades' ? 'estoque' : 'unidades';
+  const nomeMetrica = { unidades:'lançado', estoque:'estoque' };
 
   const regioes = Object.keys(agg).sort((a,b)=>{
-    const totalA = VOC_GROUPS.reduce((s,g)=>s+groupVal(agg[a],'unidades',g),0);
-    const totalB = VOC_GROUPS.reduce((s,g)=>s+groupVal(agg[b],'unidades',g),0);
+    const totalA = VOC_GROUPS.reduce((s,g)=>s+groupVal(agg[a],_vocMetric,g),0);
+    const totalB = VOC_GROUPS.reduce((s,g)=>s+groupVal(agg[b],_vocMetric,g),0);
     return totalB - totalA;
   });
 
-  const legendHtml = `<div class="merc-vocacao-legend">
-    ${VOC_GROUPS.map(g=>`<span class="merc-vocacao-legend-item"><span class="merc-vocacao-legend-swatch" style="background:${g.cor}"></span>${g.label}</span>`).join('')}
+  const toggleHtml = `<div class="merc-vocacao-toggle">
+    <button type="button" class="merc-vocacao-toggle-btn${_vocMetric==='unidades'?' active':''}" onclick="_vocSetMetric('unidades')">📤 Lançado</button>
+    <button type="button" class="merc-vocacao-toggle-btn${_vocMetric==='estoque'?' active':''}" onclick="_vocSetMetric('estoque')">📦 Estoque</button>
   </div>`;
 
-  const regHtml = regioes.map(reg=>{
+  const rowsHtml = regioes.map(reg=>{
     const faixas = agg[reg];
-    const totalUnid = VOC_GROUPS.reduce((s,g)=>s+groupVal(faixas,'unidades',g),0);
-    const totalEstq = VOC_GROUPS.reduce((s,g)=>s+groupVal(faixas,'estoque',g),0);
-    if(!totalUnid) return '';
+    const total = VOC_GROUPS.reduce((s,g)=>s+groupVal(faixas,_vocMetric,g),0);
+    if(!total) return '';
+    const totalOutra = VOC_GROUPS.reduce((s,g)=>s+groupVal(faixas,outraMetrica,g),0);
 
-    const barSegs = (metric, total) => VOC_GROUPS.map(g=>{
-      const v = groupVal(faixas, metric, g);
-      if(!v || !total) return '';
-      const pct = v/total*100;
-      const label = pct>=10 ? Math.round(pct)+'%' : '';
-      return `<div class="merc-vocacao-seg" style="width:${pct.toFixed(2)}%;background:${g.cor}" title="${g.label}: ${Math.round(pct)}% (${v.toLocaleString('pt-BR')} unid.)">${label}</div>`;
+    const cells = VOC_GROUPS.map(g=>{
+      const v = groupVal(faixas, _vocMetric, g);
+      const pct = total ? v/total*100 : 0;
+      const vOutra = groupVal(faixas, outraMetrica, g);
+      const pctOutra = totalOutra ? Math.round(vOutra/totalOutra*100) : 0;
+      const cor = _vocacaoColorFor(pct);
+      const textCor = pct >= 45 ? '#fff' : '#1a3c4d';
+      const texto = v===0 ? '—' : (pct < 1 ? '<1%' : Math.round(pct)+'%');
+      const titulo = `${g.label} — ${Math.round(pct)}% ${nomeMetrica[_vocMetric]} (${v.toLocaleString('pt-BR')} unid.) · ${pctOutra}% ${nomeMetrica[outraMetrica]} (${vOutra.toLocaleString('pt-BR')} unid.)`;
+      return `<td style="background:${cor};color:${textCor}" title="${titulo}">${texto}</td>`;
     }).join('');
 
-    return `
-      <div class="merc-vocacao-regiao">
-        <div class="merc-vocacao-header">
-          <span class="merc-vocacao-reg-nome">${reg}</span>
-          <span class="merc-vocacao-reg-total">${totalUnid.toLocaleString('pt-BR')} unid. lançadas · ${totalEstq.toLocaleString('pt-BR')} em estoque</span>
-        </div>
-        <div class="merc-vocacao-bar-row">
-          <span class="merc-vocacao-bar-label">Lançado</span>
-          <div class="merc-vocacao-bar">${barSegs('unidades', totalUnid)}</div>
-        </div>
-        <div class="merc-vocacao-bar-row">
-          <span class="merc-vocacao-bar-label">Estoque</span>
-          <div class="merc-vocacao-bar is-estoque">${totalEstq ? barSegs('estoque', totalEstq) : '<div style="flex:1;display:flex;align-items:center;justify-content:center;font-size:10px;color:#9ca3af;">sem estoque estimado</div>'}</div>
-        </div>
-      </div>`;
+    return `<tr><td class="merc-vocacao-th-reg">${reg}<div class="merc-vocacao-reg-total">${total.toLocaleString('pt-BR')} unid. ${nomeMetrica[_vocMetric]}</div></td>${cells}</tr>`;
   }).join('');
 
-  wrap.innerHTML = legendHtml + (regHtml || '<div style="padding:16px 0;text-align:center;color:#9ca3af;font-size:12px;">Sem dados suficientes.</div>');
+  const tableHtml = `<div class="merc-vocacao-table-wrap"><table class="merc-vocacao-table">
+    <thead><tr><th>Região</th>${VOC_GROUPS.map(g=>`<th>${g.label}</th>`).join('')}</tr></thead>
+    <tbody>${rowsHtml || `<tr><td colspan="${VOC_GROUPS.length+1}" style="text-align:center;color:#9ca3af;font-size:12px;padding:16px 0;">Sem dados suficientes.</td></tr>`}</tbody>
+  </table></div>`;
+
+  const scaleHtml = `<div class="merc-vocacao-scale"><span>menos</span><span class="merc-vocacao-scale-bar"></span><span>mais concentração (${nomeMetrica[_vocMetric]})</span></div>`;
+
+  wrap.innerHTML = toggleHtml + tableHtml + scaleHtml;
 }
 
 // ── Selecionar área no mapa → filtra o painel de Faixas de Tamanho por bairro ──
