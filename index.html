@@ -1818,7 +1818,6 @@ summary.geosampa-group-label {
               </div>
             </details>
             <button class="geosampa-btn" id="btn-geo-itbiheat" onclick="toggleItbiHeatLayer()" title="Colorir os lotes pelo preço real de venda (ITBI) — aproxime o zoom">💰 Mapa Preços</button>
-            <button class="geosampa-btn" id="btn-geo-itbipontos" onclick="toggleItbiPontosLayer()" title="Um ponto por lote com transação de ITBI nos últimos anos (tamanho = nº de transações) — estilo Atlas Dados">🔶 Transações ITBI</button>
             <button class="geosampa-btn" id="btn-geo-avenda" onclick="toggleAvendaMapMode()" title="Verificar se o imóvel está à venda online">🏠 À Venda</button>
           </div>
         </details>
@@ -2711,14 +2710,19 @@ function _itbiEhCondoSql(sql){
   return /\.(0000|0001)(?:-|$)/.test(String(sql||''));
 }
 
-// Clique num lote/marcador do mapa: tenta SEMPRE a busca EXATA primeiro, pra
-// mostrar só a transação do lote realmente clicado (é isso que a Kamila
-// espera ver). Só cai pra visão agrupada por quadra/condomínio (showItbiForSql)
-// quando a busca exata não acha NADA e o SQL é do tipo "0000"/"0001" — nesse
-// caso o lote é só um "guarda-chuva" da quadra inteira (as transações reais
-// ficam em sub-lotes/unidades), então mostrar agrupado é melhor do que exibir
-// "nenhuma transação encontrada" pra um código que nunca teria transação própria.
-async function _abrirItbiConformeTipo(sql){
+// Clique num lote/marcador do mapa: tenta SEMPRE a busca EXATA primeiro
+// (mostra só a transação daquele lote específico). Só cai pra visão
+// agrupada por quadra quando a busca exata não acha NADA e o SQL é do tipo
+// "0000"/"0001" — nesse caso o lote clicado é só o "guarda-chuva" físico de
+// um condomínio (as unidades vendidas ficam registradas com outros números
+// de lote, dentro da mesma quadra), então mostrar "nenhuma transação" seria
+// enganoso — é melhor já mostrar direto as transações das unidades daquele
+// condomínio, sem exigir clique extra.
+// `numero` (opcional) é o número de porta do lote clicado (GeoSampa) — quando
+// cai no agrupamento por quadra, o backend usa ele pra tentar restringir o
+// resultado só às transações da MESMA edificação (mesmo número de rua),
+// em vez de misturar prédios diferentes que caem na mesma quadra.
+async function _abrirItbiConformeTipo(sql, numero){
   const panel = document.getElementById('itbi-map-panel');
   const body  = document.getElementById('itbi-panel-body');
   if(panel) panel.classList.add('open');
@@ -2733,16 +2737,11 @@ async function _abrirItbiConformeTipo(sql){
     }
     if(data.rows && data.rows.length){
       _itbiSetHeader(sql, data.rows);
-      let html = _itbiRenderRows(data.rows, sql);
-      if(_itbiEhCondoSql(sql)){
-        const sqlEsc = String(sql).replace(/'/g,"\\'");
-        html += `<div style="margin-top:8px;"><button onclick="showItbiForSql('${sqlEsc}')" style="border:1px solid #ddd;background:#fff;border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;color:var(--accent);">🏢 Ver quadra/condomínio inteiro</button></div>`;
-      }
-      if(body) body.innerHTML = html;
+      if(body) body.innerHTML = _itbiRenderRows(data.rows, sql);
       return;
     }
     if(_itbiEhCondoSql(sql)){
-      await showItbiForSql(sql);
+      await showItbiForSql(sql, numero);
       return;
     }
     _itbiSetHeader(sql, []);
@@ -2752,23 +2751,36 @@ async function _abrirItbiConformeTipo(sql){
   }
 }
 
-async function showItbiForSql(sql){
+// `numero` (opcional): número de porta do lote clicado. Quando informado, o
+// backend tenta primeiro restringir o agrupamento por quadra só às
+// transações da mesma edificação (mesmo número de rua) — só cai pro
+// agrupamento sem filtro (quadra inteira) se não achar nenhuma com esse
+// número. `data.filtrado_por_numero` indica qual dos dois casos aconteceu,
+// pra avisar na UI.
+async function showItbiForSql(sql, numero){
   const panel = document.getElementById('itbi-map-panel');
   const body  = document.getElementById('itbi-panel-body');
   panel.classList.add('open');
   _itbiSetHeader(sql, null);
   body.innerHTML = '<div class="itbi-empty">⏳ Buscando transações…</div>';
   try{
-    const r = await fetch(`${API_BASE}/api/itbi?sql=${encodeURIComponent(sql)}`);
+    const numQ = numero ? `&numero=${encodeURIComponent(numero)}` : '';
+    const r = await fetch(`${API_BASE}/api/itbi?sql=${encodeURIComponent(sql)}${numQ}`);
     const data = await r.json();
     if(!data.ok){
       body.innerHTML = _itbiSetupHtml(data.error);
       return;
     }
     _itbiSetHeader(sql, data.rows);
-    body.innerHTML = data.is_condo
+    let html = data.is_condo
       ? _itbiRenderCondo(data.rows, sql, data.prefix)
       : _itbiRenderRows(data.rows, sql);
+    if(numero && data.filtrado_por_numero){
+      html = `<div style="margin-bottom:8px;padding:6px 8px;background:#eafaf1;border:1px solid #b7e4c7;border-radius:6px;font-size:11px;color:#1a3c4d;">✅ Filtrado pelo número de porta ${escHtml(String(numero))} — mostrando só transações desta edificação.</div>` + html;
+    } else if(numero && !data.filtrado_por_numero){
+      html = `<div style="margin-bottom:8px;padding:6px 8px;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;font-size:11px;color:#9a3412;">⚠️ Não achamos transação com o número de porta ${escHtml(String(numero))} — mostrando todas as transações da quadra (pode incluir outros prédios).</div>` + html;
+    }
+    body.innerHTML = html;
   }catch(e){
     body.innerHTML = `<div class="itbi-empty">Erro: ${e.message}</div>`;
   }
@@ -4646,7 +4658,7 @@ function toggleGeoLayer(key){
 // Substitui as tiles WMS por polígonos interativos em zoom ≥ VEC_MIN_ZOOM
 const VEC_LOTES_MIN = 16;  // zoom mínimo para vetorial de lotes
 const VEC_ZONA_MIN  = 14;  // zoom mínimo para vetorial de zoneamento
-const VEC_ITBI_MIN  = 16;  // zoom mínimo para a camada de preços ITBI por lote
+const VEC_ITBI_MIN  = 15;  // zoom mínimo para a camada de preços ITBI por lote (mesmo usado em Patrimônio/Contaminação — abaixo disso a área visível tem lotes demais pro limite de 400 por busca)
 const VEC_PGVRUA_MIN = 16; // zoom mínimo para a camada de PGV por rua/codlog (Quadro 14)
 let _vecLotesLayer  = null;
 let _vecZonaLayer   = null;
@@ -4885,7 +4897,13 @@ async function _loadVecLotes(){
             COMPLEMENTO:p.ds_complemento||'', BAIRRO:p.nm_bairro||'',
             SITUACAO:p.tx_situ_lote||'', USO:p.dc_tipo_uso_imovel||'',
             TIPO_LOTE:p.dc_tipo_lote||'', AREA_TERRENO:area,
-            AREA_CONSTRUIDA:p.qt_area_construida||'', _fromWFS:true,
+            AREA_CONSTRUIDA:p.qt_area_construida||'',
+            // Mesmo campo (nm_contribuinte) que a aba Prospecção já usa pra
+            // mostrar o nome do proprietário/contribuinte — mesma fonte
+            // GeoSampa (/api/geosampa-bbox), só não estava sendo repassado
+            // pro painel "Info lote" do mapa principal até agora.
+            PROPRIETARIO:p.nm_contribuinte||p.nome_contribuinte||p.nm_prop||'',
+            _fromWFS:true,
           };
           _showGeoSampaPanel(sql, _parseSql(sql), wfsData);
         });
@@ -4898,11 +4916,13 @@ async function _loadVecLotes(){
         const _tipEndereco = _loteEndereco(p);
         const _tipBairro = p.nm_bairro || '';
         const _tipSituUso = [p.tx_situ_lote||'', p.dc_tipo_uso_imovel||''].filter(Boolean).join(' · ');
+        const _tipProprietario = p.nm_contribuinte||p.nome_contribuinte||p.nm_prop||'';
         const tipHtml = [
           `<b>${sql}</b>${areaFmt?' · '+areaFmt:''}`,
           _tipEndereco || '',
           _tipBairro || '',
           _tipSituUso || '',
+          _tipProprietario ? `👤 ${_tipProprietario}` : '',
         ].filter(Boolean).join('<br>');
         poly.bindTooltip(tipHtml, {sticky:true, className:'geo-lote-tip'});
         _vecLotesLayer.addLayer(poly);
@@ -5069,7 +5089,8 @@ async function _loadVecItbiHeat(){
           ? `<b>${sql}</b><br>${_fmtBRL(info.preco_m2)}/m² · ${info.n} transaç${info.n===1?'ão':'ões'}`
           : `<b>${sql}</b><br><span style="color:#999">sem transações ITBI</span>`;
         poly.bindTooltip(label, { sticky:true, className:'geo-lote-tip' });
-        poly.on('click', e => { L.DomEvent.stopPropagation(e); _abrirItbiConformeTipo(sql); });
+        const numeroLote = p.nr_porta_logradouro||p.nr_porta||'';
+        poly.on('click', e => { L.DomEvent.stopPropagation(e); _abrirItbiConformeTipo(sql, numeroLote); });
         _vecItbiHeatLayer.addLayer(poly);
       });
     });
@@ -5077,127 +5098,6 @@ async function _loadVecItbiHeat(){
   }catch(e){
     _vecLoadHide();
     console.warn('[itbiHeat]', e);
-  }
-}
-
-// ── Transações ITBI (pontos por lote, estilo Atlas Dados) ───────────────────
-// Em vez de colorir o lote inteiro (como o "💰 Mapa Preços"), desenha uma
-// bolinha no centro de cada lote que teve transação de ITBI — tamanho/cor
-// pela quantidade de transações. Reaproveita os mesmos dados (mesma rota
-// /api/itbi/mapa-precos já devolve {preco_m2, n} por lote) e o mesmo painel
-// de detalhe (showItbiExactForSql) — só muda a forma de desenhar.
-const VEC_ITBI_PONTOS_MIN = 15;
-let _vecItbiPontosLayer = null;
-let _itbiPontosMode = false;
-
-function _itbiPontosCorTam(n){
-  if(n >= 15) return { cor:'#c2410c', raio:11 };
-  if(n >= 8)  return { cor:'#ea580c', raio:9  };
-  if(n >= 4)  return { cor:'#f97316', raio:7  };
-  return          { cor:'#fb923c', raio:5.5 };
-}
-
-function _showItbiPontosLegend(){
-  let el = document.getElementById('itbi-pontos-legend');
-  if(!el){
-    el = document.createElement('div');
-    el.id = 'itbi-pontos-legend';
-    el.className = 'map-legend';
-    el.style.right = 'auto';
-    el.style.left = '12px';
-    el.innerHTML = `<div style="font-size:10px;font-weight:600;color:var(--text);margin-bottom:6px;font-family:var(--sans)">Transações ITBI (~3 anos)</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#fb923c;border-radius:50%;width:11px;height:11px;"></div>1 a 3</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#f97316;border-radius:50%;width:14px;height:14px;"></div>4 a 7</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#ea580c;border-radius:50%;width:18px;height:18px;"></div>8 a 14</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#c2410c;border-radius:50%;width:22px;height:22px;"></div>15 ou mais</div>`;
-    document.getElementById('map').appendChild(el);
-  }
-  el.style.display = 'block';
-}
-function _hideItbiPontosLegend(){
-  const el = document.getElementById('itbi-pontos-legend');
-  if(el) el.style.display = 'none';
-}
-
-function toggleItbiPontosLayer(){
-  _itbiPontosMode = !_itbiPontosMode;
-  const btn = document.getElementById('btn-geo-itbipontos');
-  if(_itbiPontosMode){
-    btn.classList.add('active');
-    _showItbiPontosLegend();
-    if(map.getZoom() >= VEC_ITBI_PONTOS_MIN) _loadVecItbiPontos();
-    else showToast('🔍 Aproxime o zoom para ver os pontos de transação ITBI');
-  } else {
-    btn.classList.remove('active');
-    if(_vecItbiPontosLayer) _vecItbiPontosLayer.clearLayers();
-    _hideItbiPontosLegend();
-  }
-}
-
-// Centroide simples (média dos vértices) — suficiente pra posicionar a
-// bolinha dentro do lote, sem precisar de um cálculo geométrico exato.
-function _centroideSimples(latlngs){
-  let sLat=0, sLng=0;
-  latlngs.forEach(p=>{ sLat += p[0]; sLng += p[1]; });
-  return [sLat/latlngs.length, sLng/latlngs.length];
-}
-
-async function _loadVecItbiPontos(){
-  if(!_itbiPontosMode) return;
-  const zoom = map.getZoom();
-  if(zoom < VEC_ITBI_PONTOS_MIN){
-    if(_vecItbiPontosLayer) _vecItbiPontosLayer.clearLayers();
-    return;
-  }
-  const b = map.getBounds();
-  _vecLoadShow('⏳ Carregando transações ITBI…');
-  try{
-    const r = await fetch(`${API_BASE}/api/geosampa-bbox?minLat=${b.getSouth()}&minLng=${b.getWest()}&maxLat=${b.getNorth()}&maxLng=${b.getEast()}&max=400`);
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const gj = await r.json();
-    const feats = (gj.features||[]).filter(f => fmtSQLprops(f.properties) !== '—');
-    if(!feats.length){ _vecLoadHide(); if(_vecItbiPontosLayer) _vecItbiPontosLayer.clearLayers(); return; }
-
-    const sqls = feats.map(f => fmtSQLprops(f.properties));
-    let precos = {};
-    try{
-      const rPrecos = await fetch(API_BASE+'/api/itbi/mapa-precos', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sqls })
-      });
-      const precosData = await rPrecos.json();
-      precos = (precosData && precosData.result) || {};
-    }catch(e){ console.warn('[itbiPontos] preços', e); }
-    _vecLoadHide();
-
-    const isLonLat = _detectLonLat(feats);
-    if(!_vecItbiPontosLayer){ _vecItbiPontosLayer = L.layerGroup().addTo(map); }
-    else { _vecItbiPontosLayer.clearLayers(); }
-
-    let comContagem = 0;
-    feats.forEach(f=>{
-      const p = f.properties||{};
-      const sql = fmtSQLprops(p);
-      const info = precos[sql];
-      if(!info || !info.n) return; // só desenha ponto pra quem TEM transação — igual a "Transações de ITBI" do Atlas
-      comContagem++;
-      const latlngsArr = _geomToLatLngs(f.geometry, isLonLat);
-      if(!latlngsArr.length) return;
-      const centro = _centroideSimples(latlngsArr[0]);
-      const { cor, raio } = _itbiPontosCorTam(info.n);
-      const marker = L.circleMarker(centro, {
-        radius: raio, color:'#fff', weight:1.5, fillColor: cor, fillOpacity:0.85,
-      });
-      marker.bindTooltip(
-        `<b>${sql}</b><br>${info.n} transaç${info.n===1?'ão':'ões'} · mediana ${_fmtBRL(info.preco_m2)}/m²`,
-        { sticky:true, className:'geo-lote-tip' }
-      );
-      marker.on('click', e => { L.DomEvent.stopPropagation(e); _abrirItbiConformeTipo(sql); });
-      _vecItbiPontosLayer.addLayer(marker);
-    });
-    console.log(`[itbiPontos] ${comContagem} lotes com transação, de ${feats.length} lotes na tela`);
-  }catch(e){
-    _vecLoadHide();
-    console.warn('[itbiPontos]', e);
   }
 }
 
@@ -6603,7 +6503,7 @@ async function _loadVecOUC(){
 // Debounce: carrega vetorial 400ms após parar de mover
 function _scheduleVecLoad(){
   clearTimeout(_vecMoveTimer);
-  _vecMoveTimer = setTimeout(()=>{ _loadVecLotes(); _loadVecItbiHeat(); _loadVecItbiPontos(); _loadVecPgvRua(); _loadVecOUC(); _loadVecPatrimonio(); _loadVecPatcult(); _loadVecAmbiental(); _loadVecInfraViaria(); _loadVecContaminacao(); }, 400);
+  _vecMoveTimer = setTimeout(()=>{ _loadVecLotes(); _loadVecItbiHeat(); _loadVecPgvRua(); _loadVecOUC(); _loadVecPatrimonio(); _loadVecPatcult(); _loadVecAmbiental(); _loadVecInfraViaria(); _loadVecContaminacao(); }, 400);
 }
 map.on('moveend', _scheduleVecLoad);
 map.on('zoomend', _scheduleVecLoad);
@@ -8118,6 +8018,7 @@ function _showGeoSampaPanel(sql, parsed, data) {
   const areaTer = v(target,'AREA_TERRENO','area_terreno','AreaTerreno','qt_area_terreno','ar_terreno','nr_area_terreno');
   const areaConstr = v(target,'AREA_CONSTRUIDA','area_construida','AreaConstruida','qt_area_construida','ar_construida');
   const sqcont  = v(target,'SQCONT','sqcont','sql') || sql;
+  const proprietario = v(target,'PROPRIETARIO','nm_contribuinte','nome_contribuinte','nm_prop');
   // O WFS moderno usado pelo clique de "🔍 Info lote" no mapa (bbox) não traz
   // área construída — só o serviço legado (mesmo do botão "🗺 Consultar
   // GeoSampa" no cadastro, pesquisaLoteInfo) tem esse dado. Nesse caso busca
@@ -8142,6 +8043,7 @@ function _showGeoSampaPanel(sql, parsed, data) {
     ['Área terreno (m2)',    areaTer ? parseFloat(areaTer).toLocaleString('pt-BR') : ''],
     ['Área construída (m2)', areaConstr ? parseFloat(areaConstr).toLocaleString('pt-BR') : ''],
     ['Código do contribuinte', sqcont],
+    ['Proprietário / Contribuinte', proprietario],
   ].filter(([,val]) => val !== '' && val !== null && val !== undefined);
   const _labelsUsados = new Set(rows.map(([l])=>l));
 
