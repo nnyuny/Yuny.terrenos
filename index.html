@@ -2285,7 +2285,7 @@ const db = firebase.firestore();
 const API_BASE = (function(){
   const h = location.hostname;
   if (h === 'localhost' || h === '127.0.0.1' || h === '') return ''; // servidor local
-  return 'https://SUBSTITUA-PELA-URL-DO-SEU-HOST.onrender.com'; // TODO: preencher após deploy
+  return 'https://landbank-backend-hf24.onrender.com'; // backend na nuvem (Render)
 })();
 
 // sanitize(obj) — limpa o objeto ANTES de mandar pro Firestore, recursivamente:
@@ -7148,7 +7148,11 @@ function addLayer(t){
         dashArray: t.status==='8.Descartado'?'6,4':(isDashed?'8,5':null)
       }).addTo(map);
       poly.bindPopup(popupHtml(t));
-      poly.on('click',()=>selectCard(t.id));
+      // Modo Medir ativo: clique no lote não deve abrir o popup do terreno
+      // nem selecionar o card — só conta como ponto de medição (o clique já
+      // borbulha pro map, que tem seu próprio listener _medirClick).
+      poly.on('popupopen',()=>{ if(_medirMode) poly.closePopup(); });
+      poly.on('click',()=>{ if(_medirMode) return; selectCard(t.id); });
       poly.on('dblclick',(e)=>{L.DomEvent.stop(e);map.zoomIn();});
       return poly;
     });
@@ -7162,14 +7166,16 @@ function addLayer(t){
         fillColor:c, fillOpacity:1, zIndexOffset:200
       }).addTo(map);
       dot.bindPopup(popupHtml(t));
-      dot.on('click',()=>selectCard(t.id));
+      dot.on('popupopen',()=>{ if(_medirMode) dot.closePopup(); });
+      dot.on('click',()=>{ if(_medirMode) return; selectCard(t.id); });
       rendered.push(dot);
     }
     layers[t.id] = rendered.length===1 ? rendered[0] : rendered;
   } else if(t.lat && t.lng){
     const m = L.marker([t.lat,t.lng],{icon:makePinIcon(t.status)}).addTo(map);
     m.bindPopup(popupHtml(t));
-    m.on('click',()=>selectCard(t.id));
+    m.on('popupopen',()=>{ if(_medirMode) m.closePopup(); });
+    m.on('click',()=>{ if(_medirMode) return; selectCard(t.id); });
     m.on('dblclick',(e)=>{L.DomEvent.stop(e);map.zoomIn();});
     layers[t.id] = m;
   }
