@@ -568,6 +568,21 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
 #itbi-map-panel .itbi-panel-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 8px;border-bottom:1px solid var(--border);cursor:grab;user-select:none;}
 #itbi-map-panel .itbi-panel-header h3{font-size:13px;font-weight:700;color:var(--navy,#1a3c4d);margin:0;}
 #itbi-map-panel .itbi-body{padding:12px 16px;max-height:60vh;overflow-y:auto;}
+/* Painel "Resumo da formação" — mesmo padrão do #itbi-map-panel (fixo, do
+   lado do mapa, sem sobrepor os lotes clicados) — mostra área total + área
+   de cada lote + SQL + endereço + zoneamento da formação (polígono) em
+   montagem no Cadastro de Terreno. */
+#formacao-map-panel{position:fixed;right:16px;top:80px;z-index:3000;width:380px;max-width:calc(100vw - 32px);background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);border:1px solid var(--border);display:none;}
+#formacao-map-panel.open{display:block;}
+#formacao-map-panel .formacao-panel-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 8px;border-bottom:1px solid var(--border);}
+#formacao-map-panel .formacao-panel-header h3{font-size:13px;font-weight:700;color:var(--navy,#1a3c4d);margin:0;}
+#formacao-map-panel .formacao-body{padding:12px 16px;max-height:70vh;overflow-y:auto;}
+.formacao-lote-row{border-bottom:1px solid #f3f4f6;padding:8px 0;}
+.formacao-lote-row:last-child{border-bottom:none;}
+.formacao-lote-sql{font-family:var(--mono);font-size:11px;color:var(--muted);}
+.formacao-lote-area{font-size:13px;font-weight:700;color:var(--navy,#1a3c4d);}
+.formacao-lote-end{font-size:11px;color:#374151;margin-top:1px;}
+.formacao-lote-zona{display:inline-block;margin-top:3px;font-size:10px;font-weight:700;padding:1px 7px;border-radius:5px;background:#f0fdf4;color:#059669;}
 .itbi-panel-bairro{font-size:11px;color:var(--muted);margin-bottom:1px;}
 .itbi-panel-endereco{font-size:15px;font-weight:700;color:var(--navy,#1a3c4d);line-height:1.25;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;max-width:340px;}
 .itbi-vendas-head{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--muted);margin:12px 0 6px;padding-top:10px;border-top:1px solid var(--border);}
@@ -1071,6 +1086,10 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
 /* ── View Card ───────────────────────────────────────────────────── */
 .view-card-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,.45);z-index:2000;align-items:flex-start;justify-content:flex-end;padding:0;}
 .view-card-bg.active{display:flex;}
+.lixeira-row{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #f3f4f6;}
+.lixeira-row:last-child{border-bottom:none;}
+#btn-lixeira{position:relative;}
+#lixeira-badge{position:absolute;top:-6px;right:-6px;background:#dc2626;color:#fff;font-size:10px;font-weight:700;padding:1px 5px;border-radius:20px;line-height:1.4;}
 .view-card{width:340px;height:100%;background:var(--surface);display:flex;flex-direction:column;overflow:hidden;box-shadow:-4px 0 24px rgba(0,0,0,.25);}
 .view-card-header{padding:16px 18px 12px;border-bottom:1px solid var(--border);display:flex;align-items:flex-start;gap:10px;}
 .view-card-title{flex:1;font-size:15px;font-weight:700;color:var(--text);line-height:1.3;}
@@ -1146,8 +1165,17 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
 .geosampa-ctrl {
   position:absolute; top:12px; right:12px; z-index:600;
   display:flex; flex-direction:column; align-items:flex-end; gap:4px;
+  max-height:calc(100vh - 24px); /* nunca passa da altura da tela */
 }
-.geosampa-ctrl-list { display:flex; flex-direction:column; gap:4px; }
+/* Sem isso, a lista de camadas (que só cresce — cada novo subgrupo, tipo o
+   "Ônibus", soma mais botões) ficava mais alta que a tela no desktop e não
+   dava pra rolar: o painel simplesmente cobria/cortava o mapa por baixo dele,
+   sem jeito de ver o resto. Só o celular tinha esse tratamento antes. */
+.geosampa-ctrl-list {
+  display:flex; flex-direction:column; gap:4px;
+  max-height:calc(100vh - 90px); overflow-y:auto; overflow-x:hidden;
+  padding-right:4px; scrollbar-width:thin;
+}
 .geosampa-toggle {
   display:none; background:#00B0B9; border:1.5px solid #00B0B9; border-radius:20px;
   padding:9px 16px; font-size:14px; font-weight:700; cursor:pointer; color:#fff;
@@ -1666,6 +1694,7 @@ summary.geosampa-group-label {
         <button class="btn-export" onclick="document.getElementById('import-input').click()" style="border-color:var(--accent);color:var(--accent)">⬆ Importar Excel</button>
         <input type="file" id="import-input" accept=".xlsx,.xlsm,.xls" style="display:none" onchange="importExcel(this)">
         <button class="btn-export" onclick="corrigirExclusividadeCorretorTodos()" title="Recalcula a exclusividade de corretor (1 ano a partir da Data de Recebimento) de todos os terrenos, corrigindo registros desatualizados">🔧 Corrigir exclusividade</button>
+        <button class="btn-export" id="btn-lixeira" onclick="abrirLixeira()" title="Terrenos excluídos ficam aqui por 30 dias antes de sumir de vez — dá pra restaurar.">🗑️ Lixeira<span id="lixeira-badge" style="display:none;"></span></button>
       </div>
     </div>
     <div class="stats-bar" id="stats-bar"></div>
@@ -1736,6 +1765,16 @@ summary.geosampa-group-label {
                 <button class="geosampa-btn" id="btn-geo-metro-projeto" onclick="toggleMetroProjetoLayer()" title="Linhas e estações de Metrô em projeto/planejamento (traçado sujeito a alterações — dados 2016/2025)">🚧 Metrô Projeto</button>
                 <button class="geosampa-btn" id="btn-geo-trem" onclick="toggleTremLayer()" title="Linhas e estações de Trem Metropolitano (CPTM/ViaMobilidade) em operação — traçado das linhas é esquemático (reta entre as estações reais), estações com coordenada exata (GeoSampa)">🚆 Trem</button>
                 <button class="geosampa-btn" id="btn-geo-trem-projeto" onclick="toggleTremProjetoLayer()" title="Linhas e estações de Trem Metropolitano em projeto/planejamento (Expresso Aeroporto, Linha 14-Ônix, extensões Jade/Esmeralda, ligação Alphaville-Campo Limpo) — traçado sujeito a alterações">🚧 Trem Projeto</button>
+              </div>
+            </details>
+            <details class="geosampa-subgroup">
+              <summary class="geosampa-group-label">🚌 Ônibus <span class="geosampa-subgroup-arrow">▾</span></summary>
+              <div class="geosampa-subgroup-list">
+                <button class="geosampa-btn" id="btn-geo-patcult-ponto_onibus" onclick="togglePatcultLayer('ponto_onibus')" title="Pontos de parada de ônibus (SPTrans/GeoSampa)">🚏 Pontos de Ônibus</button>
+                <button class="geosampa-btn" id="btn-geo-patcult-terminal_onibus" onclick="togglePatcultLayer('terminal_onibus')" title="Terminais de ônibus municipais">🚌 Terminal de Ônibus</button>
+                <button class="geosampa-btn" id="btn-geo-patcult-corredor_onibus" onclick="togglePatcultLayer('corredor_onibus')" title="Corredores de ônibus (via segregada)">🛣️ Corredores</button>
+                <button class="geosampa-btn" id="btn-geo-patcult-faixa_onibus" onclick="togglePatcultLayer('faixa_onibus')" title="Faixas exclusivas de ônibus (compartilham a via, horário/sentido podem variar)">🚍 Faixas Exclusivas</button>
+                <button class="geosampa-btn" id="btn-geo-patcult-linha_onibus" onclick="togglePatcultLayer('linha_onibus')" title="Traçado das linhas de ônibus (aproxime o zoom — são muitas linhas)">〰️ Linhas de Ônibus</button>
               </div>
             </details>
             <details class="geosampa-subgroup">
@@ -1927,6 +1966,17 @@ summary.geosampa-group-label {
 
 
 
+</div>
+
+<!-- LIXEIRA (terrenos excluídos, ficam 30 dias antes de sumir de vez) -->
+<div class="view-card-bg" id="lixeira-modal-bg" onclick="if(event.target===this) fecharLixeira()">
+  <div class="view-card" onclick="event.stopPropagation()" style="max-width:560px;">
+    <div class="view-card-header">
+      <div class="view-card-title">🗑️ Lixeira — excluídos há menos de 30 dias</div>
+      <button class="view-card-close" onclick="fecharLixeira()">✕</button>
+    </div>
+    <div class="view-card-body" id="lixeira-body" style="max-height:60vh;overflow-y:auto;"></div>
+  </div>
 </div>
 
 <!-- VIEW CARD -->
@@ -3226,10 +3276,18 @@ function _recebRemoveImg(i){
 function _recebZoomImg(i){
   const img = _recebimentoImgs[i];
   if(!img) return;
+  // img.url é a miniatura de 220px salva no Firestore (bem comprimida, pra
+  // não estourar o limite de 1MiB do documento) — dava pra abrir "grande" na
+  // tela mas ilegível, porque o max-width só limita, não aumenta a resolução
+  // real da imagem. _recebimentoImgsDisco guarda (só nesta sessão, enquanto
+  // a pessoa não recarrega a página) uma versão de 900px usada pra salvar na
+  // pasta de rede — se ainda estiver em memória, usa ela no zoom em vez da
+  // miniatura, que fica bem mais legível pra prints de planilha/e-mail.
+  const srcGrande = _recebimentoImgsDisco[i] || img.url;
   const bg = document.createElement('div');
-  bg.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;';
+  bg.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:9999;display:flex;align-items:center;justify-content:center;cursor:zoom-out;padding:20px;box-sizing:border-box;overflow:auto;';
   bg.onclick = ()=>bg.remove();
-  bg.innerHTML = `<img src="${img.url}" style="max-width:90vw;max-height:90vh;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.5);">`;
+  bg.innerHTML = `<img src="${srcGrande}" style="max-width:95vw;max-height:95vh;width:auto;height:auto;border-radius:8px;box-shadow:0 8px 32px rgba(0,0,0,.5);cursor:default;" onclick="event.stopPropagation()">`;
   document.body.appendChild(bg);
 }
 // Abre o e-mail/arquivo anexado (tipo:'arquivo') do Histórico de Recebimento
@@ -3240,6 +3298,17 @@ function _recebZoomImg(i){
 async function _recebAbrirEmailGrande(i){
   const img = _recebimentoImgs[i];
   if(!img || !img.url){ showToast('⚠️ Esse arquivo só existe na pasta de rede do terreno — abra por lá.'); return; }
+  // Abre a janela JÁ AQUI, ANTES de qualquer await — chamar window.open()
+  // depois de um await perde a associação com o clique do usuário, e o
+  // navegador some abre uma popup minúscula em vez de uma aba/janela cheia
+  // (era exatamente esse o motivo do "abre pequenininho e ilegível"). Abrindo
+  // de forma síncrona logo no clique, com tamanho grande explícito, e só
+  // preenchendo o conteúdo depois que o parse do e-mail terminar.
+  const winW = Math.min(1100, Math.round(screen.width*0.9));
+  const winH = Math.min(900, Math.round(screen.height*0.9));
+  const win = window.open('', '_blank', `width=${winW},height=${winH},noopener`);
+  if(!win){ alert('Permita pop-ups para abrir o e-mail ampliado.'); return; }
+  win.document.write('<body style="font-family:sans-serif;padding:40px;color:#888;font-size:14px;">⏳ Abrindo e-mail…</body>');
   showToast('🔍 Abrindo e-mail…');
   try{
     const resp = await fetch(img.url);
@@ -3247,12 +3316,12 @@ async function _recebAbrirEmailGrande(i){
     const file = new File([blob], img.nome||'arquivo', {type: blob.type||'application/octet-stream'});
     const info = _recebimentoEmailInfo[i] || await _extrairInfoEmailArquivo(file);
     const html = _construirEmailHtmlStandalone(info, img.nome);
-    const win = window.open('', '_blank');
-    if(!win){ alert('Permita pop-ups para abrir o e-mail ampliado.'); return; }
+    win.document.open();
     win.document.write(html);
     win.document.close();
   }catch(e){
     console.warn('[recebAbrirEmailGrande]', e);
+    win.close();
     showToast('⚠️ Não consegui abrir o e-mail ampliado — baixando o arquivo original.', 6000);
     const a = document.createElement('a');
     a.href = img.url; a.download = img.nome || 'arquivo';
@@ -4279,6 +4348,12 @@ window.addEventListener('DOMContentLoaded', () => {
   initNotasWidget();
   _checarAtualizacaoServidor();
   _initGeoInfoIcons();
+  // Carrega em background o mapa de preços ITBI completo (todos os lotes/
+  // quadras com transação, cidade inteira) — assim, quando a pessoa liga a
+  // camada "💰 Mapa Preços", os preços já aparecem na hora, sem esperar um
+  // cálculo por viewport a cada pan/zoom (pedido da Kamila, no estilo do
+  // mapa da Atlas Dados, que já carrega tudo de uma vez).
+  _prefetchItbiPrecosCompleto();
 });
 
 // Botão/balão "ⓘ" ao lado de cada camada do painel de mapa (🗺️), explicando o
@@ -4444,6 +4519,39 @@ const satBaseLayer = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/se
   attribution:'Tiles © Esri — Source: Esri, Maxar, Earthstar Geographics, GIS User Community',
   maxZoom:19,crossOrigin:true
 });
+// Deixa QUALQUER popup do mapa (balão de terreno, lote, etc.) arrastável —
+// pedido da Kamila pra poder afastar o balão de cima dos lotes sem fechá-lo.
+// Leaflet reposiciona o popup via translate3d toda vez que abre/o mapa se
+// move; aqui a gente só soma um deslocamento extra em cima desse transform
+// enquanto o usuário arrasta (clique e arraste em qualquer área do balão que
+// não seja botão/link/input, pra não atrapalhar os cliques normais).
+map.on('popupopen', e => {
+  const popup = e.popup;
+  const el = popup && popup._container;
+  if(!el || el._yunyDragBound) return;
+  el._yunyDragBound = true;
+  el.style.cursor = 'grab';
+  el.addEventListener('mousedown', ev => {
+    if(ev.target.closest('button,a,input,select,textarea')) return;
+    ev.preventDefault();
+    ev.stopPropagation();
+    el.style.cursor = 'grabbing';
+    const startX = ev.clientX, startY = ev.clientY;
+    const m = /translate3d\(\s*(-?[\d.]+)px,\s*(-?[\d.]+)px/.exec(el.style.transform) || [];
+    const baseX = parseFloat(m[1]||0), baseY = parseFloat(m[2]||0);
+    const onMove = mv => {
+      el.style.transform = `translate3d(${baseX + (mv.clientX-startX)}px, ${baseY + (mv.clientY-startY)}px, 0)`;
+    };
+    const onUp = () => {
+      el.style.cursor = 'grab';
+      document.removeEventListener('mousemove', onMove);
+      document.removeEventListener('mouseup', onUp);
+    };
+    document.addEventListener('mousemove', onMove);
+    document.addEventListener('mouseup', onUp);
+  });
+});
+
 let _mapaSateliteAtivo = false;
 function toggleMapaSatelite(){
   _mapaSateliteAtivo = !_mapaSateliteAtivo;
@@ -4664,6 +4772,44 @@ let _vecLotesLayer  = null;
 let _vecZonaLayer   = null;
 let _vecItbiHeatLayer = null;
 let _itbiHeatMode   = false;
+// Cache em memória de TODOS os preços ITBI (por_lote/por_quadra), carregado
+// UMA VEZ em background ao abrir o app (ver _prefetchItbiPrecosCompleto, no
+// DOMContentLoaded) — permite que _loadVecItbiHeat() colorra os lotes na
+// hora, sem esperar um POST /api/itbi/mapa-precos por viewport a cada
+// pan/zoom (como fazia antes). Enquanto esse prefetch não termina, cai no
+// POST por viewport de sempre (ver fallback dentro de _loadVecItbiHeat).
+let _itbiPrecosCompletos = null; // {por_lote:{}, por_quadra:{}} depois de carregado
+let _itbiPrecosCompletosCarregando = false;
+
+async function _prefetchItbiPrecosCompleto(force){
+  if(_itbiPrecosCompletosCarregando) return;
+  _itbiPrecosCompletosCarregando = true;
+  try{
+    const r = await fetch(`${API_BASE}/api/itbi/mapa-precos-completo${force?'?force=1':''}`);
+    const data = await r.json();
+    if(data && data.ok){
+      _itbiPrecosCompletos = { por_lote: data.por_lote||{}, por_quadra: data.por_quadra||{} };
+      console.log(`[itbiHeat] mapa de preços completo carregado em background: ${Object.keys(_itbiPrecosCompletos.por_lote).length} lotes, ${Object.keys(_itbiPrecosCompletos.por_quadra).length} quadras`);
+      // Se a camada já estava ligada esperando esse cache, redesenha agora com os preços certos
+      if(_itbiHeatMode && map.getZoom() >= VEC_ITBI_MIN) _loadVecItbiHeat();
+    }
+  }catch(e){
+    console.warn('[itbiHeat] prefetch preços completo falhou (segue com fallback por viewport):', e);
+  }finally{
+    _itbiPrecosCompletosCarregando = false;
+  }
+}
+
+// sql_base (sem dígito verificador) e sql_prefix (só setor.quadra), pra
+// bater com as chaves de _itbiPrecosCompletos — mesma lógica de
+// _norm_sql_base()/_sql_prefix() do processar_itbi.py, só que em JS.
+function _sqlBaseJS(sql){
+  return String(sql||'').replace(/-\d+$/, '');
+}
+function _sqlPrefixJS(sql){
+  const m = String(sql||'').match(/^(\d+\.\d+)/);
+  return m ? m[1] : '';
+}
 let _vecPgvRuaLayer = null;
 let _pgvRuaMode     = false;
 let _vecMoveTimer   = null;
@@ -4786,8 +4932,11 @@ function _terrenoNoPonto(latlng){
 function _loteEndereco(p){
   const rua = p.nm_logradouro || p.nm_logradouro_completo || '';
   if(!rua) return '';
-  const num = p.nr_porta_logradouro || p.nr_porta || '';
-  const compl = p.ds_complemento || '';
+  // cd_numero_porta é o nome real do campo na camada geoportal:lote_cidadao
+  // (confirmado direto na API WFS) — nr_porta_logradouro/nr_porta não vêm
+  // preenchidos nela, ficam só de fallback pra outras camadas GeoSampa.
+  const num = p.cd_numero_porta || p.nr_porta_logradouro || p.nr_porta || '';
+  const compl = p.ds_complemento || p.tx_complemento_endereco || '';
   return rua + (num ? ', '+num : '') + (compl ? ' - '+compl : '');
 }
 
@@ -5052,7 +5201,7 @@ async function _loadVecItbiHeat(){
     return;
   }
   const b = map.getBounds();
-  _vecLoadShow('⏳ Carregando preços ITBI…');
+  _vecLoadShow('⏳ Carregando lotes…');
   try{
     const r = await fetch(`${API_BASE}/api/geosampa-bbox?minLat=${b.getSouth()}&minLng=${b.getWest()}&maxLat=${b.getNorth()}&maxLng=${b.getEast()}&max=400`);
     if(!r.ok) throw new Error('HTTP '+r.status);
@@ -5062,13 +5211,28 @@ async function _loadVecItbiHeat(){
 
     const sqls = feats.map(f => fmtSQLprops(f.properties));
     let precos = {};
-    try{
-      const rPrecos = await fetch(API_BASE+'/api/itbi/mapa-precos', {
-        method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sqls })
+    if(_itbiPrecosCompletos){
+      // Cache completo já carregado em background (ver _prefetchItbiPrecosCompleto)
+      // — resolve na hora, sem round-trip nenhum, olhando por_lote/por_quadra
+      // conforme o tipo do sql (condomínio/quadra vs lote normal).
+      sqls.forEach(sql=>{
+        const key = _itbiEhCondoSql(sql) ? _sqlPrefixJS(sql) : _sqlBaseJS(sql);
+        const info = key && (_itbiEhCondoSql(sql) ? _itbiPrecosCompletos.por_quadra[key] : _itbiPrecosCompletos.por_lote[key]);
+        if(info) precos[sql] = info;
       });
-      const precosData = await rPrecos.json();
-      precos = (precosData && precosData.result) || {};
-    }catch(e){ console.warn('[itbiHeat] preços', e); }
+    } else {
+      // Prefetch em background ainda não terminou (ex: primeiro carregamento
+      // da página) — cai no POST por viewport de sempre, só dessa vez.
+      try{
+        const rPrecos = await fetch(API_BASE+'/api/itbi/mapa-precos', {
+          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sqls })
+        });
+        const precosData = await rPrecos.json();
+        precos = (precosData && precosData.result) || {};
+      }catch(e){ console.warn('[itbiHeat] preços (fallback por viewport)', e); }
+      // Dispara/garante o prefetch completo em background pra próxima vez já vir instantâneo
+      _prefetchItbiPrecosCompleto();
+    }
     _vecLoadHide();
 
     const isLonLat = _detectLonLat(feats);
@@ -5089,7 +5253,10 @@ async function _loadVecItbiHeat(){
           ? `<b>${sql}</b><br>${_fmtBRL(info.preco_m2)}/m² · ${info.n} transaç${info.n===1?'ão':'ões'}`
           : `<b>${sql}</b><br><span style="color:#999">sem transações ITBI</span>`;
         poly.bindTooltip(label, { sticky:true, className:'geo-lote-tip' });
-        const numeroLote = p.nr_porta_logradouro||p.nr_porta||'';
+        // Camada geoportal:lote_cidadao usa cd_numero_porta (confirmado direto
+        // na API WFS) — nr_porta_logradouro/nr_porta são nomes de OUTRAS camadas
+        // GeoSampa (Sistema Viário/logradouro), mantidos aqui só de fallback.
+        const numeroLote = p.cd_numero_porta||p.nr_porta_logradouro||p.nr_porta||'';
         poly.on('click', e => { L.DomEvent.stopPropagation(e); _abrirItbiConformeTipo(sql, numeroLote); });
         _vecItbiHeatLayer.addLayer(poly);
       });
@@ -5511,6 +5678,12 @@ const PATCULT_LABELS = {
   memoria_paulistana:      'Inventário Memória Paulistana',
   zepec_apc:               'ZEPEC-APC',
   monumento:               'Monumento',
+  // Ônibus (a pedido da Kamila — print da árvore de camadas do GeoSampa)
+  ponto_onibus:            'Ponto de Ônibus',
+  terminal_onibus:         'Terminal de Ônibus',
+  corredor_onibus:         'Corredor de Ônibus',
+  faixa_onibus:            'Faixa Exclusiva de Ônibus',
+  linha_onibus:            'Linha de Ônibus',
 };
 const PATCULT_CORES = {
   bairro_ambiental:'#84cc16', lugar_paisagistico:'#f97316', envoltoria_conpresp:'#eab308',
@@ -5518,6 +5691,8 @@ const PATCULT_CORES = {
   area_arqueologica:'#7c3aed', sitio_arqueologico:'#8b5cf6', ocorrencia_arqueologica:'#a855f7',
   bem_arqueologico:'#c026d3', bem_registrado:'#db2777', selo_valor_cultural:'#e11d48',
   memoria_paulistana:'#0d9488', zepec_apc:'#059669', monumento:'#78716c',
+  ponto_onibus:'#0ea5e9', terminal_onibus:'#2563eb', corredor_onibus:'#dc2626',
+  faixa_onibus:'#f97316', linha_onibus:'#16a34a',
 };
 let _vecPatcultLayer = null;
 const _patcultActive = {};
@@ -5569,6 +5744,21 @@ async function _loadVecPatcult(){
           _vecPatcultLayer.addLayer(marker);
           return;
         }
+        // Camadas de Ônibus (corredor/faixa/linha) vêm como LineString —
+        // diferente de tudo que essa função tratava até então (só Point ou
+        // Polygon) — desenha como traço (polyline), sem preenchimento.
+        if(f.geometry?.type === 'LineString' || f.geometry?.type === 'MultiLineString'){
+          const linhas = f.geometry.type==='LineString' ? [f.geometry.coordinates] : f.geometry.coordinates;
+          linhas.forEach(coords=>{
+            if(!coords || !coords.length) return;
+            const latlngs = coords.map(c=> isLonLat ? [c[1],c[0]] : [c[0],c[1]]);
+            const line = L.polyline(latlngs, { color:cor, weight:4, opacity:0.85 });
+            line.bindPopup(popupHtml);
+            line.bindTooltip(label+': '+nome, { sticky:true, className:'geo-lote-tip' });
+            _vecPatcultLayer.addLayer(line);
+          });
+          return;
+        }
         _geomToLatLngs(f.geometry, isLonLat).forEach(latlngs=>{
           if(!latlngs.length) return;
           const poly = L.polygon(latlngs, { color:cor, weight:2, fillColor:cor, fillOpacity:0.18 });
@@ -5590,6 +5780,9 @@ function _patcultNomeDe(p){
     'nm_bem','nm_denominacao','nm_nome','tx_nome','nm_imovel','nm_edificacao',
     'nm_bairro_ambiental','nm_lugar','nm_area_tombada','nm_sitio','nm_monumento',
     'nm_bem_cultural','nm_endereco','ds_denominacao','ds_nome',
+    // Ônibus
+    'nm_ponto_onibus','nm_terminal','nm_corredor','nm_denominacao_faixa_corredor',
+    'nm_linha_onibus_geometria','tx_endereco_ponto_onibus','tx_endereco_terminal',
   ];
   for(const c of candidatos){ if(p[c]) return String(p[c]); }
   return '';
@@ -6151,6 +6344,131 @@ function _pontosAncoradosNaSuperficie(corners, altPoints, tolM=80){
   return achados;
 }
 
+// ─── Congonhas/SBSP — reconstrução analítica das superfícies PBZPA ────────
+// A interpolação por pontos do KMZ acima (usada pra todos os aeródromos) erra
+// feio em zonas de transição — ex.: na Rua Teodoro Sampaio (Pinheiros) ela
+// dava gabarito 952,6m, enquanto o relatório oficial da Flight Consultoria
+// (que usa a fórmula da própria ICA 11-408) aponta 919,00m. O problema é que
+// o KMZ é só uma digitalização visual 2D do desenho das superfícies — não tem
+// atributo de elevação por superfície nem separa direito as superfícies que
+// se sobrepõem (Aproximação/Cônica/Horizontal Externa).
+// Este bloco reconstrói as superfícies de Congonhas GEOMETRICAMENTE, a partir
+// da fórmula oficial da Tabela 4-3 da ICA 11-408/2020 (raio/gradiente/altura
+// por Código de Referência de Aeródromo) + dados reais das 4 cabeceiras
+// (coordenadas exatas e elevação oficial de cada cabeceira, extraídos da
+// AIP-Brasil AD 2.12 de SBSP via AISWEB — NÃO é a elevação do ARP, que é bem
+// diferente da elevação de cada cabeceira individualmente).
+// Validado (29/09-30/09/2026) contra o relatório da Flight na Rua Teodoro
+// Sampaio: nosso cálculo dá 939,3m vs 919,00m publicado — margem de ~20m,
+// residual provavelmente ligado à OCA/H específica da carta de aproximação
+// IAC ILS 17R (carta em PDF/imagem, não conseguimos ler o valor exato por
+// aqui) — mesmo assim, é MUITO mais preciso que o KMZ (que errava >30m).
+// Escopo: SÓ Congonhas/SBSP por enquanto (pedido explícito da Kamila — validar
+// aqui antes de estender pra Guarulhos/Campo de Marte/etc.).
+const _SBSP_CABECEIRAS = {
+  '17R': { lat:-23.620950, lon:-46.660425, elev:789.3, trueBrgPouso:147.48, codigo:4, tipoOperacao:'CATI' },
+  '35L': { lat:-23.634303, lon:-46.651186, elev:801.6, trueBrgPouso:327.48, codigo:4, tipoOperacao:'CATI' },
+  '17L': { lat:-23.620786, lon:-46.658000, elev:790.0, trueBrgPouso:147.49, codigo:2, tipoOperacao:'NP'   },
+  '35R': { lat:-23.631264, lon:-46.650756, elev:802.0, trueBrgPouso:327.49, codigo:2, tipoOperacao:'NP'   },
+};
+// Superfície de Aproximação — Tabela 4-3 (ICA 11-408): 1ª/2ª seção + seção
+// horizontal (CAT I código 3/4), ou só 1ª seção (Não Precisão código 1/2).
+const _ICA1140_APROX = {
+  CATI4: { len1:3000, grad1:0.02, grad2:0.025, alturaCap:150, largura0:280, abertura:0.15 },
+  NP2:   { len1:2500, grad1:0.0333, grad2:null, alturaCap:null, largura0:140, abertura:0.15 },
+};
+// Horizontal Interna / Cônica / Horizontal Externa — por Código de Referência
+// (convergem pro mesmo valor entre tipos de operação em código 2 e 4, que são
+// os dois códigos das pistas de Congonhas — 4C em 17R/35L, 2B em 17L/35R).
+const _ICA1140_ENVELOPE = {
+  4: { raioHI:4000, alturaHI:45, gradCon:0.05, alturaCon:100, raioHE:20000, alturaHE:145 },
+  2: { raioHI:3500, alturaHI:45, gradCon:0.05, alturaCon:60,  raioHE:20000, alturaHE:105 },
+};
+// Projeção local (plano tangente) do ponto em relação a uma cabeceira, nos
+// eixos (along = ao longo do eixo estendido da pista, na direção de onde vêm
+// as aeronaves; cross = afastamento lateral). Precisão testada contra cálculo
+// geodésico completo (geographiclib) pra essa escala (~7km): resultado idêntico.
+function _sbspAlongCross(cabLat, cabLon, brgGraus, lat, lon){
+  const R=6371000, lat0=cabLat*Math.PI/180;
+  const north=(lat-cabLat)*Math.PI/180*R, east=(lon-cabLon)*Math.PI/180*R*Math.cos(lat0);
+  const brg=brgGraus*Math.PI/180, ux=Math.sin(brg), uy=Math.cos(brg);
+  return { along: east*ux+north*uy, cross: east*(-uy)+north*ux };
+}
+function _sbspAltAproximacao(end, lat, lon){
+  const brgAprox = (end.trueBrgPouso + 180) % 360;
+  const { along, cross } = _sbspAlongCross(end.lat, end.lon, brgAprox, lat, lon);
+  const dBorda = along - 60; // borda interna fica 60m além da cabeceira (regra geral da ICA 11-408)
+  if(dBorda < 0) return null; // ponto "atrás" da cabeceira — não está sob a Aproximação dessa pista
+  const p = end.tipoOperacao==='CATI' ? _ICA1140_APROX.CATI4 : _ICA1140_APROX.NP2;
+  let h;
+  if(end.tipoOperacao==='CATI'){
+    if(dBorda <= p.len1){
+      h = p.grad1*dBorda;
+    } else {
+      const h1 = p.grad1*p.len1, len2 = (p.alturaCap-h1)/p.grad2;
+      h = (dBorda <= p.len1+len2) ? h1 + p.grad2*(dBorda-p.len1) : p.alturaCap;
+    }
+  } else {
+    if(dBorda > p.len1) return null; // Não Precisão código 1/2 só tem 1ª seção — além disso, cai pra Horizontal Interna/Cônica
+    h = p.grad1*dBorda;
+  }
+  const halfw = p.largura0/2 + p.abertura*dBorda;
+  if(Math.abs(cross) > halfw) return null; // fora da largura da superfície nesse trecho
+  return end.elev + h;
+}
+function _sbspDistEstrip(latA,lonA, latB,lonB, lat,lon){
+  const R=6371000, lat0=latA*Math.PI/180;
+  const toXY=(la,lo)=>[ (lo-lonA)*Math.PI/180*R*Math.cos(lat0), (la-latA)*Math.PI/180*R ];
+  const [ax,ay]=[0,0], [bx,by]=toXY(latB,lonB), [px,py]=toXY(lat,lon);
+  const dx=bx-ax, dy=by-ay, len2=dx*dx+dy*dy;
+  let t = len2>0 ? ((px-ax)*dx+(py-ay)*dy)/len2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px-(ax+t*dx), py-(ay+t*dy));
+}
+// Elevação oficial do aeródromo (AIP-Brasil AD 2.2 de SBSP — "ELEV/Temperatura
+// de referência": 802,91m) — usada como referência única da Horizontal Interna/
+// Cônica/Externa. Testamos usar a elevação de cada cabeceira (mais baixa, pra
+// ser conservador, já que a diferença entre cabeceiras de Congonhas passa dos
+// 6m que a ICA 11-408 cita como limite pra usar referência única) e bateu ~13m
+// abaixo do relatório da Flight (Av. Ver. José Diniz: 834,3m calculado vs
+// 847,60m publicado) — ou seja, essa "cautela" na verdade deixava o resultado
+// mais restritivo que o real. Usando a elevação oficial do aeródromo pra toda
+// a superfície (como a Flight aparentemente faz), bate quase exato: 847,91m
+// calculado vs 847,60m publicado (diferença de ~0,3m, arredondamento).
+const _SBSP_ELEV_AERODROMO = 802.91;
+function _sbspAltEnvelope(endA, endB, lat, lon){
+  const dist = _sbspDistEstrip(endA.lat,endA.lon, endB.lat,endB.lon, lat,lon);
+  const p = _ICA1140_ENVELOPE[endA.codigo];
+  const elevBase = _SBSP_ELEV_AERODROMO;
+  if(dist <= p.raioHI) return elevBase + p.alturaHI;
+  const distConMax = p.alturaCon/p.gradCon;
+  if(dist <= p.raioHI+distConMax) return elevBase + p.alturaHI + (dist-p.raioHI)*p.gradCon;
+  if(dist <= p.raioHE) return elevBase + p.alturaHE;
+  return null; // fora de qualquer superfície modelada (>20km do eixo da pista)
+}
+function _comarSBSPAnalitico(lon, lat){
+  const ARP = { lat:-23.626111, lon:-46.656389 };
+  if(_haversineM(lon,lat, ARP.lon,ARP.lat) > 22000) return null; // nem perto de Congonhas — nem tenta
+  const e = _SBSP_CABECEIRAS;
+  let melhor = null;
+  ['17R','35L','17L','35R'].forEach(k=>{
+    const g = _sbspAltAproximacao(e[k], lat, lon);
+    if(g!=null && (melhor==null || g<melhor.gabarito)) melhor = { gabarito:g, superficie:`Aproximação ${k}` };
+  });
+  if(!melhor){
+    const g1 = _sbspAltEnvelope(e['17R'], e['35L'], lat, lon);
+    if(g1!=null) melhor = { gabarito:g1, superficie:'Horizontal Interna/Cônica/Externa (17R/35L)' };
+    const g2 = _sbspAltEnvelope(e['17L'], e['35R'], lat, lon);
+    if(g2!=null && (melhor==null || g2<melhor.gabarito)) melhor = { gabarito:g2, superficie:'Horizontal Interna/Cônica/Externa (17L/35R)' };
+  }
+  if(!melhor) return null;
+  return {
+    aerodromo:'Congonhas - Deputado Freitas Nobre', oaci:'SBSP', tipo:'PBZPA',
+    superficie: melhor.superficie, gabarito: melhor.gabarito,
+    metodo: 'geometria analítica ICA 11-408 (Tabela 4-3) — margem estimada ~20m',
+  };
+}
+
 // Função principal: dado um ponto (lon,lat), retorna o gabarito de topo de
 // cada plano DECEA aplicável, o mais restritivo (menor gabarito) entre eles,
 // a cota do terreno (elevação) e a altura máxima permitida estimada.
@@ -6224,9 +6542,27 @@ async function _comarCalcularAltura(lon, lat){
       resultados.push({ planoId, aerodromo: g.meta.aerodromo, oaci: g.meta.oaci, tipo: g.meta.tipo, superficie, gabarito, metodo });
     }
   });
+  // Congonhas/SBSP: troca o(s) resultado(s) vindo(s) do KMZ por um cálculo
+  // geométrico analítico (ver bloco "_comarSBSPAnalitico" acima) — mais preciso.
+  // Só mexe em SBSP; Guarulhos, Campo de Marte, PZPANA, helipontos etc.
+  // continuam vindo do KMZ normalmente, como antes.
+  const sbspAnalitico = _comarSBSPAnalitico(lon, lat);
+  if(sbspAnalitico){
+    for(let i=resultados.length-1; i>=0; i--){ if(resultados[i].oaci==='SBSP') resultados.splice(i,1); }
+    resultados.push(sbspAnalitico);
+  }
   let cota = null;
   try{
-    const r = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`);
+    // Timeout curto (8s) — sem isso, quando a Open-Meteo está lenta/fora do
+    // ar, o fetch fica pendurado até o timeout padrão do navegador (bem mais
+    // longo), e como _comarCalcularFormacao chama isso uma vez por vértice
+    // do polígono, em sequência, o relatório podia parecer "travado"/"não
+    // abre" por vários minutos em vez de simplesmente avisar que a cota
+    // não veio dessa vez.
+    const ac = new AbortController();
+    const to = setTimeout(()=>ac.abort(), 8000);
+    const r = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`, {signal:ac.signal});
+    clearTimeout(to);
     if(r.ok){ const j = await r.json(); cota = (j && j.elevation && j.elevation[0]!=null) ? j.elevation[0] : null; }
   }catch(e){ console.warn('[comar-altura] erro ao buscar elevação', e); }
   resultados.sort((a,b)=>a.gabarito-b.gabarito);
@@ -6273,16 +6609,23 @@ function _alturaComarSetMarker(lat, lng){
 
 // Roda o cálculo de altura num ponto (lat,lng), marca no mapa e preenche o
 // painel — usado tanto pelo clique no mapa quanto pela busca por endereço.
-async function _alturaComarRodar(lat, lng){
+// Guarda o último cálculo (+ endereço, se veio da busca) pra alimentar o
+// botão "Gerar Relatório" sem precisar recalcular nada.
+let _ultimoComarResultado = null;
+let _ultimoComarEndereco = '';
+async function _alturaComarRodar(lat, lng, endereco){
   const body = document.getElementById('altura-comar-body');
   if(!body) return;
   _alturaComarSetMarker(lat, lng);
   body.innerHTML = '<div style="font-size:12px;color:var(--muted);">Calculando…</div>';
   try{
     const res = await _comarCalcularAltura(lng, lat);
+    _ultimoComarResultado = res;
+    _ultimoComarEndereco = endereco || '';
     body.innerHTML = _renderAlturaComarResultado(res);
   }catch(err){
     console.error('[altura-comar]', err);
+    _ultimoComarResultado = null;
     body.innerHTML = '<div style="font-size:12px;color:#dc2626;">Erro ao calcular. Tente novamente.</div>';
   }
 }
@@ -6317,40 +6660,403 @@ async function buscarEnderecoAlturaComar(){
       return;
     }
     map.setView([lat, lng], 18);
-    await _alturaComarRodar(lat, lng);
+    await _alturaComarRodar(lat, lng, endereco);
   }catch(err){
     console.error('[altura-comar] erro geocode', err);
     body.innerHTML = '<div style="font-size:12px;color:#dc2626;">Erro ao buscar endereço. Tente novamente.</div>';
   }
 }
 function _renderAlturaComarResultado(res){
-  const { cota, resultados, maisRestritivo, alturaMax, lat, lon } = res;
+  const { cota, resultados, lat, lon } = res;
   let html = `<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">📍 ${lat.toFixed(5)}, ${lon.toFixed(5)}</div>`;
   if(!resultados.length){
     html += `<div style="font-size:12px;color:#16a34a;font-weight:600;">✅ Nenhuma zona de proteção do DECEA identificada neste ponto.</div>`;
     html += `<div style="font-size:10px;color:var(--muted);margin-top:6px;line-height:1.4;">Cobertura: aeródromos/helipontos com plano publicado no Portal AGA (aga.decea.mil.br) pra São Paulo (capital). Fora dessa cobertura não há garantia de ausência de restrição — em caso de dúvida, consulte a Flight Consultoria ou o DECEA.</div>`;
+    html += `<button onclick="_gerarRelatorioComar()" style="width:100%;margin-top:10px;padding:8px;background:#1a3c4d;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">📄 Gerar Relatório</button>`;
     return html;
   }
+  // A Kamila pediu pra destacar, no painel ao vivo, a mesma zona que o
+  // relatório em PDF já usa como número principal — ou seja, a mais
+  // restritiva SEM contar o Campo de Marte (SBMT), que é tratado à parte
+  // (linha informativa própria, igual já fazia _comarLinhaCampoDeMarteHtml
+  // no relatório). Antes, o painel ao vivo ignorava essa regra e podia
+  // destacar o Campo de Marte como "zona mais restritiva" — inconsistente
+  // com o relatório gerado a partir do mesmo cálculo.
+  const semCM = resultados.filter(r=>!_comarEhCampoDeMarte(r));
+  const principal = semCM.length ? semCM.reduce((min,r)=> r.gabarito<min.gabarito ? r : min, semCM[0]) : null;
+  const alturaMax = (principal && cota!=null) ? (principal.gabarito - cota) : null;
   html += `<div style="font-size:11px;color:var(--muted);">Cota do terreno (elevação): <b>${cota!=null? cota.toFixed(1)+' m':'—'}</b></div>`;
   html += `<div style="margin:10px 0 6px;font-size:11px;font-weight:700;color:var(--navy,#1a3c4d);">Zonas aplicáveis (${resultados.length}):</div>`;
   resultados.forEach(r=>{
     const alt = (cota!=null) ? (r.gabarito - cota) : null;
-    const destaque = r === maisRestritivo;
-    html += `<div style="padding:8px;margin-bottom:6px;border-radius:6px;background:${destaque?'#fff7ed':'#f8fafc'};border:1px solid ${destaque?'#f97316':'var(--border)'};">
-      <div style="font-size:11px;font-weight:700;">${r.aerodromo||'—'} ${r.oaci?'('+r.oaci+')':''} ${destaque?'⭐':''}</div>
+    const ehCM = _comarEhCampoDeMarte(r);
+    const ehPrincipal = principal && r===principal;
+    // Destaque visual: a zona usada no número principal (teal, igual ao
+    // bloco de baixo) fica com borda/fundo destacados; o Campo de Marte,
+    // quando aparece, fica esmaecido com uma nota explicando que não entra
+    // no número principal (ele tem prioridade de desconsideração — ver
+    // _comarEhCampoDeMarte).
+    const estilo = ehPrincipal
+      ? 'background:#e6fbfa;border:2px solid #00B0B9;'
+      : ehCM
+        ? 'background:#f8fafc;border:1px dashed var(--border);opacity:.7;'
+        : 'background:#f8fafc;border:1px solid var(--border);';
+    html += `<div style="padding:8px;margin-bottom:6px;border-radius:6px;${estilo}">
+      <div style="font-size:11px;font-weight:700;">${ehPrincipal?'⭐ ':''}${r.aerodromo||'—'} ${r.oaci?'('+r.oaci+')':''}</div>
       <div style="font-size:10px;color:var(--muted);">${_comarLabel(r.tipo)} — ${r.superficie}</div>
       <div style="font-size:10px;color:var(--muted);">Método: ${r.metodo}</div>
       <div style="font-size:12px;margin-top:4px;">Gabarito de topo: <b>${r.gabarito.toFixed(1)} m</b>${alt!=null?` → altura permitida: <b>${alt.toFixed(1)} m</b>`:''}</div>
+      ${ehCM ? '<div style="font-size:10px;color:#92400e;margin-top:4px;">⚠️ Não usado no número principal (ver nota abaixo).</div>' : ''}
     </div>`;
   });
   if(alturaMax != null){
     html += `<div style="margin-top:10px;padding:10px;border-radius:8px;background:#00B0B9;color:#fff;">
-      <div style="font-size:10px;opacity:.85;">Altura máxima permitida (zona mais restritiva)</div>
+      <div style="font-size:10px;opacity:.85;">Altura máxima permitida (zona mais restritiva, exceto Campo de Marte)</div>
       <div style="font-size:24px;font-weight:800;">${alturaMax.toFixed(1)} m</div>
     </div>`;
+    html += _comarLinhaCampoDeMarteHtml(resultados, cota, alturaMax);
   }
   html += `<div style="font-size:10px;color:var(--muted);margin-top:10px;line-height:1.4;">⚠️ <b>Estimativa</b> calculada a partir dos planos públicos do DECEA (Portal AGA) e elevação de terreno de fonte aberta. Não substitui análise oficial da Flight Consultoria/DECEA antes de qualquer decisão de aquisição ou projeto.</div>`;
+  html += `<button onclick="_gerarRelatorioComar()" style="width:100%;margin-top:10px;padding:8px;background:#1a3c4d;color:#fff;border:none;border-radius:6px;font-size:11px;font-weight:700;cursor:pointer;">📄 Gerar Relatório</button>`;
   return html;
+}
+
+// Graus decimais → "23° 33'50,69"S" (mesmo formato do relatório da Flight
+// Consultoria, usado como referência pro nosso próprio relatório).
+function _decToDMS(dec, isLat){
+  const sinal = dec >= 0 ? (isLat?'N':'E') : (isLat?'S':'W');
+  const abs = Math.abs(dec);
+  const graus = Math.floor(abs);
+  const minFloat = (abs - graus) * 60;
+  const minutos = Math.floor(minFloat);
+  const segundos = (minFloat - minutos) * 60;
+  return `${graus}° ${String(minutos).padStart(2,'0')}'${segundos.toFixed(2).replace('.',',')}"${sinal}`;
+}
+// Lat/lon (WGS84) → UTM — São Paulo (capital) inteira cai no fuso 23S, então
+// fixamos o fuso em vez de calcular (mais simples e sem risco de "vazar" pro
+// fuso vizinho por arredondamento perto da fronteira). Fórmula padrão de
+// projeção UTM (elipsoide WGS84).
+function _latLonToUTM(lat, lon){
+  const a = 6378137.0, e = 0.0818191908426;
+  const k0 = 0.9996;
+  const zone = 23;
+  const lonOrigin = (zone - 1) * 6 - 180 + 3;
+  const latRad = lat * Math.PI/180, lonRad = lon * Math.PI/180, lonOriginRad = lonOrigin * Math.PI/180;
+  const eSq = e*e, ePrimeSq = eSq/(1-eSq);
+  const N = a / Math.sqrt(1 - eSq*Math.sin(latRad)*Math.sin(latRad));
+  const T = Math.tan(latRad)*Math.tan(latRad);
+  const C = ePrimeSq*Math.cos(latRad)*Math.cos(latRad);
+  const A = Math.cos(latRad)*(lonRad - lonOriginRad);
+  const M = a*((1 - eSq/4 - 3*eSq*eSq/64 - 5*eSq*eSq*eSq/256)*latRad
+    - (3*eSq/8 + 3*eSq*eSq/32 + 45*eSq*eSq*eSq/1024)*Math.sin(2*latRad)
+    + (15*eSq*eSq/256 + 45*eSq*eSq*eSq/1024)*Math.sin(4*latRad)
+    - (35*eSq*eSq*eSq/3072)*Math.sin(6*latRad));
+  let easting = k0*N*(A + (1-T+C)*A*A*A/6 + (5-18*T+T*T+72*C-58*ePrimeSq)*A*A*A*A*A/120) + 500000;
+  let northing = k0*(M + N*Math.tan(latRad)*(A*A/2 + (5-T+9*C+4*C*C)*A*A*A*A/24
+    + (61-58*T+T*T+600*C-330*ePrimeSq)*A*A*A*A*A*A/720));
+  if(lat < 0) northing += 10000000; // hemisfério sul
+  return { easting, northing, zone: zone+'S' };
+}
+
+// Botão "📄 Gerar Relatório" da calculadora de Altura Permitida (COMAER) —
+// pedido da Kamila: um relatório no mesmo espírito do que a Flight
+// Consultoria manda (endereço, coordenadas, tabela de planos/zonas do DECEA,
+// altura máxima permitida). Abre pronto pra imprimir/salvar como PDF — não é
+// um laudo oficial (não temos ART/responsável técnico credenciado no DECEA
+// como a Flight tem), então o relatório deixa isso bem explícito.
+// Lista fixa de planos do DECEA mostrada no relatório (mesmas 4 categorias
+// usadas no relatório da Flight Consultoria, + linha "FORA" quando nenhuma
+// bate no ponto).
+const _COMAR_PLANOS = [
+  { tipo:'PBZPA',  nome:'PBZPA', desc:'Plano Básico da Zona de Proteção de Aeródromo' },
+  { tipo:'PBZPH',  nome:'PBZPH', desc:'Plano Básico de Zona de Proteção de Heliponto' },
+  { tipo:'PZPANA', nome:'PZPANA', desc:'Plano de Zona de Proteção de Auxílios à Navegação Aérea' },
+  { tipo:'PZPREAH',nome:'PZPREAH', desc:'Plano de Zona de Proteção de Rotas Especiais de Aviões e Helicópteros' },
+];
+// Monta as linhas <tr> da tabela "Dados das Zonas de Proteção" a partir de um
+// array `resultados` (mesmo formato devolvido por _comarCalcularAltura) —
+// extraído do corpo de _gerarRelatorioComar pra poder desenhar duas tabelas
+// (ponto mais alto / ponto mais baixo do polígono) sem duplicar código.
+function _comarLinhasPlanosHtml(resultados){
+  const porTipo = {};
+  resultados.forEach(r=>{
+    const key = r.tipo==='PZPPNA' ? 'PZPANA' : r.tipo; // alias visto nos dados
+    (porTipo[key] = porTipo[key]||[]).push(r);
+  });
+  return _COMAR_PLANOS.map(p=>{
+    const hits = porTipo[p.tipo]||[];
+    const ativo = hits.length>0;
+    const zonaTxt = ativo
+      ? hits.map(r=>`${escHtml(r.aerodromo||'—')}${r.oaci?' ('+escHtml(r.oaci)+')':''}`).join('<br>')
+      : '—';
+    const gabaritoTxt = ativo ? hits.map(r=>r.gabarito.toFixed(2)+' metros').join('<br>') : '—';
+    return `<tr style="${ativo?'background:#eafaf6;':''}">
+      <td style="padding:12px 14px;border-bottom:1px solid #e5e7eb;vertical-align:top;">
+        <div style="font-weight:800;color:#0f172a;font-size:12px;">${p.nome}</div>
+        <div style="font-size:10px;color:#64748b;max-width:190px;">${p.desc}</div>
+      </td>
+      <td style="padding:12px 14px;border-bottom:1px solid #e5e7eb;vertical-align:top;font-size:12px;color:#0f172a;">${zonaTxt}</td>
+      <td style="padding:12px 14px;border-bottom:1px solid #e5e7eb;vertical-align:top;font-size:12px;font-weight:700;color:#0f172a;text-align:right;">${gabaritoTxt}</td>
+    </tr>`;
+  }).join('') + `<tr style="${!resultados.length?'background:#eafaf6;':''}">
+      <td style="padding:12px 14px;vertical-align:top;">
+        <div style="font-weight:800;color:#0f172a;font-size:12px;">FORA</div>
+        <div style="font-size:10px;color:#64748b;">Fora da Zona de Proteção de Aeródromo</div>
+      </td>
+      <td style="padding:12px 14px;vertical-align:top;font-size:12px;color:#0f172a;">${!resultados.length?'✔':'—'}</td>
+      <td style="padding:12px 14px;vertical-align:top;font-size:12px;text-align:right;">—</td>
+    </tr>`;
+}
+// Vértices do polígono do terreno em cadastro/edição no momento (prioriza o
+// que está sendo desenhado agora; se não tiver, cai pro polígono já salvo do
+// terreno aberto no modal) — usado pra calcular a altura permitida no ponto
+// mais alto e mais baixo da formação, em vez de um único ponto clicado.
+function _comarPontosFormacaoAtual(latlng){
+  let pts = [];
+  if(typeof pendingPolygons!=='undefined' && pendingPolygons && pendingPolygons.length){
+    pendingPolygons.forEach(poly=>{ if(poly && poly.length) pts.push(...poly); });
+  } else if(typeof editingId!=='undefined' && editingId){
+    const t = terrenos.find(x=>x.id===editingId);
+    if(t){
+      if(t.polygons && t.polygons.length) t.polygons.forEach(poly=>{ if(poly && poly.length) pts.push(...poly); });
+      else if(t.polygon && t.polygon.length) pts.push(...t.polygon);
+    }
+  }
+  // Nem cadastrando/editando um terreno agora, nem desenhando um polígono
+  // novo: era o caso mais comum de gerar o relatório (busca por endereço,
+  // direto na calculadora de Altura Permitida) e o relatório sempre caía no
+  // modo "ponto único", mesmo quando o ponto clicado já estava dentro de um
+  // terreno com polígono cadastrado. Agora verifica isso também — se o ponto
+  // cai dentro do polígono de algum terreno já salvo, usa o polígono dele.
+  if(!pts.length && latlng && typeof _terrenoNoPonto==='function'){
+    const idNoPonto = _terrenoNoPonto(latlng);
+    if(idNoPonto){
+      const t = terrenos.find(x=>x.id===idNoPonto);
+      if(t){
+        let polys = t.polygons;
+        if(typeof polys==='string'){ try{ polys=JSON.parse(polys); }catch(e){ polys=null; } }
+        if((!polys || !polys.length) && t.polygon){
+          let p = t.polygon;
+          if(typeof p==='string'){ try{ p=JSON.parse(p); }catch(e){ p=null; } }
+          if(p && p.length>=3) polys=[p];
+        }
+        if(polys && polys.length) polys.forEach(poly=>{ if(poly && poly.length) pts.push(...poly); });
+      }
+    }
+  }
+  return pts.length ? pts : null;
+}
+// Roda o cálculo de altura em cada vértice do polígono e devolve os dois
+// extremos (cota mais baixa / mais alta) — as superfícies de proteção do
+// DECEA são inclinadas (cônicas), não um platô plano, então o gabarito (e a
+// altura permitida) real varia de um lado a outro do terreno. Reportar só um
+// ponto (ex.: o centro, ou onde alguém clicou) pode divergir de um laudo que
+// mediu outro canto do mesmo lote — foi exatamente essa divergência que a
+// Kamila notou comparando com o relatório da Flight.
+async function _comarCalcularFormacao(pontos){
+  // Roda os vértices EM PARALELO (Promise.all), não um de cada vez — com o
+  // timeout de 8s já embutido em _comarCalcularAltura, um polígono com vários
+  // lotes (vários vértices) podia levar minutos pra terminar se a Open-Meteo
+  // estivesse lenta/fora do ar, e o relatório parecia simplesmente "não abrir".
+  const settled = await Promise.all(pontos.map(p =>
+    _comarCalcularAltura(p[1], p[0]).catch(()=>null) // (lon, lat); ignora vértice que falhar
+  ));
+  const calcs = settled.filter(r => r && r.cota != null);
+  if(calcs.length < 2) return null;
+  calcs.sort((a,b)=>a.cota-b.cota);
+  return { maisBaixo: calcs[0], maisAlto: calcs[calcs.length-1] };
+}
+
+// A Kamila pediu pra não usar o Campo de Marte (SBMT) como zona restritiva
+// no número principal do relatório — só exibir ele informativamente numa
+// linha à parte, mostrando qual seria o limite SE ele fosse considerado.
+// (O painel do mapa, ao vivo, continua mostrando todas as zonas normalmente —
+// esse ajuste é só no relatório gerado.)
+function _comarEhCampoDeMarte(r){
+  return r.oaci === 'SBMT' || /campo de marte/i.test(r.aerodromo||'');
+}
+function _comarAlturaExcluindoCampoDeMarte(resultados, cota){
+  if(cota == null) return null;
+  const semCM = (resultados||[]).filter(r=>!_comarEhCampoDeMarte(r));
+  if(!semCM.length) return null;
+  const maisRestrito = semCM.reduce((min,r)=> r.gabarito<min.gabarito ? r : min, semCM[0]);
+  return maisRestrito.gabarito - cota;
+}
+function _comarLinhaCampoDeMarteHtml(resultados, cota, alturaPrincipal){
+  const cm = (resultados||[]).filter(_comarEhCampoDeMarte);
+  if(!cm.length || cota==null) return '';
+  const maisRestritoCM = cm.reduce((min,r)=> r.gabarito<min.gabarito ? r : min, cm[0]);
+  const alturaComCM = maisRestritoCM.gabarito - cota;
+  // Só vale a pena mostrar se realmente muda o resultado (Campo de Marte é
+  // mais restritivo que a zona usada no número principal).
+  if(alturaPrincipal!=null && alturaComCM >= alturaPrincipal) return '';
+  return `<div style="font-size:10px;color:#7c2d12;background:#fff7ed;border:1px solid #fed7aa;border-radius:6px;padding:6px 10px;margin-top:6px;">⚠️ Considerando também o Campo de Marte (SBMT) — não usado no número acima —, o limite cairia para <b>${alturaComCM.toFixed(0)} metros</b>.</div>`;
+}
+
+async function _gerarRelatorioComar(){
+  const res = _ultimoComarResultado;
+  if(!res){ showToast('Calcule a altura permitida em um ponto antes de gerar o relatório.'); return; }
+  showToast('📄 Preparando relatório…', 3000);
+  const { lat, lon } = res;
+  const eu = (typeof getUsuarioAtual==='function') ? getUsuarioAtual() : null;
+  const hoje = new Date().toLocaleDateString('pt-BR');
+  const numero = (String(new Date().getFullYear()).slice(2)) + '.' + String(Date.now()).slice(-6);
+  const utm = _latLonToUTM(lat, lon);
+
+  // Se houver um polígono cadastrado/em desenho, recalcula nos vértices pra
+  // pegar o intervalo de cota — mais informativo que um ponto só. Passa o
+  // ponto clicado pra também tentar achar um terreno já cadastrado bem ali
+  // (busca por endereço direto na calculadora, sem estar editando nada).
+  const pontosFormacao = _comarPontosFormacaoAtual(L.latLng(lat, lon));
+  const formacao = (pontosFormacao && pontosFormacao.length>=2) ? await _comarCalcularFormacao(pontosFormacao) : null;
+
+  const enderecoTxt = _ultimoComarEndereco || `${lat.toFixed(6)}, ${lon.toFixed(6)}`;
+
+  let blocoAltura;
+  if(formacao){
+    const { maisAlto, maisBaixo } = formacao;
+    const _alturaBaixo = _comarAlturaExcluindoCampoDeMarte(maisBaixo.resultados, maisBaixo.cota);
+    const _alturaAlto  = _comarAlturaExcluindoCampoDeMarte(maisAlto.resultados, maisAlto.cota);
+    blocoAltura = `
+    <div class="banner-info">
+      <div><label>Órgão Regional DECEA</label><div class="val">CRCEA-SP</div></div>
+      <div style="text-align:right;"><label>Altitude do terreno (variação no polígono)</label><div class="val">${maisBaixo.cota.toFixed(0)} – ${maisAlto.cota.toFixed(0)} metros</div></div>
+    </div>
+    <div style="font-size:10px;color:#64748b;margin:-10px 0 16px;line-height:1.4;">📐 Calculado a partir de ${pontosFormacao.length} vértice(s) do polígono cadastrado — como a superfície de proteção do DECEA é inclinada, o resultado varia entre o ponto mais baixo e o mais alto do terreno.</div>
+
+    <div class="sec-titulo">Dados das Zonas de Proteção — ponto mais baixo do terreno (cota ${maisBaixo.cota.toFixed(1)} m)</div>
+    <table>
+      <thead><tr><th>Plano</th><th>Zona identificada</th><th style="text-align:right;">Gabarito de topo</th></tr></thead>
+      <tbody>${_comarLinhasPlanosHtml(maisBaixo.resultados)}</tbody>
+    </table>
+
+    <div class="sec-titulo">Dados das Zonas de Proteção — ponto mais alto do terreno (cota ${maisAlto.cota.toFixed(1)} m)</div>
+    <table>
+      <thead><tr><th>Plano</th><th>Zona identificada</th><th style="text-align:right;">Gabarito de topo</th></tr></thead>
+      <tbody>${_comarLinhasPlanosHtml(maisAlto.resultados)}</tbody>
+    </table>
+
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:16px;">
+      <div>
+        <div class="limite-box" style="flex-direction:column;align-items:flex-start;gap:2px;">
+          <label>Altura máx. permitida<br>(ponto mais baixo)</label>
+          <div class="val">${_alturaBaixo!=null?_alturaBaixo.toFixed(0):'—'}<span style="font-size:14px;font-weight:600;"> metros</span></div>
+        </div>
+        ${_comarLinhaCampoDeMarteHtml(maisBaixo.resultados, maisBaixo.cota, _alturaBaixo)}
+      </div>
+      <div>
+        <div class="limite-box" style="flex-direction:column;align-items:flex-start;gap:2px;">
+          <label>Altura máx. permitida<br>(ponto mais alto)</label>
+          <div class="val">${_alturaAlto!=null?_alturaAlto.toFixed(0):'—'}<span style="font-size:14px;font-weight:600;"> metros</span></div>
+        </div>
+        ${_comarLinhaCampoDeMarteHtml(maisAlto.resultados, maisAlto.cota, _alturaAlto)}
+      </div>
+    </div>`;
+  } else {
+    const { cota, resultados } = res;
+    const alturaSemCM = _comarAlturaExcluindoCampoDeMarte(resultados, cota);
+    blocoAltura = `
+    <div class="banner-info">
+      <div><label>Órgão Regional DECEA</label><div class="val">CRCEA-SP</div></div>
+      <div style="text-align:right;"><label>Altitude do terreno</label><div class="val">${cota!=null?cota.toFixed(0)+' metros':'não identificada'}</div></div>
+    </div>
+    <div style="font-size:10px;color:#64748b;margin:-10px 0 16px;line-height:1.4;">📍 Calculado num único ponto (sem polígono cadastrado no momento) — se o terreno for grande, o resultado pode variar entre as extremidades; desenhe o polígono no mapa antes de gerar o relatório pra ver a faixa mín./máx.</div>
+
+    <div class="sec-titulo">Dados das Zonas de Proteção</div>
+    <table>
+      <thead><tr><th>Plano</th><th>Zona identificada</th><th style="text-align:right;">Gabarito de topo</th></tr></thead>
+      <tbody>${_comarLinhasPlanosHtml(resultados)}</tbody>
+    </table>
+
+    <div class="limite-box">
+      <label>— Limite construtivo<br>Altura Máxima Permitida</label>
+      <div class="val">${alturaSemCM!=null?alturaSemCM.toFixed(0):'—'}<span style="font-size:14px;font-weight:600;"> metros</span></div>
+    </div>
+    ${_comarLinhaCampoDeMarteHtml(resultados, cota, alturaSemCM)}`;
+  }
+
+  const win = window.open('','_blank');
+  if(!win){ alert('Permita pop-ups para gerar o relatório.'); return; }
+  win.document.write(`<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8">
+<title>Relatório COMAER ${numero} — LandBank YUNY</title>
+<style>
+  *{box-sizing:border-box;}
+  body{font-family:'Segoe UI',Arial,sans-serif;margin:0;padding:0;color:#0f172a;background:#f8fafc;}
+  .page{max-width:820px;margin:0 auto;background:#fff;}
+  .banner{background:linear-gradient(135deg,#1a3c4d,#00838f);color:#fff;padding:36px 40px 28px;}
+  .banner .marca{font-size:26px;font-weight:900;letter-spacing:-.5px;}
+  .banner .sub{font-size:12px;opacity:.85;margin-top:4px;text-transform:uppercase;letter-spacing:.08em;}
+  .conteudo{padding:28px 40px 40px;}
+  .grid3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:14px;}
+  .card{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:10px 14px;}
+  .card label{display:block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:#64748b;margin-bottom:3px;}
+  .card .val{font-size:13px;font-weight:700;color:#0f172a;}
+  .card .val2{font-size:11px;color:#475569;margin-top:2px;}
+  .numero-box{background:#1a3c4d;color:#fff;border-radius:8px;padding:10px 14px;}
+  .numero-box label{display:block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.75;margin-bottom:3px;}
+  .numero-box .val{font-size:18px;font-weight:800;}
+  .banner-info{background:#1a3c4d;color:#fff;border-radius:8px;padding:14px 18px;display:flex;justify-content:space-between;align-items:center;margin-bottom:20px;}
+  .banner-info label{display:block;font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.75;margin-bottom:3px;}
+  .banner-info .val{font-size:16px;font-weight:800;}
+  .sec-titulo{font-size:11px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#00838f;margin:22px 0 8px;padding-bottom:6px;border-bottom:2px solid #e5e7eb;}
+  table{width:100%;border-collapse:collapse;}
+  th{text-align:left;font-size:10px;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:#64748b;padding:8px 14px;border-bottom:2px solid #e5e7eb;background:#f8fafc;}
+  .limite-box{margin-top:16px;background:linear-gradient(135deg,#00B0B9,#00838f);color:#fff;border-radius:8px;padding:16px 20px;display:flex;justify-content:space-between;align-items:center;}
+  .limite-box label{font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.06em;opacity:.85;}
+  .limite-box .val{font-size:34px;font-weight:900;}
+  .obs-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px;}
+  .obs-card{background:#f8fafc;border:1px solid #e5e7eb;border-radius:8px;padding:12px 14px;font-size:11px;line-height:1.5;color:#334155;}
+  .obs-card b{display:block;font-size:11px;color:#0f172a;margin-bottom:3px;}
+  .footer{margin-top:28px;padding-top:14px;border-top:1px solid #e5e7eb;font-size:10px;color:#94a3b8;line-height:1.5;}
+  @media print{ body{background:#fff;} .no-print{display:none;} .page{max-width:none;} }
+</style></head><body>
+<div class="page">
+  <div class="banner">
+    <div class="marca">YUNY · LandBank</div>
+    <div class="sub">Relatório de Pré-Análise — Restrição Aeroportuária (COMAER/DECEA)</div>
+  </div>
+  <div class="conteudo">
+    <div class="grid3">
+      <div class="numero-box"><label>Relatório</label><div class="val">${numero}</div></div>
+      <div class="card"><label>Gerado por</label><div class="val">${escHtml(eu?eu.nome:'—')}</div><div class="val2">${escHtml(eu?eu.email||'':'')}</div></div>
+      <div class="card"><label>Data de emissão</label><div class="val">${hoje}</div></div>
+    </div>
+    <div class="grid3">
+      <div class="card" style="grid-column:span 1;"><label>Endereço / Localização</label><div class="val">${escHtml(enderecoTxt)}</div><div class="val2">São Paulo / SP</div></div>
+      <div class="card"><label>Coordenadas Geográficas</label><div class="val" style="font-size:11px;">${_decToDMS(lat,true)} / ${_decToDMS(lon,false)}</div></div>
+      <div class="card"><label>Coordenadas UTM (23S)</label><div class="val" style="font-size:11px;">${utm.easting.toFixed(2).replace('.',',')} m E / ${utm.northing.toFixed(2).replace('.',',')} m S</div></div>
+    </div>
+    ${blocoAltura}
+
+    <div class="sec-titulo">Metodologia</div>
+    <div class="obs-grid">
+      <div class="obs-card"><b>📐 Fórmula</b>Altura máxima permitida (m) = Gabarito de topo da superfície de proteção (m, acima do nível do mar) − Cota do terreno (m, acima do nível do mar).</div>
+      <div class="obs-card"><b>🛰️ Fonte — zonas de proteção</b>Planos básicos oficiais do DECEA (PBZPA/PBZPH/PZPANA/PZPREAH), publicados como KMZ no Portal AGA (aga.decea.mil.br), convertidos em pontos de altitude e seções geométricas.</div>
+      <div class="obs-card"><b>🗺️ Fonte — cota do terreno</b>Modelo de elevação digital de código aberto (Open-Meteo Elevation API, open-meteo.com) — a mesma fonte usada na camada "Topografia" do mapa.</div>
+      <div class="obs-card"><b>🎯 Como o gabarito é obtido</b>Por ordem de precisão: 1) interpolação geométrica dentro de uma seção nomeada do plano oficial; 2) ponto de altitude publicado ancorado diretamente na superfície aplicável; 3) interpolação (IDW) entre pontos de altitude próximos, quando não há seção nomeada no local exato.</div>
+      <div class="obs-card"><b>✈️ Campo de Marte (SBMT)</b>O número principal de "Altura Máxima Permitida" não usa o Campo de Marte como zona restritiva — quando ele aparece na tabela e seria mais restritivo que a zona considerada, uma linha extra mostra qual seria o limite se ele fosse levado em conta.</div>
+    </div>
+    ${formacao ? `<div class="obs-card" style="margin-top:10px;"><b>📊 Por que dois valores (mais alto/mais baixo)?</b>As superfícies de proteção do DECEA são inclinadas (cônicas), não um platô plano — o gabarito de topo varia de um lado a outro do terreno. Por isso este relatório calcula a altura permitida em cada vértice do polígono cadastrado e mostra os dois extremos, em vez de um único ponto (que poderia divergir de uma análise feita noutro canto do mesmo lote).</div>` : ''}
+
+    <div class="sec-titulo">Observações Importantes</div>
+    <div class="obs-grid">
+      <div class="obs-card"><b>📋 Base Regulatória</b>Zonas de proteção publicadas pelo DECEA no Portal AGA (aga.decea.mil.br), conforme ICA 11-401.</div>
+      <div class="obs-card"><b>✍️ Anuência Obrigatória</b>Esta análise não dispensa a obtenção de anuência da Aeronáutica para o aproveitamento descrito acima.</div>
+      <div class="obs-card"><b>⚠️ Estimativa Interna</b>Relatório gerado automaticamente pelo LandBank YUNY, a partir dos planos públicos do DECEA e de elevação de terreno de fonte aberta (Open-Meteo). <b>Não é um laudo técnico</b> — não substitui a análise oficial da Flight Consultoria (ou órgão equivalente) antes de qualquer decisão de aquisição ou projeto.</div>
+      <div class="obs-card"><b>⏳ Validade</b>As zonas de proteção podem ser atualizadas pelo DECEA a qualquer momento — recomenda-se reconsulta antes de decisões finais.</div>
+    </div>
+
+    <div class="footer">
+      Gerado em ${hoje} pelo LandBank YUNY · Fonte: DECEA / Portal AGA (aga.decea.mil.br) + elevação Open-Meteo.<br>
+      Este documento é de uso interno da Yuny Incorporadora e não constitui laudo técnico assinado por responsável credenciado no DECEA.
+    </div>
+    <br class="no-print">
+    <button class="no-print" onclick="window.print()" style="padding:10px 24px;background:#00B0B9;color:#fff;border:none;border-radius:6px;font-size:14px;cursor:pointer;font-weight:600;">🖨 Imprimir / Salvar PDF</button>
+  </div>
+</div>
+</body></html>`);
+  win.document.close();
 }
 
 // Paleta por Operação Urbana / AIU (para diferenciar quando várias aparecem juntas)
@@ -6510,6 +7216,28 @@ map.on('zoomend', _scheduleVecLoad);
 
 // Garante que o mapa renderiza corretamente após o layout estabilizar
 setTimeout(()=>map.invalidateSize(), 300);
+
+// Correção geral pro bug de "mapa cinza, só um pedacinho no canto com tiles"
+// (relatado pela Kamila ao buscar endereço) — acontece sempre que o
+// container #map muda de tamanho (redimensionar a janela, abrir/fechar o
+// DevTools, colapsar a lista lateral, trocar de aba) sem o Leaflet ser
+// avisado: ele continua desenhando os tiles pro tamanho antigo, deixando o
+// resto do container em branco até alguém arrastar/dar zoom manualmente.
+// Os setTimeout(invalidateSize) espalhados pelo código (toggle da lista,
+// busca de endereço, etc.) cobrem os casos já identificados; esse
+// ResizeObserver cobre qualquer outro jeito do container mudar de tamanho,
+// sem precisar caçar cada call site um por um.
+if(typeof ResizeObserver !== 'undefined'){
+  const _mapEl = document.getElementById('map');
+  if(_mapEl){
+    let _mapResizeTimer = null;
+    const _mapResizeObserver = new ResizeObserver(()=>{
+      clearTimeout(_mapResizeTimer);
+      _mapResizeTimer = setTimeout(()=>map.invalidateSize(), 120);
+    });
+    _mapResizeObserver.observe(_mapEl);
+  }
+}
 
 // ── Esconder/mostrar a lista de terrenos à esquerda (mais espaço pro mapa) ────
 function toggleMapSidebar(){
@@ -7052,7 +7780,17 @@ function addLayer(t){
       // nem selecionar o card — só conta como ponto de medição (o clique já
       // borbulha pro map, que tem seu próprio listener _medirClick).
       poly.on('popupopen',()=>{ if(_medirMode) poly.closePopup(); });
-      poly.on('click',()=>{ if(_medirMode) return; selectCard(t.id); });
+      poly.on('click',(e)=>{
+        if(_medirMode) return;
+        // Modo Altura Máxima (COMAR) ativo: o Leaflet abre o popup do terreno
+        // internamente e para a propagação do clique antes dele chegar no
+        // listener do mapa (map.on('click', _alturaComarClick)) — por isso
+        // clicar em cima de um terreno cadastrado nunca calculava a altura,
+        // só clicar em área vazia do mapa funcionava. Chamando direto aqui,
+        // com o ponto exato clicado (e.latlng), corrige isso.
+        if(_alturaComarMode){ _alturaComarClick(e); return; }
+        selectCard(t.id);
+      });
       poly.on('dblclick',(e)=>{L.DomEvent.stop(e);map.zoomIn();});
       return poly;
     });
@@ -7171,8 +7909,9 @@ function popupHtml(t){
     <div class="popup-address">${_labelEndereco(t, true)}</div>
     ${t.corretor?`<div class="popup-row">Corretor: <span>${t.corretor}</span></div>`:''}
     ${t.area?`<div class="popup-row">Área: <span>${t.area}</span></div>`:''}
+    ${(t.setor||t.quadra)?`<div class="popup-row">Setor/Quadra: <span>${escHtml([t.setor,t.quadra].filter(Boolean).join('.'))}</span></div>`:''}
     ${t.zoneamento?`<div class="popup-row">Zoneamento: <span>${t.zoneamento}</span></div>`:''}
-    ${t.responsavel?`<div class="popup-row">Responsável: <span>${t.responsavel}</span></div>`:''} 
+    ${t.responsavel?`<div class="popup-row">Responsável: <span>${t.responsavel}</span></div>`:''}
     <div style="margin-top:8px;display:inline-block;font-size:11px;padding:3px 10px;border-radius:20px;background:${c}22;color:${c};font-weight:600">${label}</div>
     <div class="popup-actions">
       <button class="popup-btn" style="background:var(--accent);color:#fff;border-color:var(--accent);" onclick="openModal('${t.id}',true)">👁 Visualizar</button>
@@ -7423,6 +8162,91 @@ function renderPolyList(){
     if(polyField) polyField.appendChild(fichaBtn);
   }
   fichaBtn.style.display = pendingPolygons.length ? '' : 'none';
+  // Botão "Resumo da formação" — só aparece quando há mais de 1 lote
+  // compondo o polígono (formação), que é quando faz sentido comparar
+  // área/SQL/endereço/zoneamento lote a lote lado a lado.
+  let resumoBtn = document.getElementById('btn-resumo-formacao');
+  if(!resumoBtn){
+    resumoBtn = document.createElement('button');
+    resumoBtn.id = 'btn-resumo-formacao';
+    resumoBtn.className = 'btn-draw-poly';
+    resumoBtn.style.cssText = 'width:100%;margin-top:6px;background:#fff;color:var(--navy,#1a3c4d);border-color:var(--border);';
+    resumoBtn.textContent = '📋 Resumo da formação';
+    resumoBtn.onclick = function(){ _abrirResumoFormacao(); };
+    const polyField = document.getElementById('poly-list')?.closest('.field');
+    if(polyField) polyField.appendChild(resumoBtn);
+  }
+  resumoBtn.style.display = pendingLotes.length > 1 ? '' : 'none';
+}
+
+// Painel "Resumo da formação" — mostra ao lado do mapa (sem sobrepor os
+// lotes) a área total + área/SQL/endereço/zoneamento de cada lote que compõe
+// o polígono do terreno em montagem. Lê de `pendingLotes`, que já é mantido
+// atualizado (via _buscarEPreencherLotes) toda vez que o polígono muda —
+// desenho manual, "Adicionar lote" ou "Retirar lote".
+function _abrirResumoFormacao(){
+  const panel = document.getElementById('formacao-map-panel');
+  const body  = document.getElementById('formacao-panel-body');
+  const titulo = document.getElementById('formacao-panel-titulo');
+  if(!panel || !body) return;
+  if(!pendingLotes.length){
+    body.innerHTML = '<div class="itbi-empty">Nenhum lote na formação ainda — desenhe o polígono ou clique nos lotes no mapa.</div>';
+    if(titulo) titulo.textContent = '—';
+    panel.classList.add('open');
+    return;
+  }
+  panel.classList.add('open');
+  let areaTotal = 0;
+  const linhas = pendingLotes.map((f,idx)=>{
+    const p = f.properties||{};
+    const sql = fmtSQLprops(p);
+    const area = parseFloat(p.qt_area_terreno || p.ar_terreno || p.area_terreno || 0) || 0;
+    areaTotal += area;
+    const end = _loteEndereco(p) || '—';
+    const areaFmt = area ? area.toLocaleString('pt-BR',{maximumFractionDigits:0})+' m²' : '—';
+    return `<div class="formacao-lote-row" id="formacao-lote-row-${idx}">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;gap:8px;">
+        <span class="formacao-lote-sql">${sql}</span>
+        <span class="formacao-lote-area">${areaFmt}</span>
+      </div>
+      <div class="formacao-lote-end">${escHtml(end)}</div>
+      <div id="formacao-lote-zona-${idx}"><span class="formacao-lote-zona" style="background:#f3f4f6;color:#9ca3af;">⏳ buscando zona…</span></div>
+    </div>`;
+  }).join('');
+  if(titulo) titulo.textContent = `${areaTotal.toLocaleString('pt-BR',{maximumFractionDigits:0})} m² · ${pendingLotes.length} lote${pendingLotes.length>1?'s':''}`;
+  body.innerHTML = linhas;
+  // Zoneamento é buscado à parte, lote a lote (consulta espacial no centroide
+  // de cada um) — não vem junto no /api/geosampa-bbox, então preenche depois,
+  // sem travar a abertura do painel.
+  pendingLotes.forEach((f,idx)=>{
+    const c = _loteCentroid(f); // [lng, lat]
+    if(!c){ document.getElementById(`formacao-lote-zona-${idx}`).innerHTML=''; return; }
+    _paramUrbZonaReal(c[1], c[0]).then(zona=>{
+      const el = document.getElementById(`formacao-lote-zona-${idx}`);
+      if(!el) return;
+      el.innerHTML = zona ? `<span class="formacao-lote-zona">${escHtml(zona)}</span>` : '';
+    }).catch(()=>{
+      const el = document.getElementById(`formacao-lote-zona-${idx}`);
+      if(el) el.innerHTML = '';
+    });
+  });
+}
+
+function _fecharResumoFormacao(){
+  document.getElementById('formacao-map-panel')?.classList.remove('open');
+}
+
+// Variante chamada pelo botão "📋 Resumo" da barra flutuante de seleção —
+// nesse momento o modal está escondido e `pendingLotes` só tem os lotes
+// clicados NESTA sessão (ainda não unidos ao polígono existente, se houver),
+// então o título deixa isso explícito em vez de dar a entender que é a
+// formação inteira.
+function _abrirResumoFormacaoParcial(){
+  _abrirResumoFormacao();
+  const titulo = document.getElementById('formacao-panel-titulo');
+  if(titulo && (_adicionandoLoteAoPoligono || _retirandoLoteDoPoligono) && pendingLotes.length){
+    titulo.textContent += ' (só os clicados agora)';
+  }
 }
 
 // ── MODAL ────────────────────────────────────────────────────────────────────
@@ -7580,6 +8404,12 @@ function openModal(id, viewMode=false){
   // (título e os botões Painel/Estudo/X) mesmo em outro terreno.
   m.scrollTop = 0;
   initModalDrag();
+
+  // Terreno já existente (não é cadastro novo): roda a checagem de
+  // duplicata também aqui, pra pegar de cara o caso de já existirem 2
+  // cadastros pro mesmo lote/endereço (2 bolinhas no mapa) e oferecer
+  // mesclar — antes só rodava ao digitar num cadastro NOVO.
+  if(id && typeof _checarDuplicataTerreno==='function') _checarDuplicataTerreno();
 }
 
 // Id do terreno pro qual devemos voltar a abrir a janela de Edição quando o
@@ -8501,14 +9331,20 @@ function _normSqlDup(s){
 function _checarDuplicataTerreno(){
   const cont = document.getElementById('duplicata-alerta');
   if(!cont) return;
-  if(editingId){ cont.innerHTML=''; return; } // editando terreno existente — não aplica
+  // Editando um terreno já existente: antes a checagem era pulada de vez
+  // (fazia sentido comparar só terreno NOVO contra os existentes). Agora
+  // também roda aqui — pra pegar o caso de já existirem 2 cadastros pro
+  // mesmo lote (2 bolinhas no mapa) e oferecer mesclar os dois, mantendo o
+  // histórico só no sobrevivente (pedido da Kamila, 29/09).
 
   // (1) Sobreposição de lote — compara os SQLs já adicionados no formulário
-  // contra o array `lotes` de todos os terrenos já cadastrados.
+  // contra o array `lotes` de todos os terrenos já cadastrados (exceto o
+  // próprio, quando editando).
   const sqlsForm = getLotesFromForm().map(l=>_normSqlDup(l.sql)).filter(Boolean);
   let dup = null, sqlsSobrepostos = [];
   if(sqlsForm.length){
     for(const t of terrenos){
+      if(editingId && t.id===editingId) continue;
       if(!Array.isArray(t.lotes) || !t.lotes.length) continue;
       const sqlsT = new Set(t.lotes.map(_normSqlDup));
       const bateu = sqlsForm.filter(s=>sqlsT.has(s));
@@ -8523,6 +9359,7 @@ function _checarDuplicataTerreno(){
     const normAtual = _normEnderecoDup(endereco);
     if(normAtual.length >= 6){
       dup = terrenos.find(t=>{
+        if(editingId && t.id===editingId) return false;
         if(!t.endereco) return false;
         const n = _normEnderecoDup(t.endereco);
         if(!n || n.length<6) return false;
@@ -8555,9 +9392,31 @@ function _checarDuplicataTerreno(){
   ];
   let historicoHtml = '';
   if(histEntries.length){
-    const rows = histEntries.map(h=>{
-      const periodo = [h.desde?formatAtaDate(h.desde):null, h.descarte?formatAtaDate(h.descarte):null].filter(Boolean).join(' → ');
-      return `<li style="margin-bottom:4px"><b>${escHtml(h.corretor||'—')}</b>${periodo?' <span style="color:#92400e">('+periodo+')</span>':''}${h.motivo?'<br><span style="font-size:11px">Motivo do descarte: '+escHtml(h.motivo)+'</span>':''}</li>`;
+    // A Kamila pediu pra detalhar cada ciclo: quando foi cadastrado (com
+    // aquele corretor), quem era o corretor, quando foi descartado, e a data
+    // de vencimento da exclusividade (1 ano após o descarte) — daí o próximo
+    // corretor do histórico logo abaixo, em ordem cronológica (mais antigo
+    // primeiro, corretor atual por último).
+    const rows = histEntries.map((h,i)=>{
+      const desde = h.desde ? formatAtaDate(h.desde) : null;
+      const descarte = h.descarte ? formatAtaDate(h.descarte) : null;
+      // Se o vencimento não tiver sido salvo na própria entrada (histórico
+      // antigo, de antes da regra existir), calcula 1 ano a partir do
+      // descarte — mesma regra usada em _calcCorretorExclusividade().
+      let prazoFim = h.prazo_fim || null;
+      if(!prazoFim && h.descarte){
+        const d = new Date(h.descarte+'T00:00:00');
+        d.setFullYear(d.getFullYear()+1);
+        prazoFim = d.toISOString().slice(0,10);
+      }
+      const prazoFimTxt = prazoFim ? formatAtaDate(prazoFim) : null;
+      const linhas = [
+        desde ? `Cadastrado em: <b>${desde}</b>` : null,
+        descarte ? `Descartado em: <b>${descarte}</b>` : (h.corretor ? '<i>Ainda ativo (não descartado)</i>' : null),
+        prazoFimTxt ? `Vencimento da exclusividade (1 ano): <b>${prazoFimTxt}</b>` : null,
+        h.motivo ? `Motivo do descarte: ${escHtml(h.motivo)}` : null,
+      ].filter(Boolean).join('<br>');
+      return `<li style="margin-bottom:8px"><b>${i+1}º corretor: ${escHtml(h.corretor||'—')}</b><div style="font-size:11px;margin-top:2px;line-height:1.6;">${linhas}</div></li>`;
     }).join('');
     historicoHtml = `<div style="margin-top:8px"><b style="font-size:11px">📜 Histórico de corretores:</b><ul style="margin:4px 0 0;padding-left:18px;font-size:11px;line-height:1.5">${rows}</ul></div>`;
   }
@@ -8566,15 +9425,23 @@ function _checarDuplicataTerreno(){
     ? `Lote${sqlsSobrepostos.length>1?'s':''} em comum: <b>${sqlsSobrepostos.map(escHtml).join(', ')}</b>`
     : 'Endereço parecido com um já cadastrado';
 
+  // Editando um terreno que já existe: em vez de oferecer "cadastrar de
+  // novo", oferece mesclar os dois cadastros num só (o objetivo é sumir com
+  // a 2ª bolinha no mapa, não criar uma 3ª). Cadastrando um terreno NOVO:
+  // mantém o fluxo de sempre.
+  const botoesHtml = editingId
+    ? `<button type="button" onclick="_mesclarCadastroDuplicado('${dup.id}','${editingId}')" style="padding:5px 10px;font-size:11px;border-radius:6px;border:none;background:#92400e;color:#fff;cursor:pointer;font-weight:600;">🔗 Mesclar (1 marcador só, mantém histórico)</button>`
+    : `<button type="button" onclick="_verCadastroDuplicado('${dup.id}')" style="padding:5px 10px;font-size:11px;border-radius:6px;border:1px solid #92400e44;background:#fff;color:#92400e;cursor:pointer;font-weight:600;">🔍 Ver cadastro atual</button>
+       <button type="button" onclick="_cadastrarMantendoHistorico('${dup.id}')" style="padding:5px 10px;font-size:11px;border-radius:6px;border:none;background:#92400e;color:#fff;cursor:pointer;font-weight:600;">➕ Cadastrar novamente (mantendo histórico)</button>`;
+
   cont.innerHTML = `
     <div style="padding:10px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;line-height:1.5;">
-      ⚠️ Este terreno já parece estar cadastrado: <b>${escHtml(dup.endereco||'')}</b>${dup.bairro?' — '+escHtml(dup.bairro):''}
+      ⚠️ ${editingId ? 'Este terreno parece duplicado com outro cadastro' : 'Este terreno já parece estar cadastrado'}: <b>${escHtml(dup.endereco||'')}</b>${dup.bairro?' — '+escHtml(dup.bairro):''}
       <br>${motivoTxt}
       <br>Status: <b>${STATUS_LABELS[dup.status]||dup.status||'—'}</b>${dup.corretor?' · Corretor atual: <b>'+escHtml(dup.corretor)+'</b>':''}
       ${historicoHtml}
       <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:8px;">
-        <button type="button" onclick="_verCadastroDuplicado('${dup.id}')" style="padding:5px 10px;font-size:11px;border-radius:6px;border:1px solid #92400e44;background:#fff;color:#92400e;cursor:pointer;font-weight:600;">🔍 Ver cadastro atual</button>
-        <button type="button" onclick="_cadastrarMantendoHistorico('${dup.id}')" style="padding:5px 10px;font-size:11px;border-radius:6px;border:none;background:#92400e;color:#fff;cursor:pointer;font-weight:600;">➕ Cadastrar novamente (mantendo histórico)</button>
+        ${botoesHtml}
       </div>
       ${exclusividadeHtml}
     </div>`;
@@ -8593,6 +9460,7 @@ function _cadastrarMantendoHistorico(id){
   const dup = terrenos.find(x=>x.id===id);
   if(!dup) return;
   _duplicataHistoricoParaCopiar = {
+    idAnterior: dup.id, // usado em saveTerreno() pra arquivar o cadastro antigo na Lixeira assim que o novo for salvo — sem isso ficavam 2 marcadores no mapa pro mesmo terreno.
     ataAnterior: Array.isArray(dup.ata) ? JSON.parse(JSON.stringify(dup.ata)) : [],
     corretorHistAnterior: Array.isArray(dup.corretor_hist) ? JSON.parse(JSON.stringify(dup.corretor_hist)) : [],
     enderecoAnterior: dup.endereco||'',
@@ -8606,8 +9474,75 @@ function _cadastrarMantendoHistorico(id){
     motivoDescarteAnterior: dup.motivo_descarte||null,
   };
   const cont = document.getElementById('duplicata-alerta');
-  if(cont) cont.innerHTML = `<div style="padding:8px 10px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;font-size:11px;color:#065f46;">✅ Histórico de "${escHtml(dup.endereco||'')}" será mantido neste novo cadastro ao salvar.</div>`;
+  if(cont) cont.innerHTML = `<div style="padding:8px 10px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;font-size:11px;color:#065f46;">✅ Histórico de "${escHtml(dup.endereco||'')}" será mantido neste novo cadastro ao salvar — o cadastro antigo vai pra Lixeira automaticamente (sem duplicar marcador no mapa).</div>`;
   showToast('📜 Histórico do cadastro anterior será mantido ao salvar.');
+}
+
+// Mescla 2 cadastros do mesmo terreno num só, pra sumir com o 2º marcador no
+// mapa (pedido da Kamila, 29/09 — viu 2 bolinhas no mesmo polígono). Decide
+// o sobrevivente pela Data de Recebimento mais recente entre os dois (é ela
+// que acaba definindo a cor/status do marcador final); em empate ou se faltar
+// data num dos dois, mantém o terreno que estava aberto no modal quando a
+// pessoa clicou (mais previsível). O histórico (ata + corretor_hist) do
+// perdedor é copiado pro sobrevivente antes dele ir pra Lixeira (soft-delete
+// de 30 dias, igual deleteTerreno — não perde nada, só sai da tela).
+async function _mesclarCadastroDuplicado(idOutro, idAtual){
+  const a = terrenos.find(t=>t.id===idAtual);
+  const b = terrenos.find(t=>t.id===idOutro);
+  if(!a || !b){ showToast('Não encontrei os dois cadastros pra mesclar.'); return; }
+  if(!confirm(`Mesclar estes 2 cadastros em 1 só?\n\n• ${a.endereco||'(sem endereço)'}\n• ${b.endereco||'(sem endereço)'}\n\nO mais antigo vai pra Lixeira (histórico preservado, dá pra restaurar em 30 dias) e o mapa passa a mostrar só 1 marcador, com a cor do cadastro mais recente.`)) return;
+
+  const dataA = a.data ? new Date(a.data+'T00:00:00').getTime() : null;
+  const dataB = b.data ? new Date(b.data+'T00:00:00').getTime() : null;
+  const bVence = (dataB!=null && (dataA==null || dataB>dataA));
+  const sobrevivente = bVence ? b : a;
+  const perdedor      = bVence ? a : b;
+
+  const eu = (typeof getUsuarioAtual==='function') ? getUsuarioAtual() : null;
+  const ataMerge = [
+    ...(Array.isArray(perdedor.ata)?perdedor.ata:[]),
+    ...(Array.isArray(sobrevivente.ata)?sobrevivente.ata:[]),
+    {
+      data: new Date().toISOString().slice(0,10),
+      texto: `🔗 Mesclado com o cadastro duplicado "${perdedor.endereco||''}" — histórico daquele cadastro incorporado aqui; ele foi movido pra Lixeira.`,
+      criadoPor: eu ? eu.handle : '',
+    },
+  ];
+  const corretorHistMerge = [
+    ...(Array.isArray(perdedor.corretor_hist)?perdedor.corretor_hist:[]),
+    ...(perdedor.corretor ? [{corretor:perdedor.corretor, desde:perdedor.corretor_desde, descarte:perdedor.corretor_descarte, prazo_fim:perdedor.corretor_prazo_fim, motivo:perdedor.motivo_descarte}] : []),
+    ...(Array.isArray(sobrevivente.corretor_hist)?sobrevivente.corretor_hist:[]),
+  ];
+
+  sobrevivente.ata = ataMerge;
+  sobrevivente.corretor_hist = corretorHistMerge;
+
+  try{
+    await dbUpdateTerreno(sobrevivente.id, { ata: ataMerge, corretor_hist: corretorHistMerge });
+    await db.collection('terrenos').doc(perdedor.id).update({
+      _excluido: true,
+      _excluido_em: new Date().toISOString(),
+      _excluido_por: eu ? eu.handle : null,
+      _excluido_por_nome: eu ? eu.nome : null,
+      _excluido_motivo: `Mesclado com o cadastro "${sobrevivente.endereco||''}" (duplicata)`,
+    });
+  }catch(e){
+    console.error('Erro ao mesclar cadastros duplicados:', e);
+    alert('Erro ao mesclar: '+e.message);
+    return;
+  }
+
+  if(layers[perdedor.id]){
+    (Array.isArray(layers[perdedor.id]) ? layers[perdedor.id] : [layers[perdedor.id]]).forEach(l=>map.removeLayer(l));
+    delete layers[perdedor.id];
+  }
+  terrenos = terrenos.filter(t=>t.id!==perdedor.id);
+  const idxSobrev = terrenos.findIndex(t=>t.id===sobrevivente.id);
+  if(idxSobrev>=0) terrenos[idxSobrev] = sobrevivente; else terrenos.push(sobrevivente);
+  addLayer(sobrevivente);
+  closeModal();
+  renderList();
+  showToast('🔗 Cadastros mesclados — 1 marcador só no mapa agora.');
 }
 
 // Calcula corretor_descarte/corretor_prazo_fim a partir da Data de Recebimento
@@ -8751,8 +9686,10 @@ async function saveTerreno(){
   // aplica a terreno NOVO; consumido uma única vez (zerado logo depois).
   let _ataFinal = Array.isArray(_existing.ata) ? [..._existing.ata] : [];
   let _corretorHistFinal = corretor_hist;
+  let _idAntigoParaArquivar = null; // id do cadastro duplicado a mover pra Lixeira após salvar o novo (evita 2 marcadores no mapa)
   if(_isNovoTerreno && _duplicataHistoricoParaCopiar){
     const dh = _duplicataHistoricoParaCopiar;
+    _idAntigoParaArquivar = dh.idAnterior || null;
     _ataFinal = [...dh.ataAnterior, {
       data: _hoje,
       texto: `📜 Histórico herdado do cadastro anterior deste terreno ("${dh.enderecoAnterior}") ao recadastrar.`,
@@ -8812,6 +9749,26 @@ async function saveTerreno(){
   const _objSanitizado = sanitize(obj);
   db.collection('terrenos').doc(obj.id).set(_objSanitizado)
     .then(async ()=>{
+      // "Cadastrar novamente mantendo histórico": o cadastro novo já salvou
+      // com sucesso acima — agora arquiva o antigo na Lixeira, senão os 2
+      // ficam ativos e aparecem como 2 marcadores sobrepostos no mapa pro
+      // mesmo terreno (bug que a Kamila reportou em 29/09).
+      if(_idAntigoParaArquivar){
+        const _euArq = getUsuarioAtual();
+        if(layers[_idAntigoParaArquivar]){
+          (Array.isArray(layers[_idAntigoParaArquivar]) ? layers[_idAntigoParaArquivar] : [layers[_idAntigoParaArquivar]]).forEach(l=>map.removeLayer(l));
+          delete layers[_idAntigoParaArquivar];
+        }
+        terrenos = terrenos.filter(t=>t.id!==_idAntigoParaArquivar);
+        renderList();
+        db.collection('terrenos').doc(_idAntigoParaArquivar).update({
+          _excluido: true,
+          _excluido_em: new Date().toISOString(),
+          _excluido_por: _euArq ? _euArq.handle : null,
+          _excluido_por_nome: _euArq ? _euArq.nome : null,
+          _excluido_motivo: `Recadastrado como "${obj.endereco||''}" (duplicata)`,
+        }).catch(e=>console.error('Firestore trash error (recadastro):', e));
+      }
       // Tarefa pendente do "Terreno Recebido"
       if(_pendingTodo){
         const eu = getUsuarioAtual();
@@ -9422,6 +10379,7 @@ function showSelectionBar(paraPoligono=false){
     ? 'Clique no(s) lote(s) que quer TIRAR do polígono já existente'
     : (paraPoligono ? 'Clique nos lotes — o polígono será criado ao concluir' : 'Clique nos lotes no mapa');
   bar.innerHTML = `<span id="sel-bar-label">${icone} ${hint}</span>
+    <button onclick="_abrirResumoFormacaoParcial()" title="Ver área total, área de cada lote, SQL, endereço e zoneamento dos lotes já clicados" style="background:none;border:1px solid #555;color:#ccc;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:var(--sans);font-size:13px">📋 Resumo</button>
     <button onclick="finishSelectLotes()" style="background:${paraPoligono?'#0369a1':'var(--accent)'};border:none;color:#fff;padding:6px 16px;border-radius:6px;cursor:pointer;font-family:var(--sans);font-size:13px;font-weight:600">✓ Concluir</button>
     <button onclick="cancelSelectLotes()" style="background:none;border:1px solid #555;color:#ccc;padding:6px 12px;border-radius:6px;cursor:pointer;font-family:var(--sans);font-size:13px">Cancelar</button>`;
   bar.style.display = 'flex';
@@ -9945,6 +10903,11 @@ async function _zoomParaSetorQuadraFiltro(opts={}){
     });
     if(allLatLngs.length){
       switchTab('mapa');
+      // Se a aba do mapa estava escondida, o Leaflet ainda não sabe o tamanho
+      // real do container — sem isso, o fitBounds() logo abaixo carrega os
+      // tiles pro canto errado e o resto do mapa fica cinza (mesmo bug do
+      // _triggerGeoSearch, corrigido do mesmo jeito).
+      map.invalidateSize();
       map.fitBounds(L.latLngBounds(allLatLngs), { padding:[40,40], maxZoom:19 });
     } else if(manual){
       showToast(`Nenhum lote encontrado pro Setor ${setor} / Quadra ${quadra}.`);
@@ -11158,15 +12121,112 @@ async function _regenerarPrintQuadraFiscal(){
   await _autoSalvarPrintQuadraFiscal(t);
 }
 
+// Exclusão é "soft delete" — o terreno some das telas normais mas continua
+// no Firestore marcado como _excluido, dentro da Lixeira, por 30 dias (dá pra
+// restaurar). Só depois desse prazo (ou clicando "Excluir agora" na Lixeira)
+// é que sai do banco de vez. Pedido da Kamila depois de apagar sem querer um
+// terreno "duplicado" que, na real, tinha informação importante.
 function deleteTerreno(){
-  if(!confirm('Excluir este terreno?')) return;
+  if(!confirm('Mover este terreno para a Lixeira? Ele fica lá por 30 dias (dá pra restaurar) antes de ser apagado de vez.')) return;
   const id = editingId;
   if(layers[id]){ map.removeLayer(layers[id]); delete layers[id]; }
   terrenos = terrenos.filter(t=>t.id!==id);
   closeModal();
   renderList();
+  const eu = (typeof getUsuarioAtual==='function') ? getUsuarioAtual() : null;
+  db.collection('terrenos').doc(id).update({
+    _excluido: true,
+    _excluido_em: new Date().toISOString(),
+    _excluido_por: eu ? eu.handle : null,
+    _excluido_por_nome: eu ? eu.nome : null,
+  }).catch(e=>{ console.error('Firestore trash error:', e); alert('Erro ao excluir: '+e.message); });
+}
+
+const LIXEIRA_DIAS = 30;
+let _terrenosLixeira = [];
+const _lixeiraJaPurgados = new Set();
+
+function _diasRestantesLixeira(t){
+  if(!t._excluido_em) return LIXEIRA_DIAS;
+  const dias = (Date.now() - new Date(t._excluido_em).getTime()) / 86400000;
+  return Math.max(0, Math.ceil(LIXEIRA_DIAS - dias));
+}
+
+// Roda a cada atualização do Firestore — quem passou dos 30 dias na Lixeira
+// sai do banco de vez. Guardamos em _lixeiraJaPurgados só pra não tentar
+// deletar o mesmo id em loop enquanto o snapshot ainda não confirmou a saída.
+function _purgarLixeiraVencida(){
+  _terrenosLixeira.forEach(t=>{
+    if(_lixeiraJaPurgados.has(t.id)) return;
+    if(_diasRestantesLixeira(t) <= 0){
+      _lixeiraJaPurgados.add(t.id);
+      db.collection('terrenos').doc(t.id).delete().catch(e=>console.warn('[lixeira] purge automático falhou', t.id, e));
+    }
+  });
+}
+
+function _atualizarBadgeLixeira(){
+  // Badge de contagem escondido a pedido da Kamila (29/09) — a Lixeira
+  // continua funcionando normalmente, só não mostra mais o número em cima
+  // do botão do menu.
+  const badge = document.getElementById('lixeira-badge');
+  if(!badge) return;
+  badge.style.display='none';
+}
+
+function abrirLixeira(){
+  renderLixeira();
+  document.getElementById('lixeira-modal-bg')?.classList.add('active');
+}
+function fecharLixeira(){
+  document.getElementById('lixeira-modal-bg')?.classList.remove('active');
+}
+
+function renderLixeira(){
+  const body = document.getElementById('lixeira-body');
+  if(!body) return;
+  if(!_terrenosLixeira.length){
+    body.innerHTML = '<div class="itbi-empty">🗑️ Lixeira vazia.</div>';
+    return;
+  }
+  const ordenados = [..._terrenosLixeira].sort((a,b)=> new Date(b._excluido_em||0) - new Date(a._excluido_em||0));
+  body.innerHTML = ordenados.map(t=>{
+    const dias = _diasRestantesLixeira(t);
+    const end = (typeof _labelEndereco==='function') ? _labelEndereco(t) : (t.endereco||t.apelido||'(sem endereço)');
+    const meta = [
+      t.corretor ? ('Corretor: '+escHtml(t.corretor)) : '',
+      t.area ? ('Área: '+escHtml(t.area)) : '',
+      'Excluído por '+escHtml(t._excluido_por_nome||t._excluido_por||'—'),
+    ].filter(Boolean).join(' · ');
+    return `<div class="lixeira-row">
+      <div style="min-width:0;flex:1;">
+        <div style="font-weight:700;font-size:13px;color:var(--navy,#1a3c4d);">${escHtml(end)}</div>
+        <div style="font-size:11px;color:var(--muted);margin-top:2px;">${meta}</div>
+        <div style="font-size:11px;color:${dias<=5?'#dc2626':'#9ca3af'};margin-top:2px;">⏳ ${dias>0?('some em '+dias+' dia'+(dias===1?'':'s')):'saindo em breve'}</div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0;">
+        <button class="popup-btn" style="background:var(--accent);color:#fff;border-color:var(--accent);" onclick="_restaurarDaLixeira('${t.id}')">↩️ Restaurar</button>
+        <button class="popup-btn" style="color:#dc2626;border-color:#fca5a5;" onclick="_excluirDefinitivo('${t.id}')">🗑️ Excluir agora</button>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function _restaurarDaLixeira(id){
+  db.collection('terrenos').doc(id).update({
+    _excluido: firebase.firestore.FieldValue.delete(),
+    _excluido_em: firebase.firestore.FieldValue.delete(),
+    _excluido_por: firebase.firestore.FieldValue.delete(),
+    _excluido_por_nome: firebase.firestore.FieldValue.delete(),
+  }).then(()=>{ showToast('↩️ Terreno restaurado.'); renderLixeira(); })
+    .catch(e=>alert('Erro ao restaurar: '+e.message));
+}
+
+function _excluirDefinitivo(id){
+  if(!confirm('Excluir definitivamente? Depois disso não dá mais pra recuperar.')) return;
   db.collection('terrenos').doc(id).delete()
-    .catch(e=>{ console.error('Firestore delete error:', e); alert('Erro ao excluir: '+e.message); });
+    .then(()=>{ showToast('🗑️ Excluído definitivamente.'); renderLixeira(); })
+    .catch(e=>alert('Erro: '+e.message));
 }
 
 // ── SAVE / LOAD ──────────────────────────────────────────────────────────────
@@ -11372,12 +12432,19 @@ function _triggerGeoSearch(q){
             `<a href="${_googleStreetViewUrl(lat,lng)}" target="_blank" style="flex:1;text-align:center;padding:4px 8px;background:#f0fdfe;border:1px solid #00B0B933;border-radius:6px;color:#00858c;text-decoration:none;font-size:11px;font-weight:600;">📸 Street View</a>`+
           `</div>`+
           `<button onclick="cadastrarNoEndereco(${lat},${lng},'${q.replace(/'/g,"\\'")}');this.closest('.leaflet-popup').querySelector('.leaflet-popup-close-button').click()" style="width:100%;margin-top:6px;background:#00B0B9;color:#fff;border:none;padding:5px 10px;border-radius:6px;cursor:pointer;font-size:12px">+ Cadastrar terreno aqui</button>`);
-      map.setView([lat,lng], 17, {animate:true});
-      // Muda para aba mapa automaticamente
-      const mapTab = document.querySelector('[onclick*="showTab"][onclick*="map"]') || document.querySelector('.tab-btn');
-      if(mapTab && !document.getElementById('map-view')?.classList.contains('active')){
-        showTab('map');
+      // Muda pra aba mapa ANTES de mover a câmera — se a aba do mapa estava
+      // escondida (display:none), o Leaflet mediu o tamanho do container como
+      // 0 (ou ficou com um tamanho antigo em cache) e o setView() abaixo
+      // carregava os tiles pro canto errado, deixando o resto cinza até a
+      // pessoa mexer no mapa manualmente. invalidateSize() força o Leaflet a
+      // reler o tamanho real do container depois que ele já está visível.
+      // (Esse trecho antes chamava showTab('map')/checava '#map-view' — nomes
+      // que não existem no app; switchTab('mapa')/'#tab-mapa' são os certos.)
+      if(!document.getElementById('tab-mapa')?.classList.contains('active')){
+        switchTab('mapa');
       }
+      map.invalidateSize();
+      map.setView([lat,lng], 17, {animate:true});
       _searchMarker.openPopup();
     } catch(e){ /* silencia erros de geocode */ }
   }, 600);
@@ -11543,6 +12610,24 @@ let _dashStatusFilter=['3.Negociando']; // array — permite selecionar mais de 
 let _dashSearch='';
 let _ataRespFilter='';
 let _ataCorretorFilter='';
+// A Kamila pediu pra poder ordenar a Visão em Lista clicando no cabeçalho de
+// cada coluna (A-Z, alternando pra Z-A no segundo clique) — só se aplica na
+// Lista (cards/kanban continuam com a ordenação normal por última ata/bairro).
+let _ataListSortCol=null;
+let _ataListSortDir=1; // 1 = A-Z/crescente, -1 = Z-A/decrescente
+function setAtaListSort(col){
+  if(_ataListSortCol===col) _ataListSortDir*=-1;
+  else { _ataListSortCol=col; _ataListSortDir=1; }
+  renderAtaSection();
+}
+// Barra de busca por endereço embutida no próprio cabeçalho da coluna
+// "Endereço" da Visão em Lista (além do campo "Filtrar terreno…" lá em cima,
+// que já faz isso mas fica longe quando a tabela tem muita linha).
+let _ataListEnderecoFiltro='';
+function setAtaListEnderecoFiltro(v){
+  _ataListEnderecoFiltro=v;
+  renderAtaSection();
+}
 let _ataGroupMode='bairro';
 let _ataViewMode = (typeof window!=='undefined' && window.innerWidth<=768) ? 'list' : 'cards'; // no celular já abre em lista (mais compacto)
 let _statusChart=null,_mensalChart=null;
@@ -11633,6 +12718,7 @@ function _populateAtaRespFilter(){
   const resps=[...new Set(terrenos.map(t=>t.responsavel||'').filter(Boolean))].sort();
   const cur=sel.value;
   sel.innerHTML='<option value="">👤 Responsável — Todos</option>'
+    +'<option value="__SEM_RESP__"'+(cur==='__SEM_RESP__'?' selected':'')+'>🚫 Sem responsável</option>'
     +resps.map(r=>`<option value="${escHtml(r)}"${r===cur?' selected':''}>${escHtml(r)}</option>`).join('');
 }
 
@@ -11797,9 +12883,11 @@ function renderAtaSection(){
   // status do topo aqui (senão a maioria das colunas apareceria vazia).
   const filtered=terrenos.filter(t=>{
     if(_ataViewMode!=='kanban' && _dashStatusFilter.length && !_dashStatusFilter.includes(t.status)) return false;
-    if(_ataRespFilter&&(t.responsavel||'')!==_ataRespFilter) return false;
+    if(_ataRespFilter==='__SEM_RESP__'){ if((t.responsavel||'').trim()) return false; }
+    else if(_ataRespFilter&&(t.responsavel||'')!==_ataRespFilter) return false;
     if(_ataCorretorFilter&&(t.corretor||'')!==_ataCorretorFilter) return false;
     if(q&&!norm(t.endereco+' '+(t.bairro||'')+' '+(t.apelido||'')+' '+(t.setor||'')+' '+(t.quadra||'')+' '+((t.lotes||[]).join(' '))).includes(q)) return false;
+    if(_ataViewMode==='list' && _ataListEnderecoFiltro && !norm(t.endereco||'').includes(norm(_ataListEnderecoFiltro))) return false;
     return true;
   }).sort((a,b)=>{
     const la=Array.isArray(a.ata)&&a.ata.length?a.ata[a.ata.length-1].data:'';
@@ -11813,6 +12901,34 @@ function renderAtaSection(){
   // ── Sort for data mode ──────────────────────────────────────
   if(_ataGroupMode==='data'){
     filtered.sort((a,b)=>(b.data||'').localeCompare(a.data||''));
+  }
+
+  // ── Ordenação por coluna na Visão em Lista (sobrepõe a ordenação acima
+  // quando uma coluna foi clicada) ─────────────────────────────────────
+  if(_ataViewMode==='list' && _ataListSortCol){
+    const col = _ataListSortCol, dir = _ataListSortDir;
+    const getVal = (t)=>{
+      switch(col){
+        case 'endereco': return norm(t.endereco||'');
+        case 'bairro': return norm(t.bairro||'');
+        case 'status': return norm(STATUS_LABELS[t.status]||t.status||'');
+        case 'area': return parseFloat(String(t.area||'').replace(/[^\d,.-]/g,'').replace(',','.'))||0;
+        case 'zona': return norm(t.zoneamento||'');
+        case 'sq': return norm((t.setor||t.quadra)?[t.setor,t.quadra].filter(Boolean).join('.'):'');
+        case 'corretor': return norm(t.corretor||'');
+        case 'responsavel': return norm(t.responsavel||'');
+        case 'ultimaata': {
+          const ult = Array.isArray(t.ata)&&t.ata.length ? [...t.ata].sort((a,b)=>b.data.localeCompare(a.data))[0] : null;
+          return ult ? ult.data : '';
+        }
+        default: return '';
+      }
+    };
+    filtered.sort((a,b)=>{
+      const va=getVal(a), vb=getVal(b);
+      if(typeof va==='number' && typeof vb==='number') return dir*(va-vb);
+      return dir*String(va).localeCompare(String(vb),'pt-BR');
+    });
   }
 
   // ── Group by selected mode ──────────────────────────────────────
@@ -12431,6 +13547,12 @@ function renderAtaSection(){
   } else if(_ataViewMode === 'list'){
     // ── Lista ────────────────────────────────────────────────────────────
     const thS = 'padding:7px 10px;text-align:left;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;color:var(--accent);border-bottom:2px solid var(--accent)33;white-space:nowrap;';
+    const thSort = (label, col, extraStyle)=>{
+      const active = _ataListSortCol===col;
+      const arrow = active ? (_ataListSortDir===1?' ▲':' ▼') : '';
+      const widthStyle = extraStyle!=null ? extraStyle : 'width:1%;';
+      return `<th style="${thS}${widthStyle}cursor:pointer;user-select:none;" onclick="setAtaListSort('${col}')" title="Ordenar por ${label}">${label}${arrow}</th>`;
+    };
     const rows = filtered.map((t,gi)=>{
       const m = _cards.find(x=>x.i===gi);
       if(!m) return '';
@@ -12464,19 +13586,30 @@ function renderAtaSection(){
       </tr>`;
     }).join('');
     _visualHtml = `<table style="width:100%;border-collapse:collapse;font-family:var(--sans);">
-      <thead><tr style="background:#f8fafc;">
+      <thead>
+      <tr style="background:#f8fafc;">
         <th style="padding:0;width:3px;"></th>
-        <th style="${thS}width:1%;">Endereço</th>
-        <th style="${thS}width:1%;">Bairro</th>
-        <th style="${thS}width:1%;">Status</th>
-        <th style="${thS}width:1%;">Área</th>
-        <th style="${thS}width:1%;">Zona</th>
-        <th style="${thS}width:1%;">Setor.Quadra</th>
-        <th style="${thS}width:1%;">Corretor</th>
-        <th style="${thS}width:1%;">Responsável</th>
-        <th style="${thS}">Última Ata</th>
+        ${thSort('Endereço','endereco')}
+        ${thSort('Bairro','bairro')}
+        ${thSort('Status','status')}
+        ${thSort('Área','area')}
+        ${thSort('Zona','zona')}
+        ${thSort('Setor.Quadra','sq')}
+        ${thSort('Corretor','corretor')}
+        ${thSort('Responsável','responsavel')}
+        ${thSort('Última Ata','ultimaata','')}
         <th style="${thS}width:1%;">Ações</th>
-      </tr></thead>
+      </tr>
+      <tr style="background:#fff;">
+        <th style="padding:0;"></th>
+        <th style="padding:4px 8px 8px;">
+          <input type="text" id="ata-lista-endereco-search" value="${escHtml(_ataListEnderecoFiltro||'')}"
+            placeholder="🔍 Buscar endereço…" oninput="setAtaListEnderecoFiltro(this.value)"
+            style="width:100%;box-sizing:border-box;font-size:11px;padding:4px 8px;border:1px solid var(--border);border-radius:6px;outline:none;font-family:var(--sans);color:var(--text);">
+        </th>
+        <th colspan="8" style="padding:0;"></th>
+      </tr>
+      </thead>
       <tbody>${rows}</tbody>
     </table>`;
 
@@ -12533,7 +13666,17 @@ function renderAtaSection(){
   // grid ainda gera as faixas de colunas vazias ao lado, sobrando uma área
   // em branco enorme à direita. Por isso alternamos pra display:block na Lista.
   el.style.display = (_ataViewMode === 'list') ? 'block' : '';
+  // Preserva foco+cursor do campo de busca por endereço embutido no cabeçalho
+  // da Lista — sem isso, cada letra digitada reconstrói a tabela inteira
+  // (innerHTML) e o campo perde o foco no meio da digitação.
+  const _focusedEl = document.activeElement;
+  const _wasEnderecoSearchFocused = _focusedEl && _focusedEl.id==='ata-lista-endereco-search';
+  const _cursorPos = _wasEnderecoSearchFocused ? _focusedEl.selectionStart : null;
   el.innerHTML = _visualHtml + '<div style="display:none">' + _panelsHtml + '</div>';
+  if(_wasEnderecoSearchFocused){
+    const novo = document.getElementById('ata-lista-endereco-search');
+    if(novo){ novo.focus(); try{ novo.setSelectionRange(_cursorPos,_cursorPos); }catch(e){} }
+  }
 }
 
 
@@ -18350,7 +19493,19 @@ function checkDeepLink(){
 // mandar uma composição com vários lotes; todos os campos são opcionais, mas
 // sem endereço nem sql não há o que preencher).
 function _abrirNovoTerrenoDeepLink(d){
-  const sqls = d.sqls || (d.sql ? [d.sql] : []); // aceita formato antigo (sql único) também
+  let sqls = d.sqls || (d.sql ? [d.sql] : []); // aceita formato antigo (sql único) também
+  // O Buscador de Terrenos do Matheus às vezes manda só 1 (ou poucos) parâmetro(s)
+  // sql= — mas quando a seleção é uma composição de vários lotes contíguos, ele
+  // lista TODOS eles dentro do texto de obs (ex: "...Todos os lotes: 016.101.0005-0,
+  // 016.101.0335-1, ..."). Essa lista é a mais completa — se achar mais lotes ali
+  // do que vieram nos parâmetros sql=, usa ela pra já trazer a seleção inteira.
+  if(d.obs){
+    const m = d.obs.match(/Todos os lotes:\s*([0-9.\-,\s]+)/i);
+    if(m){
+      const todosLotes = m[1].match(/\d{3}\.\d{3}\.\d{4}-\d/g) || [];
+      if(todosLotes.length > sqls.length) sqls = todosLotes;
+    }
+  }
   if(!d.endereco && !sqls.length) return;
   switchTab('mapa');
   setTimeout(()=>{
@@ -18458,14 +19613,22 @@ try {
   db.collection('terrenos').onSnapshot(snapshot=>{
     if(!snapshot.empty){
       terrenos=[];
+      _terrenosLixeira=[];
       snapshot.forEach(doc=>{
         const d = doc.data();
         // polygons pode ser string JSON (novo formato) ou array aninhado (legado)
         if(typeof d.polygons === 'string'){
           try{ d.polygons = JSON.parse(d.polygons); }catch(e){ d.polygons = null; }
         }
-        terrenos.push({id:doc.id,...d});
+        const obj = {id:doc.id,...d};
+        // Excluídos ficam de fora das telas normais (mapa/lista/dashboard/etc,
+        // que todas leem do array `terrenos`) — só aparecem na Lixeira.
+        if(obj._excluido) _terrenosLixeira.push(obj);
+        else terrenos.push(obj);
       });
+      _purgarLixeiraVencida();
+      _atualizarBadgeLixeira();
+      if(document.getElementById('lixeira-modal-bg')?.classList.contains('active')) renderLixeira();
     } else if(!_seeded){
       _seeded=true;
       const batch=db.batch();
@@ -23249,6 +24412,20 @@ function _mprospecBuscarMesmoProprietario(propEnc){
   </div>
 </div>
 
+<!-- ── RESUMO DA FORMAÇÃO (polígono do terreno em montagem) ────────── -->
+<div id="formacao-map-panel">
+  <div class="formacao-panel-header">
+    <div style="min-width:0;">
+      <div style="font-size:9px;font-weight:700;text-transform:uppercase;letter-spacing:.04em;color:var(--muted);margin-bottom:1px;">📋 Resumo da formação</div>
+      <div id="formacao-panel-titulo" style="font-size:13px;font-weight:700;color:var(--navy,#1a3c4d);">—</div>
+    </div>
+    <button onclick="_fecharResumoFormacao()" style="background:none;border:none;font-size:18px;cursor:pointer;color:var(--muted);flex-shrink:0;">×</button>
+  </div>
+  <div class="formacao-body" id="formacao-panel-body">
+    <div class="itbi-empty">Nenhum lote na formação ainda.</div>
+  </div>
+</div>
+
 <!-- ── À VENDA MAP PANEL ────────────────────────────────────────── -->
 <div id="avenda-map-panel">
   <div class="avenda-panel-header" onmousedown="_avendaPanelDrag(event)">
@@ -24105,7 +25282,10 @@ function _mprospecBuscarMesmoProprietario(propEnc){
 </div>
 
 <!-- ── WIDGET DE FEEDBACK / SUGESTÕES DE MELHORIA ────────────────────────── -->
-<button id="feedback-fab" onclick="toggleFeedbackPanel()" title="Sugestões de melhoria" style="position:fixed;bottom:calc(20px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);z-index:9600;display:flex;align-items:center;gap:9px;background:var(--teal,#00B0B9);color:#fff;border:none;padding:13px 22px;border-radius:26px;box-shadow:0 6px 22px rgba(0,0,0,.32);cursor:pointer;font-family:var(--sans,Arial,sans-serif);">
+<!-- Botão escondido a pedido da Kamila (28/09) — o painel/dados de feedback
+     continuam funcionando por trás, só o botão flutuante saiu da tela. Pra
+     voltar a mostrar, é só tirar o display:none daqui. -->
+<button id="feedback-fab" onclick="toggleFeedbackPanel()" title="Sugestões de melhoria" style="display:none;position:fixed;bottom:calc(20px + env(safe-area-inset-bottom, 0px));left:50%;transform:translateX(-50%);z-index:9600;align-items:center;gap:9px;background:var(--teal,#00B0B9);color:#fff;border:none;padding:13px 22px;border-radius:26px;box-shadow:0 6px 22px rgba(0,0,0,.32);cursor:pointer;font-family:var(--sans,Arial,sans-serif);">
   <span style="font-size:21px;line-height:1;">💬</span>
   <span style="font-size:13.5px;font-weight:700;white-space:nowrap;">Sugestões</span>
   <span id="feedback-badge" style="display:none;position:absolute;top:-7px;right:-7px;background:#f97316;color:#fff;font-size:11px;font-weight:700;min-width:19px;height:19px;border-radius:10px;align-items:center;justify-content:center;padding:0 4px;line-height:19px;box-shadow:0 0 0 2px #fff;"></span>
