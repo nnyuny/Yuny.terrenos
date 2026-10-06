@@ -1756,6 +1756,8 @@ summary.geosampa-group-label {
                 <button class="geosampa-btn" id="btn-geo-lotes" onclick="toggleGeoLayer('lotes')" title="Contorno de cada lote cadastrado no GeoSampa (aproxime o zoom) — clique num lote pra ver Setor/Quadra/Lote">🏘 Lotes</button>
                 <button class="geosampa-btn" id="btn-geo-zona" onclick="toggleGeoLayer('zona')" title="Zoneamento oficial (LPUOS) de cada lote — colore por zona (ZC, ZM, ZEU etc.) e mostra os parâmetros construtivos ao clicar">🏙 Zoneamento</button>
                 <button class="geosampa-btn" id="btn-geo-ouc" onclick="toggleOucLayer()" title="Perímetros de Operações Urbanas Consorciadas e Áreas de Intervenção Urbana (setor/subsetor quando disponível)">🏛 Operações Urbanas</button>
+                <button class="geosampa-btn" id="btn-geo-indisp" onclick="toggleIndispLayer()" title="Lotes sem potencial para estudo: (1) prédios em condomínio (CD) e (2) lotes que, somados aos vizinhos contínuos, não passam de 1.000 m² — aproxime o zoom">🚫 Sem potencial (CD / &lt;1.000 m²)</button>
+                <button class="geosampa-btn" id="btn-geo-indisp-cd" onclick="toggleIndispCdLayer()" title="Condomínios (CD) com pelo menos 1.500 m² e até 15 apartamentos — destacados em verde. Nº de aptos/salas = linhas da tabela \"Informações dos lotes do condomínio\" do GeoSampa (contagem feita sob demanda, pode levar alguns segundos). Aproxime o zoom.">🏢 CD ≥1.500 m² e ≤15 aptos</button>
               </div>
             </details>
             <details class="geosampa-subgroup">
@@ -1916,6 +1918,7 @@ summary.geosampa-group-label {
         <input type="text" id="dash-ata-search" class="dash-search-input" placeholder="🔍 Filtrar terreno…"
           oninput="filterAtaList()"
           style="font-size:12px;padding:5px 12px;min-width:140px;max-width:240px;">
+        <button class="dash-chip" id="dash-refresh-btn" onclick="atualizarPainel()" title="Buscar de novo os dados do servidor e redesenhar o painel">🔄 Atualizar</button>
         <button class="dash-chip dash-filtros-toggle" id="dash-filtros-toggle-btn" onclick="toggleDashFiltros()">⚙️ Filtros <span id="dash-filtros-arrow">▾</span></button>
       </div>
     </div>
@@ -4508,7 +4511,7 @@ let geocodeQueue = [];
 let geocoding = false;
 
 // ── MAPA ────────────────────────────────────────────────────────────────────
-const map = L.map('map').setView([-23.5505,-46.6333],12);
+const map = L.map('map').setView([-23.5700,-46.6650],15);
 const osmBaseLayer = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{
   attribution:'© OpenStreetMap contributors',maxZoom:19,crossOrigin:true
 }).addTo(map);
@@ -5266,6 +5269,856 @@ async function _loadVecItbiHeat(){
     _vecLoadHide();
     console.warn('[itbiHeat]', e);
   }
+}
+
+// ── Camada "Sem potencial" (CD + conjuntos contínuos ≤ 1.000 m²) ─────────────
+// Pedido da diretoria: mostrar no mapa os lotes que NÃO servem para estudo:
+//  (1) lotes de prédios em condomínio (CD — cd_tipo_quadra='CD' ou cd_condominio);
+//  (2) lotes que, somados a todos os vizinhos contínuos (que não sejam CD),
+//      não chegam a mais de 1.000 m² — ou seja, não dá para formar terreno maior.
+// Independente do status "Indisponível" cadastrado manualmente nos terrenos.
+const VEC_INDISP_MIN  = 16;
+const INDISP_AREA_MIN = 1000;
+let _vecIndispLayer = null;
+let _indispMode = false;
+let _indispCdMode = false, _vecIndispCdLayer = null, _indispCdGrupos = [], _indispCdCand = [];
+const _indispCdUnid = new Map(); // 'setor.quadra|cond' -> nº de unidades (ou -1 = falhou)
+let _indispCdFila = [], _indispCdAtivos = 0, _indispCdTotal = 0, _indispCdFeitos = 0;
+const INDISP_CD_AREA_MIN = 1500, INDISP_CD_APTOS_MAX = 15;
+
+function toggleIndispLayer(){
+  _indispMode = !_indispMode;
+  const btn = document.getElementById('btn-geo-indisp');
+  if(_indispMode){
+    btn.classList.add('active');
+    _indispWmsCd.addTo(map);
+    _showIndispLegend();
+    _cdAllCarrega();
+    if(map.getZoom() >= 15) _loadVecIndisp();
+    else if(map.getZoom() < 12) showToast('🔍 Aproxime um pouco o zoom (12+) para ver os condomínios');
+    _indispRender();
+  } else {
+    btn.classList.remove('active');
+    map.removeLayer(_indispWmsCd);
+    if(_vecIndispLayer) _vecIndispLayer.clearLayers();
+    if(!_indispCdMode){ _indispFila.length=0; _indispHideTip(); }
+    const el = document.getElementById('indisp-legend'); if(el) el.style.display='none';
+  }
+}
+function toggleIndispCdLayer(){
+  _indispCdMode = !_indispCdMode;
+  const btn = document.getElementById('btn-geo-indisp-cd');
+  if(_indispCdMode){
+    btn.classList.add('active');
+    _showIndispCdLegend(true);
+    if(map.getZoom() >= 15) _loadVecIndisp();
+    else showToast('🔍 Aproxime o zoom (15+) para ver os condomínios');
+    _indispRender();
+    _indispCdVerifica();
+  } else {
+    btn.classList.remove('active');
+    _showIndispCdLegend(false);
+    if(_vecIndispCdLayer) _vecIndispCdLayer.clearLayers();
+    if(!_indispMode){ _indispFila.length=0; _indispHideTip(); }
+  }
+}
+function _showIndispCdLegend(mostrar){
+  let el = document.getElementById('indisp-cd-legend');
+  if(!mostrar){ if(el) el.style.display='none'; return; }
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'indisp-cd-legend';
+    el.style.cssText = 'position:absolute;left:10px;bottom:30px;z-index:901;background:#fff;border-radius:8px;padding:8px 10px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.25);line-height:1.6;max-width:230px;';
+    el.innerHTML = `<b>CD ≥ 1.500 m² e ≤ 15 aptos</b>
+      <div class="legend-item"><div class="legend-swatch" style="background:#22c55e;border:1px solid #15803d"></div>Até 15 aptos (contado no GeoSampa ou informado)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#38bdf8;border:1px dashed #0284c7"></div>Nº de aptos ainda não conhecido — clique para informar</div>
+      <div style="color:#888;font-size:10px;">Mais de 15 aptos: não aparece</div>`;
+    document.getElementById('map').appendChild(el);
+  }
+  el.style.display='block';
+}
+function _showIndispLegend(){
+  let el = document.getElementById('indisp-legend');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'indisp-legend';
+    el.style.cssText = 'position:absolute;left:10px;bottom:30px;z-index:900;background:#fff;border-radius:8px;padding:8px 10px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.25);line-height:1.6;';
+    el.innerHTML = `<b>Sem potencial para estudo</b>
+      <div class="legend-item"><div class="legend-swatch" style="background:#475569"></div>Prédio em condomínio (CD)</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#b45309"></div>Conjunto contínuo ≤ 1.000 m²</div>
+      <div style="color:#888;font-size:10px;">Áreas ainda não carregadas não são avaliadas</div>
+      <div style="color:#475569;font-size:10px;">⌥ <b>Alt+clique</b> num lote: incluir/remover como CD</div>
+      <button onclick="event.stopPropagation();_indispIniciaDesenho()" style="margin-top:4px;width:100%;padding:3px 6px;font-size:11px;border:1px solid #0ea5e9;background:#f0f9ff;color:#0369a1;border-radius:5px;cursor:pointer;">✏️ Desenhar CD à mão</button>`;
+    document.getElementById('map').appendChild(el);
+  }
+  el.style.display = 'block';
+}
+
+// Área (m²) de um anel lat/lng, plano local equirretangular
+function _indispAreaRing(ring){
+  const lat0 = ring.reduce((s,c)=>s+c[0],0)/ring.length;
+  const kx = 111320*Math.cos(lat0*Math.PI/180), ky = 110540;
+  let a = 0;
+  for(let i=0;i<ring.length;i++){
+    const [la1,lo1]=ring[i], [la2,lo2]=ring[(i+1)%ring.length];
+    a += (lo1*kx)*(la2*ky) - (lo2*kx)*(la1*ky);
+  }
+  return Math.abs(a)/2;
+}
+function _indispToXY(ring, lat0){
+  const kx = 111320*Math.cos(lat0*Math.PI/180), ky = 110540;
+  return ring.map(c=>[c[1]*kx, c[0]*ky]);
+}
+function _indispDistPtSeg(p,a,b){
+  const dx=b[0]-a[0], dy=b[1]-a[1], l2=dx*dx+dy*dy;
+  let t = l2 ? ((p[0]-a[0])*dx+(p[1]-a[1])*dy)/l2 : 0; t=Math.max(0,Math.min(1,t));
+  return Math.hypot(p[0]-(a[0]+t*dx), p[1]-(a[1]+t*dy));
+}
+// Dois polígonos são contíguos se algum vértice de um está a ≤ tol m de uma aresta do outro
+function _indispTocam(A,B,tol){
+  if(A.bb[2]<B.bb[0]-tol||B.bb[2]<A.bb[0]-tol||A.bb[3]<B.bb[1]-tol||B.bb[3]<A.bb[1]-tol) return false;
+  for(const [P,Q] of [[A,B],[B,A]]){
+    for(const ring of P.xy) for(const pt of ring)
+      for(const r2 of Q.xy) for(let i=0;i<r2.length-1;i++)
+        if(_indispDistPtSeg(pt,r2[i],r2[i+1])<=tol) return true;
+  }
+  return false;
+}
+
+// ── Cache por "tiles" (0,004° ≈ 400 m): cada tile é baixado UMA vez, guardado em
+// memória e no IndexedDB do navegador (persiste entre sessões). A análise
+// (CD + conjuntos ≤ 1.000 m²) roda sobre TODOS os lotes já carregados, e o
+// resultado fica na tela em qualquer zoom — sem recarregar a cada zoom/pan.
+const INDISP_TILE = 0.004;
+const INDISP_LAT0 = -23.55;
+const INDISP_KX = 111320*Math.cos(INDISP_LAT0*Math.PI/180), INDISP_KY = 110540;
+const _indispTiles = new Map();      // 'i_j' -> [lotes] (já carregados)
+const _indispLotes = new Map();      // sql -> lote (dedup entre tiles)
+const _indispFila  = [];             // tiles pendentes
+let _indispAtivos = 0, _indispTotalFila = 0, _indispFeitos = 0, _indispRenderTimer = null;
+let _indispVersao = 0, _indispVersaoCalc = -1, _indispMarcar = [], _indispUltRender = 0;
+let _indispDB = null;
+// Pane própria (abaixo dos terrenos cadastrados): dois renderers canvas no mesmo pane
+// brigam pelo mouse e o hover/tooltip deixava de funcionar.
+if(!map.getPane('indispPane')){ map.createPane('indispPane').style.zIndex = 450; } /* acima da camada vetorial "Lotes" (overlayPane=400), senão ela cobre o cinza */
+const _indispCanvas = L.canvas({ pane:'indispPane', padding:0.5 });
+// Prédios em condomínio (CD): desenhados pelo PRÓPRIO mapa do GeoSampa (WMS) filtrado só para CDs e
+// escurecido em cinza — idêntico ao que o GeoSampa mostra, sem depender do contorno vetorial (que não encaixa em alguns lotes).
+if(!map.getPane('indispWmsPane')){ const p=map.createPane('indispWmsPane'); p.style.zIndex=345; p.style.pointerEvents='none'; }
+(function(){ const st=document.createElement('style'); st.textContent='.indisp-wms-cd{filter:grayscale(1) brightness(.62) contrast(1.35);}'; document.head.appendChild(st); })();
+const _indispWmsCd = L.tileLayer.wms(GEO_WMS, {
+  layers:'geoportal:lote_cidadao', format:'image/png', transparent:true, opacity:0.85, maxZoom:22, minZoom:14,
+  pane:'indispWmsPane', className:'indisp-wms-cd', CQL_FILTER:"cd_condominio <> '00' OR cd_lote = '0000'"
+});
+
+function _indispOpenDB(){
+  if(_indispDB) return _indispDB;
+  _indispDB = new Promise(res=>{
+    try{
+      const rq = indexedDB.open('landbank_indisp', 1);
+      rq.onupgradeneeded = ()=>rq.result.createObjectStore('tiles');
+      rq.onsuccess = ()=>res(rq.result);
+      rq.onerror = ()=>res(null);
+    }catch(e){ res(null); }
+  });
+  return _indispDB;
+}
+async function _indispDbGet(key){
+  const db = await _indispOpenDB(); if(!db) return null;
+  return new Promise(res=>{ try{ const r=db.transaction('tiles').objectStore('tiles').get('v6_'+key); r.onsuccess=()=>res(r.result||null); r.onerror=()=>res(null); }catch(e){res(null);} });
+}
+async function _indispDbPut(key,val){
+  const db = await _indispOpenDB(); if(!db) return;
+  try{ db.transaction('tiles','readwrite').objectStore('tiles').put(val,'v6_'+key); }catch(e){}
+}
+
+function _indispFeatToLote(f, isLonLat){
+  const p=f.properties||{};
+  const rings = _geomToLatLngs(f.geometry, isLonLat).map(rg=>rg.map(c=>[+c[0].toFixed(6),+c[1].toFixed(6)]));
+  let area = parseFloat(p.qt_area_terreno||p.area_lote||0);
+  if(!area) area = _indispAreaRing(rings[0]);
+  // cd_condominio vem como '00' (string, truthy) nos lotes comuns — só conta se for diferente de zero
+  const condNum = String(p.cd_condominio||'').trim().replace(/^0+/,'');
+  const isCD = (p.cd_tipo_quadra||'').toUpperCase()==='CD' || (p.cd_tipo_lote||'').toUpperCase()==='CD'
+    || /COND/i.test(String(p.tx_tipo_lote||'')+' '+String(p.tx_tipo_quadra||'')) || condNum!==''
+    || /^0+$/.test(String(p.cd_lote==null?'':p.cd_lote)) || /condom/i.test(String(p.dc_tipo_uso_imovel||''));
+  const sqlTxt = fmtSQLprops(p);
+  return { sql:sqlTxt, rings, area, isCD, cond:condNum, q:sqlTxt.split('.').slice(0,2).join('.'), raw:[p.cd_tipo_quadra,p.cd_tipo_lote,p.cd_condominio,p.cd_lote,p.tx_tipo_lote,p.cd_situacao] };
+}
+function _indispPrepara(l){
+  if(l.xy) return l;
+  l.xy = l.rings.map(rg=>rg.map(c=>[c[1]*INDISP_KX, c[0]*INDISP_KY]));
+  let bb=[Infinity,Infinity,-Infinity,-Infinity];
+  l.xy.forEach(rg=>rg.forEach(([x,y])=>{ if(x<bb[0])bb[0]=x; if(y<bb[1])bb[1]=y; if(x>bb[2])bb[2]=x; if(y>bb[3])bb[3]=y; }));
+  l.bb = bb;
+  return l;
+}
+function _indispAddTile(key, lotes){
+  _indispTiles.set(key, true); _indispVersao++;
+  // Chave = SQL + 1º vértice: lotes de condomínio (CD 01, CD 02…) de uma mesma quadra
+  // compartilham o mesmo SQL (lote 0000), então só o SQL descartava quase todos eles.
+  lotes.forEach(l=>{
+    if(!l.sql || l.sql==='—' || !l.rings || !l.rings[0] || !l.rings[0][0]) return;
+    const k = l.sql+'|'+l.rings[0][0].join(',');
+    // lotes vindos do cache antigo: cd_lote '0000' = registro de condomínio
+    if(!l.isCD && l.raw && /^0+$/.test(String(l.raw[3]==null?'':l.raw[3]))) l.isCD = true;
+    l._k = k; l.isCD0 = l.isCD;
+    if(!_indispLotes.has(k)) _indispLotes.set(k, _indispPrepara(l));
+  });
+}
+
+async function _indispCarregaTile(i,j){
+  const key = i+'_'+j;
+  if(_indispTiles.has(key)) return;
+  const cached = await _indispDbGet(key);
+  if(cached){ _indispAddTile(key, cached); return; }
+  const s=i*INDISP_TILE, w=j*INDISP_TILE, n=s+INDISP_TILE, e=w+INDISP_TILE;
+  // Se a resposta veio cheia (bateu no limite), divide a área em 4 e busca de novo — senão lotes ficam de fora
+  const buscaBbox = async (s,w,n,e,prof)=>{
+    const r = await fetch(`${API_BASE}/api/geosampa-bbox?minLat=${s}&minLng=${w}&maxLat=${n}&maxLng=${e}&max=1500`);
+    if(!r.ok) throw new Error('HTTP '+r.status);
+    const gj = await r.json();
+    if(gj && gj._erro) throw new Error('GeoSampa falhou/lento (bloco '+key+')'); // NÃO marca o bloco como carregado
+    const fs = gj.features||[];
+    if(fs.length>=1400 && prof<3){
+      const ms=(s+n)/2, mw=(w+e)/2, tudo=[];
+      for(const [a,b,c,d] of [[s,w,ms,mw],[s,mw,ms,e],[ms,w,n,mw],[ms,mw,n,e]]) tudo.push(...await buscaBbox(a,b,c,d,prof+1));
+      return tudo;
+    }
+    return fs;
+  };
+  const todas = await buscaBbox(s,w,n,e,0);
+  const vistos = new Set();
+  const feats = todas.filter(f=>{
+    if(!f.geometry || fmtSQLprops(f.properties)==='—') return false;
+    const id = f.id || (f.properties.cd_identificador!=null ? 'i'+f.properties.cd_identificador : null);
+    if(id!=null){ if(vistos.has(id)) return false; vistos.add(id); }
+    return true;
+  });
+  const isLonLat = feats.length ? _detectLonLat(feats) : true;
+  const lotes = feats.map(f=>_indispFeatToLote(f,isLonLat));
+  if(feats.length){ _indispDbPut(key, lotes.map(l=>({sql:l.sql,rings:l.rings,area:l.area,isCD:l.isCD,cond:l.cond,q:l.q,raw:l.raw}))); }
+  _indispAddTile(key, lotes);
+}
+
+function _indispEnfileira(b){
+  const i0=Math.floor(b.getSouth()/INDISP_TILE), i1=Math.floor(b.getNorth()/INDISP_TILE);
+  const j0=Math.floor(b.getWest()/INDISP_TILE),  j1=Math.floor(b.getEast()/INDISP_TILE);
+  const c = map.getCenter(), ci=c.lat/INDISP_TILE, cj=c.lng/INDISP_TILE;
+  const novos=[];
+  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
+    const key=i+'_'+j;
+    if(_indispTiles.has(key) || _indispFila.some(t=>t.key===key)) continue;
+    novos.push({i,j,key,d:Math.hypot(i-ci,j-cj)});
+  }
+  novos.sort((a,b)=>a.d-b.d);
+  _indispFila.push(...novos.slice(0,80));
+  _indispTotalFila += Math.min(novos.length,80);
+  _indispBombeia();
+}
+function _indispBombeia(){
+  while(_indispAtivos<3 && _indispFila.length){
+    const t=_indispFila.shift();
+    _indispAtivos++;
+    _indispCarregaTile(t.i,t.j).catch(e=>{
+        console.warn('[indisp] tile',t.key,e.message);
+        t.tent=(t.tent||0)+1;
+        if(t.tent<4 && _indispMode || t.tent<4 && _indispCdMode){ setTimeout(()=>{ _indispFila.push(t); _indispTotalFila++; _indispBombeia(); }, 2500*t.tent); }
+      })
+      .finally(()=>{
+        _indispAtivos--; _indispFeitos++;
+        if(_indispFila.length||_indispAtivos){
+          _vecLoadShow(`⏳ Carregando lotes… ${_indispFeitos}/${_indispTotalFila}`);
+        } else { _vecLoadHide(); _indispFeitos=0; _indispTotalFila=0; }
+        clearTimeout(_indispRenderTimer);
+        // durante o download só redesenha de ~8 em ~8 s (evita travar); ao terminar, redesenha na hora
+        clearTimeout(_indispRenderTimer);
+        _indispRenderTimer = setTimeout(_indispRender, _indispFila.length||_indispAtivos ? (_indispMarcar.length?8000:1500) : 150);
+        _indispBombeia();
+      });
+  }
+}
+
+function _indispTileCarregado(x,y){ // x,y em metros → tile
+  const lat=y/INDISP_KY, lng=x/INDISP_KX;
+  return _indispTiles.has(Math.floor(lat/INDISP_TILE)+'_'+Math.floor(lng/INDISP_TILE));
+}
+
+function _indispCalcula(){
+  if(_indispVersaoCalc===_indispVersao) return;
+  _indispVersaoCalc=_indispVersao;
+  const lots = [..._indispLotes.values()];
+  if(!lots.length){ _indispMarcar=[]; return; }
+  // ajustes manuais da equipe: 'inc' = tratar como CD, 'exc' = não é CD
+  lots.forEach(l=>{ let m=_indispManual.get(l._k); if(m==null && l.cond) m=_indispManual.get('C:'+l.q+'|'+l.cond); l.isCD = m==='inc' ? true : m==='exc' ? false : l.isCD0; });
+
+  // grade espacial (células de 60 m) p/ achar vizinhos sem comparar todos contra todos
+  const CELL=60, grid=new Map();
+  const livres = lots.filter(l=>!l.isCD);
+  livres.forEach((l,idx)=>{
+    for(let cx=Math.floor((l.bb[0]-2)/CELL); cx<=Math.floor((l.bb[2]+2)/CELL); cx++)
+      for(let cy=Math.floor((l.bb[1]-2)/CELL); cy<=Math.floor((l.bb[3]+2)/CELL); cy++){
+        const k=cx+','+cy; (grid.get(k)||grid.set(k,[]).get(k)).push(idx);
+      }
+  });
+  const par = livres.map((_,i)=>i);
+  const find = x=>{ while(par[x]!==x){ par[x]=par[par[x]]; x=par[x]; } return x; };
+  const testados = new Set();
+  grid.forEach(arr=>{
+    for(let a=0;a<arr.length;a++) for(let b=a+1;b<arr.length;b++){
+      const ia=arr[a], ib=arr[b];
+      if(find(ia)===find(ib)) continue;
+      const pk = ia<ib ? ia+'|'+ib : ib+'|'+ia;
+      if(testados.has(pk)) continue; testados.add(pk);
+      if(_indispTocam(livres[ia],livres[ib],3)) par[find(ia)]=find(ib);
+    }
+  });
+  const grupos = {};
+  livres.forEach((l,i)=>{ (grupos[find(i)] = grupos[find(i)]||[]).push(l); });
+
+  // conjunto só é avaliado se todos os tiles ao redor dos seus lotes já foram carregados
+  const completo = l => {
+    const m=4;
+    for(const [x,y] of [[l.bb[0]-m,l.bb[1]-m],[l.bb[2]+m,l.bb[1]-m],[l.bb[0]-m,l.bb[3]+m],[l.bb[2]+m,l.bb[3]+m]])
+      if(!_indispTileCarregado(x,y)) return false;
+    return true;
+  };
+
+  const marcar=[];
+  lots.filter(l=>l.isCD).forEach(l=>marcar.push({l,tipo:'cd'}));
+  Object.values(grupos).forEach(g=>{
+    const total=g.reduce((s,l)=>s+l.area,0);
+    if(total>INDISP_AREA_MIN) return;
+    if(!g.every(completo)) return;
+    g.forEach(l=>marcar.push({l,tipo:'area',total,n:g.length}));
+  });
+
+  _indispMarcar = marcar;
+  // Subcamada CD: candidatos = condomínios (quadra + nº do CD) com ≥ 1.500 m² de terreno.
+  // O nº de apartamentos/salas NÃO vem do polígono (1 polígono por CD): vem da consulta
+  // "Informações dos lotes do condomínio" do GeoSampa (ver _indispCdVerifica).
+  const cdMap = new Map();
+  lots.filter(l=>l.isCD && l.cond).forEach(l=>{
+    const k = (l.q||'')+'|'+l.cond;
+    (cdMap.get(k)||cdMap.set(k,[]).get(k)).push(l);
+  });
+  _indispCdCand = [];
+  cdMap.forEach((g,k)=>{
+    const area = g.reduce((t,l)=>t+l.area,0);
+    if(area < INDISP_CD_AREA_MIN) return;
+    if(!g.every(completo)) return;
+    _indispCdCand.push({ key:k, g, area });
+  });
+  _indispCdAtualizaGrupos(false);
+  console.log(`[indisp] ${lots.length} lotes em cache (${_indispTiles.size} tiles) → ${marcar.length} sem potencial`);
+}
+
+function _indispDesenhaCd(){
+  if(!_vecIndispCdLayer) _vecIndispCdLayer = L.layerGroup().addTo(map); else _vecIndispCdLayer.clearLayers();
+  if(!_indispCdMode || !_indispCdGrupos.length || map.getZoom()<15) return;
+  const v = map.getBounds().pad(0.25);
+  const S=v.getSouth(), N=v.getNorth(), W=v.getWest(), E=v.getEast();
+  _indispCdGrupos.forEach(({g,n})=>{
+    const r0 = g[0].rings[0][0];
+    if(r0[0]<S||r0[0]>N||r0[1]<W||r0[1]>E) return;
+    const conf = n!=null;
+    g.forEach(l=>l.rings.forEach(rg=>{
+      _vecIndispCdLayer.addLayer(L.polygon(rg, conf
+        ? { renderer:_indispCanvas, interactive:false, color:'#15803d', weight:2, fillColor:'#22c55e', fillOpacity:0.6, smoothFactor:2 }
+        : { renderer:_indispCanvas, interactive:false, color:'#0284c7', weight:2, dashArray:'5 4', fillColor:'#38bdf8', fillOpacity:0.35, smoothFactor:2 }));
+    }));
+  });
+}
+
+// ── Todos os CDs da cidade (baixados uma vez do servidor, guardados no navegador) ──
+let _cdAll = null, _cdAllCarregando = false, _cdAllTimer = null;
+async function _cdAllCarrega(){
+  if(_cdAll || _cdAllCarregando) return;
+  _cdAllCarregando = true;
+  try{
+    const cached = await _indispDbGet('cdall');
+    if(cached && cached.lotes && (Date.now()-cached.t) < 30*24*3600*1000){ _cdAll = cached.lotes; _cdAllCarregando=false; _indispDesenha(); return; }
+    for(let i=0;i<200;i++){
+      if(!_indispMode) break;
+      const r = await fetch(`${API_BASE}/api/cd-lotes`);
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const j = await r.json();
+      if(j && j.lotes){ _cdAll = j.lotes; _indispDbPut('cdall', { t:j.t||Date.now(), lotes:j.lotes }); _vecLoadHide(); break; }
+      if(j && j.erro) throw new Error(j.erro);
+      _vecLoadShow(`⏳ Preparando os condomínios da cidade (1ª vez)… ${j.done||0}/${j.total||'?'}`);
+      await new Promise(ok=>setTimeout(ok, 5000));
+    }
+  }catch(e){ console.warn('[cdAll]', e); _vecLoadHide(); showToast('Não consegui carregar todos os CDs: '+e.message); }
+  _cdAllCarregando = false;
+  _indispDesenha();
+}
+function _indispDesenha(){
+  _indispDesenhaCd();
+  if(!_vecIndispLayer) _vecIndispLayer = L.layerGroup().addTo(map); else _vecIndispLayer.clearLayers();
+  if(!_indispMode) return;
+  const z = map.getZoom();
+  const v = map.getBounds().pad(0.25);
+  const S=v.getSouth(), N=v.getNorth(), W=v.getWest(), E=v.getEast();
+  // CDs da cidade inteira (zoom 12–17); a partir do zoom 18 o mapa do GeoSampa (WMS) assume
+  const usaTodos = !!_cdAll && z<18 && z>=12;
+  if(usaTodos){
+    let n=0;
+    for(const lt of _cdAll){
+      const r0 = lt.r[0][0];
+      if(r0[0]<S||r0[0]>N||r0[1]<W||r0[1]>E) continue;
+      _vecIndispLayer.addLayer(L.polygon(lt.r, { renderer:_indispCanvas, interactive:false, stroke:z>=15, color:'#475569', weight:1, fillColor:'#475569', fillOpacity:0.55, smoothFactor:z<15?4:2 }));
+      if(++n>25000) break;
+    }
+  }
+  if(!_indispMarcar.length || z<15) return;
+  // só desenha o que está perto da tela (±25%) — o resto fica em memória
+  _indispMarcar.forEach(({l,tipo})=>{
+    const r0 = l.rings[0][0];
+    if(r0[0]<S||r0[0]>N||r0[1]<W||r0[1]>E) return;
+    // CDs: lista da cidade (zoom<18) ou mapa do GeoSampa (zoom≥18); aqui só os lotes pequenos (≤1.000 m²) e os CDs desenhados à mão
+    if(tipo==='cd' && !l.manualId && (z>=18 || usaTodos)) return;
+    const cor = tipo==='cd' ? '#475569' : '#b45309';
+    l.rings.forEach(rg=>{
+      _vecIndispLayer.addLayer(L.polygon(rg, { renderer:_indispCanvas, interactive:false, color:cor, weight:1, fillColor:cor, fillOpacity:0.5, smoothFactor:2 }));
+    });
+  });
+}
+
+// ── Hover leve: UM único listener no mapa + índice espacial (em vez de
+// milhares de polígonos interativos, que travavam o mouse e os botões).
+let _indispIdx = new Map(), _indispTip = null, _indispHoverT = 0, _indispHoverKey = null;
+function _indispConstroiIndice(){
+  _indispIdx = new Map();
+  const add = (l, info)=>{
+    for(let cx=Math.floor(l.bb[0]/50); cx<=Math.floor(l.bb[2]/50); cx++)
+      for(let cy=Math.floor(l.bb[1]/50); cy<=Math.floor(l.bb[3]/50); cy++){
+        const k=cx+','+cy; (_indispIdx.get(k)||_indispIdx.set(k,[]).get(k)).push({l,...info});
+      }
+  };
+  _indispMarcar.forEach(({l,tipo,total,n})=>add(l,{kind:tipo,total,n}));
+  _indispCdGrupos.forEach(({g,n,area,fonte})=>g.forEach(l=>add(l,{kind:'cdsub',n,area,fonte})));
+}
+function _indispPontoNoPoligono(x,y,ring){
+  let dentro=false;
+  for(let i=0,j=ring.length-1;i<ring.length;j=i++){
+    const xi=ring[i][0], yi=ring[i][1], xj=ring[j][0], yj=ring[j][1];
+    if(((yi>y)!==(yj>y)) && (x < (xj-xi)*(y-yi)/(yj-yi)+xi)) dentro=!dentro;
+  }
+  return dentro;
+}
+function _indispHideTip(){ const t=document.getElementById('indisp-tip'); if(t) t.style.display='none'; }
+function _indispHover(e){
+  if(!_indispMode && !_indispCdMode) return;
+  const agora = Date.now(); if(agora-_indispHoverT<50) return; _indispHoverT=agora;
+  if(map.getZoom()<15){ _indispHideTip(); return; }
+  const x=e.latlng.lng*INDISP_KX, y=e.latlng.lat*INDISP_KY;
+  const cand = _indispIdx.get(Math.floor(x/50)+','+Math.floor(y/50)) || [];
+  let achou=null;
+  for(const c of cand){
+    if(c.kind==='cdsub' ? !_indispCdMode : !_indispMode) continue;
+    if(!c.l.xy.some(rg=>_indispPontoNoPoligono(x,y,rg))) continue;
+    if(!achou || c.kind==='cdsub') achou=c;
+  }
+  if(!achou){ _indispHideTip(); return; }
+  const l=achou.l;
+  const html = achou.kind==='cdsub'
+    ? `<b>${l.sql}</b><br>🏢 Condomínio CD ${l.cond||''} · ${Math.round(achou.area).toLocaleString('pt-BR')} m²<br>` +
+      (achou.n!=null ? `<b>${achou.n} apto${achou.n>1?'s':''}/sala${achou.n>1?'s':''}</b> (${achou.fonte==='manual'?'informado':'GeoSampa'}) · clique para editar`
+                     : `<span style="color:#0284c7"><b>Nº de aptos não informado</b></span> · clique para informar`)
+    : achou.kind==='cd'
+      ? `<b>${l.sql}</b><br>🏢 Prédio em condomínio (CD)`
+      : `<b>${l.sql}</b><br>📏 Conjunto contínuo: ${achou.n} lote${achou.n>1?'s':''} · ${Math.round(achou.total).toLocaleString('pt-BR')} m² (≤ 1.000 m²)<br><span style="color:#888">Lote: ${Math.round(l.area).toLocaleString('pt-BR')} m²</span>`;
+  // caixinha própria (div fixo seguindo o mouse) — independe do sistema de tooltips do Leaflet
+  let t=document.getElementById('indisp-tip');
+  if(!t){
+    t=document.createElement('div'); t.id='indisp-tip';
+    t.style.cssText='position:fixed;z-index:99999;pointer-events:none;background:#fff;border:1px solid #ccc;border-radius:6px;padding:6px 9px;font-size:12px;line-height:1.4;box-shadow:0 2px 8px rgba(0,0,0,.3);max-width:280px;display:none;';
+    document.body.appendChild(t);
+  }
+  if(t._html!==html){ t.innerHTML=html; t._html=html; }
+  t.style.left=(e.cx+14)+'px'; t.style.top=(e.cy+14)+'px'; t.style.display='block';
+}
+
+// Escuta direto no contêiner do mapa (o evento 'mousemove' do Leaflet não chega ao mapa
+// quando o mouse está sobre algumas camadas/marcadores).
+map.getContainer().addEventListener('mousemove', ev=>{
+  if(!_indispMode && !_indispCdMode) return;
+  if(ev.target.closest && ev.target.closest('.leaflet-control, .geosampa-ctrl, #geosampa-ctrl-list')){ _indispHideTip(); return; }
+  _indispHover({ latlng: map.mouseEventToLatLng(ev), cx: ev.clientX, cy: ev.clientY });
+});
+map.getContainer().addEventListener('mouseleave', ()=>_indispHideTip());
+
+
+// ── Contagem real de unidades (apartamentos/salas) de cada CD, via GeoSampa ───
+// Mesma consulta da tela "Informações dos lotes do condomínio" (pesquisaLoteInfo):
+// cada linha da tabela é uma unidade. Resultado fica em cache (IndexedDB) para sempre.
+function _indispCdAtualizaGrupos(redesenha){
+  // Nº de aptos informado manualmente (Firestore 'cd_unidades'). Sem informação → "a conferir".
+  _indispCdGrupos = [];
+  _indispCdCand.forEach(c=>{
+    // prioridade: nº informado à mão; senão o nº contado no GeoSampa (lista de unidades do condomínio)
+    const man = _indispCdManual.get(c.key), aut = _indispCdUnid.get(c.key);
+    const n = man!=null ? man : (aut>0 ? aut : null);
+    const fonte = man!=null ? 'manual' : (aut>0 ? 'geosampa' : null);
+    if(n==null) _indispCdGrupos.push({ g:c.g, n:null, area:c.area, key:c.key });
+    else if(n>0 && n<=INDISP_CD_APTOS_MAX) _indispCdGrupos.push({ g:c.g, n, area:c.area, key:c.key, fonte });
+  });
+  if(redesenha){ _indispConstroiIndice(); _indispDesenhaCd(); }
+}
+// ── Inclusão/remoção manual de lotes CD na camada "Sem potencial" (Firestore 'indisp_manual')
+const _indispManual = new Map(); // chave do lote -> 'inc' | 'exc'
+const _indispManDocId = k => k.replace(/[\/\s]/g,'_');
+try{
+  db.collection('indisp_manual').onSnapshot(snap=>{
+    snap.docChanges().forEach(ch=>{
+      const d = ch.doc.data()||{};
+      if(!d.key) return;
+      if(ch.type==='removed') _indispManual.delete(d.key); else _indispManual.set(d.key, d.acao);
+    });
+    _indispVersao++;
+    if(_indispMode || _indispCdMode) _indispRender();
+  }, e=>console.warn('[indisp_manual]', e));
+}catch(e){ console.warn('[indisp_manual] Firestore indisponível', e); }
+// Alt+clique num lote (camada "Sem potencial" ligada) → incluir como CD / voltar ao automático
+map.on('click', async e=>{
+  const oe = e.originalEvent;
+  if(!_indispMode || !oe || !oe.altKey || map.getZoom()<15) return;
+  const x=e.latlng.lng*INDISP_KX, y=e.latlng.lat*INDISP_KY;
+  let achados=[..._indispLotes.values()].filter(l=>l.bb && x>=l.bb[0]&&x<=l.bb[2]&&y>=l.bb[1]&&y<=l.bb[3] && l.xy.some(rg=>_indispPontoNoPoligono(x,y,rg)));
+  if(!achados.length){
+    // lote não está no cache: busca direto no GeoSampa, só neste ponto
+    try{
+      const d=0.00004, la=e.latlng.lat, ln=e.latlng.lng;
+      // 1º: consulta exata "qual lote contém este ponto" (INTERSECTS); 2º: caixinha ao redor
+      let gj = null;
+      try{ const rp = await fetch(`${API_BASE}/api/geosampa-lote-ponto?lat=${la}&lng=${ln}`); if(rp.ok) gj = await rp.json(); }catch(_){}
+      console.log('[indisp] consulta por ponto →', gj && gj._fonte, gj && (gj.features||[]).length, 'lote(s)');
+      if(!gj || !(gj.features||[]).length){
+        const r = await fetch(`${API_BASE}/api/geosampa-bbox?minLat=${la-d}&minLng=${ln-d}&maxLat=${la+d}&maxLng=${ln+d}&max=20`);
+        gj = await r.json();
+      }
+      const feats = (gj.features||[]).filter(f=>f.geometry);
+      console.log('[indisp] Alt+clique fora do cache — GeoSampa devolveu:', feats.length, 'lote(s)');
+      feats.forEach(f=>{ const p=f.properties||{}; console.log('[indisp] props: '+['cd_tipo_quadra','cd_tipo_lote','cd_condominio','cd_lote','tx_tipo_lote','tx_tipo_quadra','dc_tipo_uso_imovel','cd_setor_fiscal','cd_quadra_fiscal','qt_area_terreno'].map(k=>k+'='+JSON.stringify(p[k])).join(' | ')); });
+      const isLL = feats.length ? _detectLonLat(feats) : true;
+      const novos=[];
+      feats.forEach(f=>{
+        const l = _indispFeatToLote(f,isLL);
+        console.log('[indisp] geom:', f.geometry&&f.geometry.type, 'anéis:', l.rings.length, 'vértices:', l.rings.map(r=>r.length).join(','), 'isLL:', isLL);
+        if(!l.rings||!l.rings[0]||!l.rings[0][0]) return;
+        const k = l.sql+'|'+l.rings[0][0].join(',');
+        l._k=k; l.isCD0=l.isCD;
+        if(!_indispLotes.has(k)) _indispLotes.set(k,_indispPrepara(l));
+        novos.push(_indispLotes.get(k));
+      });
+      _indispVersao++;
+      achados=[..._indispLotes.values()].filter(l=>l.bb && x>=l.bb[0]&&x<=l.bb[2]&&y>=l.bb[1]&&y<=l.bb[3] && l.xy.some(rg=>_indispPontoNoPoligono(x,y,rg)));
+      // o ponto clicado pode cair fora do contorno exato (borda/tolerância): usa o lote devolvido pelo GeoSampa nessa caixinha
+      if(!achados.length && novos.length){
+        console.log('[indisp] clique fora do contorno exato — usando o lote devolvido pelo GeoSampa no ponto', novos.map(l=>({sql:l.sql,bb:l.bb,click:[x,y]})));
+        // mostra em magenta (6 s) onde fica o lote que o GeoSampa devolveu, para conferir se é o lote clicado
+        const dbg = L.layerGroup().addTo(map);
+        novos.forEach(l=>l.rings.forEach(rg=>L.polygon(rg,{color:'#d946ef',weight:4,fillOpacity:0.15,interactive:false}).addTo(dbg)));
+        L.circleMarker(e.latlng,{radius:5,color:'#d946ef',interactive:false}).addTo(dbg);
+        setTimeout(()=>map.removeLayer(dbg), 6000);
+        showToast('Contorno magenta = lote devolvido pelo GeoSampa (6 s)');
+        await new Promise(res=>setTimeout(res,700)); // deixa o navegador desenhar antes da pergunta (confirm trava a tela)
+        achados = novos;
+      }
+    }catch(err){ console.warn(err); }
+  }
+  if(!achados.length){ showToast('O GeoSampa não devolveu nenhum lote neste ponto'); return; }
+  if(_indispDraw) return;
+  const man = achados.find(o=>o.manualId);
+  if(man){
+    if(confirm('Este CD foi desenhado à mão.\nExcluir o desenho?')){
+      _indispLotes.delete(man._k); _indispVersao++; _indispRender();
+      db.collection('indisp_poly').doc(man.manualId).delete().then(()=>showToast('Desenho excluído')).catch(()=>{});
+    }
+    return;
+  }
+  const l = achados.sort((a,b)=>a.area-b.area)[0];
+  // Condomínio: a decisão vale para TODOS os polígonos do mesmo condomínio na quadra (um CD pode ter mais de um polígono)
+  const condKey = l.cond ? 'C:'+l.q+'|'+l.cond : null;
+  if(condKey){
+    try{
+      const [st,qd] = l.q.split('.');
+      const rq = await fetch(`${API_BASE}/api/geosampa-setor-quadra?setor=${st}&quadra=${qd}`);
+      const gq = await rq.json();
+      const fs = (gq.features||[]).filter(f=>f.geometry);
+      const isLLq = fs.length ? _detectLonLat(fs) : true;
+      fs.forEach(f=>{
+        const o = _indispFeatToLote(f,isLLq);
+        if(!o.rings||!o.rings[0]||!o.rings[0][0]) return;
+        const k = o.sql+'|'+o.rings[0][0].join(',');
+        o._k=k; o.isCD0=o.isCD;
+        if(!_indispLotes.has(k)) _indispLotes.set(k,_indispPrepara(o));
+      });
+      _indispVersao++;
+    }catch(err){ console.warn('[indisp] quadra', err); }
+    const grupo = [..._indispLotes.values()].filter(o=>o.q===l.q && o.cond===l.cond);
+    console.log('[indisp] polígonos do condomínio', l.q, 'CD', l.cond, ':', grupo.length, grupo.map(o=>Math.round(o.area)+' m²'));
+    const dbg2 = L.layerGroup().addTo(map);
+    grupo.forEach(o=>o.rings.forEach(rg=>L.polygon(rg,{color:'#ef4444',weight:4,dashArray:'6 4',fillOpacity:0.15,interactive:false}).addTo(dbg2)));
+    setTimeout(()=>map.removeLayer(dbg2), 6000);
+    showToast(`Condomínio CD ${l.cond}: ${grupo.length} polígono(s) — contorno vermelho tracejado`);
+    await new Promise(res=>setTimeout(res,700));
+  }
+  const key = condKey || l._k;
+  const m = _indispManual.get(key);
+  const ref = db.collection('indisp_manual').doc(_indispManDocId(key));
+  const salva = (acao, msg)=>{
+    if(acao===null){ _indispManual.delete(key); ref.delete().catch(()=>{}); }
+    else { _indispManual.set(key, acao); ref.set({ key, sql:l.sql, acao, por:(window.usuarioAtual&&usuarioAtual.nome)||'', at:new Date().toISOString() }).catch(err=>showToast('Erro ao salvar: '+err.message)); }
+    _indispVersao++; _indispRender(); showToast(msg);
+  };
+  if(l.isCD){
+    if(m==='inc') { if(confirm(`Lote ${l.sql} foi incluído manualmente como CD.\nRemover a inclusão?`)) salva(null,'Inclusão removida'); }
+    else if(confirm(`Lote ${l.sql} está marcado como CD.\nNão é CD? Remover da camada?`)) salva('exc','Lote removido da camada');
+  } else {
+    if(m==='exc') { if(confirm(`Lote ${l.sql} foi removido manualmente.\nVoltar ao automático?`)) salva(null,'Voltou ao automático'); }
+    else if(confirm(`Incluir o lote ${l.sql} (${Math.round(l.area).toLocaleString('pt-BR')} m²) como CD na camada "Sem potencial"?`)) salva('inc','Lote incluído como CD');
+  }
+});
+// ── CD desenhado à mão (para lotes que o GeoSampa não entrega com o contorno certo) ──
+// Salvo no Firestore ('indisp_poly'), compartilhado com a equipe. Alt+clique num deles → excluir.
+let _indispDraw = null; // { pts:[L.LatLng], prev:L.Polygon }
+function _indispAddManualPoly(id, pts){
+  const ring = pts.map(p=>[+p.lat, +p.lng]);
+  if(ring.length<3) return;
+  const k = 'MAN|'+id;
+  _indispLotes.set(k, _indispPrepara({ sql:'CD desenhado', rings:[ring], area:_indispAreaRing(ring), isCD:true, isCD0:true, cond:'', q:'manual', raw:[], manualId:id, _k:k }));
+  _indispVersao++;
+}
+try{
+  db.collection('indisp_poly').onSnapshot(snap=>{
+    snap.docChanges().forEach(ch=>{
+      const d = ch.doc.data()||{};
+      if(ch.type==='removed'){ _indispLotes.delete('MAN|'+ch.doc.id); _indispVersao++; }
+      else _indispAddManualPoly(ch.doc.id, d.pts||[]);
+    });
+    if(_indispMode || _indispCdMode) _indispRender();
+  }, e=>console.warn('[indisp_poly]', e));
+}catch(e){ console.warn('[indisp_poly] Firestore indisponível', e); }
+window._indispIniciaDesenho = function(){
+  if(_indispDraw) return;
+  if(map.getZoom()<16) map.setZoom(17);
+  _indispDraw = { pts:[], prev:L.polygon([],{color:'#0ea5e9',weight:3,dashArray:'5 4',fillOpacity:0.2,interactive:false}).addTo(map) };
+  map.doubleClickZoom.disable();
+  map.getContainer().style.cursor='crosshair';
+  showToast('✏️ Clique nos cantos do lote. Duplo-clique para finalizar · Esc cancela');
+};
+function _indispFimDesenho(salvar){
+  const d = _indispDraw; if(!d) return;
+  _indispDraw = null;
+  map.removeLayer(d.prev); map.doubleClickZoom.enable(); map.getContainer().style.cursor='';
+  if(!salvar) return;
+  const pts = d.pts.filter((p,i)=>i===0 || !p.equals(d.pts[i-1]));
+  if(pts.length<3){ showToast('Poucos pontos — desenho cancelado'); return; }
+  const ref = db.collection('indisp_poly').doc();
+  ref.set({ pts: pts.map(p=>({lat:+p.lat.toFixed(7), lng:+p.lng.toFixed(7)})), por:(window.usuarioAtual&&usuarioAtual.nome)||'', at:new Date().toISOString() })
+    .then(()=>showToast('CD desenhado e salvo'))
+    .catch(err=>showToast('Erro ao salvar: '+err.message));
+  _indispAddManualPoly(ref.id, pts.map(p=>({lat:p.lat,lng:p.lng}))); _indispRender();
+}
+map.on('click', e=>{ if(_indispDraw){ _indispDraw.pts.push(e.latlng); _indispDraw.prev.setLatLngs(_indispDraw.pts); } });
+map.on('dblclick', e=>{ if(_indispDraw) _indispFimDesenho(true); });
+document.addEventListener('keydown', ev=>{ if(ev.key==='Escape' && _indispDraw) _indispFimDesenho(false); });
+const _indispCdManual = new Map(); // 'setor.quadra|cond' -> nº de aptos informado
+const _indispCdDocId = k => k.replace('|','_');
+try{
+  db.collection('cd_unidades').onSnapshot(snap=>{
+    snap.docChanges().forEach(ch=>{
+      const d = ch.doc.data()||{};
+      if(ch.type==='removed' || !(d.n>=0) || !d.key) _indispCdManual.delete(d.key);
+      else _indispCdManual.set(d.key, d.n);
+    });
+    if(_indispCdMode && _indispCdCand.length) _indispCdAtualizaGrupos(true);
+  }, e=>console.warn('[cd_unidades]', e));
+}catch(e){ console.warn('[cd_unidades] Firestore indisponível', e); }
+
+// Contagens automáticas (GeoSampa) já feitas por qualquer pessoa da equipe
+try{
+  db.collection('cd_unidades_auto').onSnapshot(snap=>{
+    snap.docChanges().forEach(ch=>{
+      const d = ch.doc.data()||{};
+      if(d.key && d.n>0 && ch.type!=='removed') _indispCdUnid.set(d.key, d.n);
+    });
+    if(_indispCdMode && _indispCdCand.length) _indispCdAtualizaGrupos(true);
+  }, e=>console.warn('[cd_unidades_auto]', e));
+}catch(e){ console.warn('[cd_unidades_auto] Firestore indisponível', e); }
+
+// ── Painel "Informações dos lotes do condomínio" (lista de unidades, igual ao GeoSampa) ──
+function _indispFechaCondominio(){ const m=document.getElementById('indisp-cd-modal'); if(m) m.remove(); }
+function _indispCdInformaManual(key, rotulo){
+  const atual = _indispCdManual.get(key);
+  const r = prompt(`${rotulo}\nQuantos apartamentos/salas? (deixe vazio para limpar)`, atual!=null?atual:'');
+  if(r===null) return;
+  const txt = r.trim();
+  const ref = db.collection('cd_unidades').doc(_indispCdDocId(key));
+  if(txt===''){ ref.delete().then(()=>{ _indispCdManual.delete(key); _indispCdAtualizaGrupos(true); showToast('Quantidade removida'); }); return; }
+  const n = parseInt(txt,10);
+  if(!(n>=0)){ showToast('Número inválido'); return; }
+  _indispCdManual.set(key, n); _indispCdAtualizaGrupos(true);
+  ref.set({ key, n, por:(window.usuarioAtual&&usuarioAtual.nome)||'', at:new Date().toISOString() })
+    .then(()=>showToast(n>INDISP_CD_APTOS_MAX ? `Salvo: ${n} aptos (acima de ${INDISP_CD_APTOS_MAX}, sai da subcamada)` : `Salvo: ${n} aptos`))
+    .catch(err=>showToast('Erro ao salvar: '+err.message));
+}
+async function _indispAbreCondominio(setor, quadra, cond){
+  _indispFechaCondominio();
+  const st=String(setor).padStart(3,'0'), qd=String(quadra).padStart(3,'0'), cd=String(cond).replace(/^0+/,'').padStart(2,'0');
+  const key = st+'.'+qd+'|'+String(cond).replace(/^0+/,'');
+  const m = document.createElement('div');
+  m.id='indisp-cd-modal';
+  m.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:20px;';
+  m.onclick = ev=>{ if(ev.target===m) _indispFechaCondominio(); };
+  m.innerHTML = `<div style="background:#4b4b4b;color:#fff;border-radius:10px;max-width:1000px;width:100%;max-height:85vh;display:flex;flex-direction:column;padding:14px 16px;box-shadow:0 8px 30px rgba(0,0,0,.5);">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;">
+      <div><div style="font-size:12px;opacity:.8">Informações dos lotes do condomínio</div>
+      <div style="font-size:17px;font-weight:700;font-style:italic;margin-top:2px;">Setor: ${st} &nbsp; Condomínio: ${cd} &nbsp; Quadra: ${qd}</div></div>
+      <a href="#" id="indisp-cd-x" style="color:#fff;font-size:12px;">Fechar painel</a>
+    </div>
+    <div id="indisp-cd-body" style="margin-top:10px;overflow:auto;background:#eee;color:#222;border-radius:6px;padding:14px;font-size:13px;">Carregando unidades no GeoSampa…</div>
+    <div id="indisp-cd-foot" style="margin-top:10px;display:flex;gap:8px;align-items:center;font-size:12px;"></div></div>`;
+  document.body.appendChild(m);
+  m.querySelector('#indisp-cd-x').onclick = ev=>{ ev.preventDefault(); _indispFechaCondominio(); };
+  const body = m.querySelector('#indisp-cd-body'), foot = m.querySelector('#indisp-cd-foot');
+  const esc = v => String(v==null?'':v).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]));
+  try{
+    const r = await fetch(`${API_BASE}/api/geosampa-cd-unidades?setor=${st}&quadra=${qd}&cond=${cd}`);
+    if(!r.ok) throw new Error('GeoSampa não respondeu (HTTP '+r.status+')');
+    const j = await r.json();
+    const us = j.unidades||[];
+    if(!us.length){ body.textContent='O GeoSampa não devolveu unidades para este condomínio.'; }
+    else{
+      body.innerHTML = `<table style="border-collapse:collapse;width:100%;font-size:12px;">
+        <thead><tr style="background:#555;color:#fff;">${['Lote','Dígito','Codlog','Código Contribuinte','Logradouro','Núm.Porta','Complemento','Uso','Área.Cons','Código CIB','Sit. Cód. CIB'].map(h=>`<th style="padding:5px 6px;border:1px solid #888;text-align:center;">${h}</th>`).join('')}</tr></thead>
+        <tbody>${us.map(u=>`<tr>${[u.lote,u.digito,u.codlog,u.contrib,u.logr,u.num,u.compl,u.uso,u.area,u.cib,u.sit].map(v=>`<td style="padding:4px 6px;border:1px solid #999;text-align:center;">${esc(v)}</td>`).join('')}</tr>`).join('')}</tbody></table>`;
+      _indispCdUnid.set(key, us.length);
+      try{ db.collection('cd_unidades_auto').doc(_indispCdDocId(key)).set({ key, n:us.length, at:new Date().toISOString() }); }catch(_){}
+      _indispCdAtualizaGrupos(true);
+    }
+    const n = us.length;
+    const man = _indispCdManual.get(key);
+    foot.innerHTML = `<b style="font-size:14px;">${n} unidade${n===1?'':'s'}</b> no GeoSampa${man!=null?` · informado à mão: <b>${man}</b>`:''}
+      <button id="indisp-cd-man" style="margin-left:auto;padding:5px 10px;border:none;border-radius:5px;background:#00B0B9;color:#fff;cursor:pointer;">✏️ Informar nº à mão</button>`;
+    foot.querySelector('#indisp-cd-man').onclick = ()=>_indispCdInformaManual(key, `Condomínio CD ${cd} — quadra ${st}.${qd}`);
+  }catch(err){
+    body.innerHTML = `<span style="color:#b91c1c">Não consegui carregar a lista: ${esc(err.message)}</span>`;
+    foot.innerHTML = `<button id="indisp-cd-man" style="margin-left:auto;padding:5px 10px;border:none;border-radius:5px;background:#00B0B9;color:#fff;cursor:pointer;">✏️ Informar nº à mão</button>`;
+    foot.querySelector('#indisp-cd-man').onclick = ()=>_indispCdInformaManual(key, `Condomínio CD ${cd} — quadra ${st}.${qd}`);
+  }
+}
+document.addEventListener('keydown', ev=>{ if(ev.key==='Escape') _indispFechaCondominio(); });
+
+// Clique num CD (subcamada ou "Sem potencial" ligada) → abre a lista de unidades do condomínio
+map.on('click', async e=>{
+  if((!_indispCdMode && !_indispMode) || _indispDraw || map.getZoom()<15) return;
+  if(e.originalEvent && e.originalEvent.altKey) return; // Alt+clique = incluir/remover CD
+  // 1) subcamada verde/azul: já sabemos qual condomínio é
+  if(_indispCdMode){
+    const x=e.latlng.lng*INDISP_KX, y=e.latlng.lat*INDISP_KY;
+    const cand = _indispIdx.get(Math.floor(x/50)+','+Math.floor(y/50)) || [];
+    const c = cand.find(c=>c.kind==='cdsub' && c.l.xy.some(rg=>_indispPontoNoPoligono(x,y,rg)));
+    if(c){ const [st,qd]=(c.l.q||'').split('.'); return _indispAbreCondominio(st,qd,c.l.cond); }
+  }
+  // 2) "Sem potencial": pergunta ao GeoSampa qual lote está sob o clique
+  try{
+    const rp = await fetch(`${API_BASE}/api/geosampa-lote-ponto?lat=${e.latlng.lat}&lng=${e.latlng.lng}`);
+    if(!rp.ok) return;
+    const gj = await rp.json();
+    const p = ((gj.features||[])[0]||{}).properties;
+    if(!p) return;
+    const condNum = String(p.cd_condominio||'').replace(/^0+/,'');
+    if(condNum==='' && !/^0+$/.test(String(p.cd_lote||'x'))) return; // não é condomínio
+    if(condNum==='') return;
+    _indispAbreCondominio(p.cd_setor_fiscal, p.cd_quadra_fiscal, condNum);
+  }catch(_){}
+});
+async function _indispCdContaUnidades(key){
+  const [q,cond] = key.split('|');
+  const [setor,quadra] = q.split('.');
+  for(let tent=0; tent<2; tent++){
+    try{
+      const r = await fetch(`${API_BASE}/api/geosampa-cd-unidades?setor=${setor}&quadra=${quadra}&cond=${cond}`);
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const j = await r.json();
+      if(typeof j.n==='number' && j.n>=0) return j.n;
+    }catch(e){ /* tenta de novo */ }
+    await new Promise(res=>setTimeout(res, 400));
+  }
+  return -1;
+}
+async function _indispCdVerifica(){
+  if(!_indispCdMode) return;
+  const c = map.getCenter();
+  const pend = _indispCdCand.filter(x=>!_indispCdUnid.has(x.key) && !_indispCdFila.includes(x.key))
+    .map(x=>{ const l=x.g[0]; return { key:x.key, d:Math.hypot(l.rings[0][0][0]-c.lat, l.rings[0][0][1]-c.lng) }; })
+    .sort((a,b)=>a.d-b.d);
+  // lê primeiro do cache persistente
+  for(const p of pend){
+    const v = await _indispDbGet('cx_'+p.key);
+    if(typeof v==='number' && v>0) _indispCdUnid.set(p.key, v);
+  }
+  const falta = pend.filter(p=>!_indispCdUnid.has(p.key)).slice(0,150); // os 150 mais próximos do centro por vez
+  _indispCdAtualizaGrupos(true);
+  _indispCdFila.push(...falta.map(p=>p.key));
+  _indispCdTotal += falta.length;
+  _indispCdBombeia();
+}
+function _indispCdBombeia(){
+  while(_indispCdAtivos<4 && _indispCdFila.length){
+    const key = _indispCdFila.shift();
+    _indispCdAtivos++;
+    _indispCdContaUnidades(key).then(n=>{
+      _indispCdUnid.set(key, n);
+      if(n>0){
+        _indispDbPut('cx_'+key, n);
+        // salva para a equipe toda: contado uma vez, vale para todo mundo e para sempre
+        try{ db.collection('cd_unidades_auto').doc(_indispCdDocId(key)).set({ key, n, at:new Date().toISOString() }); }catch(e){}
+      }
+    }).finally(()=>{
+      _indispCdAtivos--; _indispCdFeitos++;
+      if(_indispCdFila.length||_indispCdAtivos){
+        _vecLoadShow(`⏳ Contando aptos dos condomínios… ${_indispCdFeitos}/${_indispCdTotal}`);
+      } else { _vecLoadHide(); _indispCdFeitos=0; _indispCdTotal=0; }
+      clearTimeout(_indispCdTimer);
+      _indispCdTimer = setTimeout(()=>_indispCdAtualizaGrupos(true), (_indispCdFila.length||_indispCdAtivos)?1500:100);
+      _indispCdBombeia();
+    });
+  }
+}
+let _indispCdTimer = null;
+
+
+// Diagnóstico: _indispDiag() e depois clique num lote — mostra no console os dados que o app tem dele.
+window._indispDiag = function(){
+  console.log('[indispDiag] clique no lote que você quer investigar…');
+  map.once('click', e=>{
+    const x=e.latlng.lng*INDISP_KX, y=e.latlng.lat*INDISP_KY;
+    const achados=[..._indispLotes.values()].filter(l=>l.xy.some(rg=>_indispPontoNoPoligono(x,y,rg)));
+    console.log('[indispDiag] lotes carregados nesse ponto:', achados.length, '| total em cache:', _indispLotes.size, '| tiles:', _indispTiles.size);
+    console.table(achados.map(l=>({sql:l.sql,isCD:l.isCD,cond:l.cond,area:Math.round(l.area),tipoQuadra:l.raw&&l.raw[0],tipoLote:l.raw&&l.raw[1],condominio:l.raw&&l.raw[2],cdLote:l.raw&&l.raw[3],txTipoLote:l.raw&&l.raw[4],situacao:l.raw&&l.raw[5]})));
+  });
+};
+
+function _indispRender(){
+  if(!_indispMode && !_indispCdMode) return;
+  const _vAntes=_indispVersaoCalc;
+  _indispCalcula();
+  if(_vAntes!==_indispVersaoCalc){ _indispConstroiIndice(); _indispCdVerifica(); }
+  _indispDesenha();
+}
+
+// Chamada a cada mover/zoom: só garante que a área em volta esteja carregada
+// (os polígonos já desenhados permanecem na tela em qualquer zoom).
+async function _loadVecIndisp(){
+  if(!_indispMode && !_indispCdMode) return;
+  if(map.getZoom() < 15){ _indispDesenha(); return; }
+  const v = map.getBounds();
+  const dLat=(v.getNorth()-v.getSouth())*0.5, dLng=(v.getEast()-v.getWest())*0.5;
+  _indispEnfileira(L.latLngBounds([v.getSouth()-dLat, v.getWest()-dLng],[v.getNorth()+dLat, v.getEast()+dLng]));
+  _indispDesenha();
 }
 
 // ── Camada "Valores por Rua" (PGV oficial do Quadro 14, por codlog) ─────────
@@ -7209,7 +8062,7 @@ async function _loadVecOUC(){
 // Debounce: carrega vetorial 400ms após parar de mover
 function _scheduleVecLoad(){
   clearTimeout(_vecMoveTimer);
-  _vecMoveTimer = setTimeout(()=>{ _loadVecLotes(); _loadVecItbiHeat(); _loadVecPgvRua(); _loadVecOUC(); _loadVecPatrimonio(); _loadVecPatcult(); _loadVecAmbiental(); _loadVecInfraViaria(); _loadVecContaminacao(); }, 400);
+  _vecMoveTimer = setTimeout(()=>{ _loadVecLotes(); _loadVecIndisp(); _loadVecItbiHeat(); _loadVecPgvRua(); _loadVecOUC(); _loadVecPatrimonio(); _loadVecPatcult(); _loadVecAmbiental(); _loadVecInfraViaria(); _loadVecContaminacao(); }, 400);
 }
 map.on('moveend', _scheduleVecLoad);
 map.on('zoomend', _scheduleVecLoad);
@@ -12336,7 +13189,16 @@ function getFiltered(){
     // (cobre o caso de o setor/quadra do terreno em si estar vazio).
     if(fSetor && !norm(t.setor||'').includes(fSetor) && !(t.lotes||[]).some(l=>norm(l).includes(fSetor))) return false;
     if(fQuadra && !norm(t.quadra||'').includes(fQuadra) && !(t.lotes||[]).some(l=>norm(l).includes(fQuadra))) return false;
-    if(q && !norm(t.endereco+t.bairro+t.corretor+t.obs+t.zoneamento+(t.responsavel||'')+(t.apelido||'')+' '+(t.setor||'')+' '+(t.quadra||'')+' '+((t.lotes||[]).join(' '))).includes(q)) return false;
+    if(q){
+      const hay = norm(t.endereco+' '+t.bairro+' '+t.corretor+' '+t.obs+' '+t.zoneamento+' '+(t.responsavel||'')+' '+(t.apelido||'')+' '+(t.setor||'')+' '+(t.quadra||'')+' '+((t.lotes||[]).join(' ')));
+      // 1) trecho exato (comportamento antigo); 2) todas as palavras presentes,
+      // ignorando vírgulas/hífens/pontos — "Rua X, 123 - Bairro" casa com ou sem vírgula.
+      if(!hay.includes(q)){
+        const hayLimpo = ' '+hay.replace(/[^a-z0-9]+/g,' ')+' ';
+        const toks = q.replace(/[^a-z0-9]+/g,' ').trim().split(' ').filter(Boolean);
+        if(!toks.length || !toks.every(tk=>hayLimpo.includes(tk))) return false;
+      }
+    }
     return true;
   }).sort((a,b)=>{
     // Mais novo primeiro: usa data de recebimento, depois id numérico como fallback
@@ -12402,18 +13264,75 @@ async function _geocodeDireto(q, limit){
   return r.json();
 }
 
+// Leva o mapa até o terreno encontrado pela busca (sem abrir o modal).
+function _irParaTerrenoBusca(t){
+  if(!document.getElementById('tab-mapa')?.classList.contains('active')) switchTab('mapa');
+  map.invalidateSize();
+  if(t.polygons&&t.polygons.length && layers[t.id]){
+    const grp=L.featureGroup(Array.isArray(layers[t.id])?layers[t.id]:[layers[t.id]]);
+    map.fitBounds(grp.getBounds(),{padding:[40,40],maxZoom:18});
+  } else if(t.lat!=null && t.lng!=null){
+    map.setView([t.lat,t.lng], Math.max(map.getZoom(),17), {animate:true});
+  } else return;
+  if(t.lat!=null && t.lng!=null) _mostrarPinTemporario(t.lat, t.lng);
+  if(layers[t.id]){
+    const layer=Array.isArray(layers[t.id])?layers[t.id][0]:layers[t.id];
+    try{ layer.openPopup(); }catch(e){}
+  }
+}
+
+// Busca o lote pelo logradouro + número no cadastro do GeoSampa (lote_cidadao).
+// Mais preciso que o Nominatim, que muitas vezes não conhece o número e devolve o meio da rua.
+// Retorna no mesmo formato do Nominatim ([{lat,lon,display_name}]) ou null se não achar.
+async function _geocodeLoteGeoSampa(q){
+  try{
+    const semAcento = String(q||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+    const partes = semAcento.replace(/[,;\-–]/g,' ').split(/\s+/).filter(Boolean);
+    const iNum = partes.findIndex((t,i)=>i>0 && /^\d{1,5}$/.test(t));
+    if(iNum<1) return null;
+    const numero = partes[iNum];
+    const GEN = new Set(['AV','AVENIDA','R','RUA','AL','ALAMEDA','TV','TRAVESSA','PC','PRACA','LG','LARGO','EST','ESTRADA','ENG','ENGENHEIRO','DR','DOUTOR','PROF','PROFESSOR','CEL','CORONEL','GAL','GENERAL','MAL','MARECHAL','PE','PADRE','DE','DA','DO','DAS','DOS','E','SAO','SANTA','SANTO','VER','VEREADOR']);
+    const tokens = partes.slice(0,iNum).filter(t=>!GEN.has(t) && t.length>=3).map(t=>t.length>=7 ? t.slice(0,t.length-2) : t.length>=5 ? t.slice(0,t.length-1) : t);
+    if(!tokens.length) return null;
+    const r = await fetch(`${API_BASE}/api/geosampa-endereco?numero=${numero}&tokens=${encodeURIComponent(tokens.join(','))}`);
+    if(!r.ok) return null;
+    const gj = await r.json();
+    const f = (gj.features||[])[0];
+    if(!f) return null;
+    const c = _loteCentroid(f); // [lng,lat]
+    if(!c) return null;
+    const p = f.properties||{};
+    const sql = fmtSQLprops(p);
+    const extra = (gj.features.length>1) ? ` (+${gj.features.length-1} lote(s) com o mesmo endereço)` : '';
+    const aprox = gj._aproximado ? ` ⚠️ nº ${numero} não existe no cadastro — mostrando o nº ${p.cd_numero_porta} mais próximo` : '';
+    return [{ lat:c[1], lon:c[0], display_name:`${p.nm_logradouro_completo||''}, ${p.cd_numero_porta||numero} — lote ${sql} (cadastro GeoSampa)${extra}${aprox}` }];
+  }catch(e){ return null; }
+}
+
 function _triggerGeoSearch(q){
   clearTimeout(_searchGeoTimer);
   if(q.length < 5){ _removeSearchMarker(); return; }
-  _searchGeoTimer = setTimeout(async ()=>{
-    // Só geocoda se a busca não bateu com nenhum terreno
+  _searchGeoTimer = setTimeout(()=>_executaGeoSearch(q, true), 600);
+}
+async function _executaGeoSearch(q, silencioso){
+  {
+    // Se a busca bate com exatamente 1 terreno, cai em cima dele
     const filtered = getFiltered();
-    if(filtered.length > 0){ _removeSearchMarker(); return; }
+    if(filtered.length === 1){ _removeSearchMarker(); _irParaTerrenoBusca(filtered[0]); return; }
+    if(filtered.length > 1){
+      _removeSearchMarker();
+      // vários resultados: se só um tem o endereço completo digitado, vai nele
+      const nq = norm(q).replace(/[^a-z0-9]+/g,' ').trim();
+      const exatos = filtered.filter(t=>norm(t.endereco||'').replace(/[^a-z0-9]+/g,' ').trim()===nq);
+      if(exatos.length===1) _irParaTerrenoBusca(exatos[0]);
+      return;
+    }
     try {
       // Força busca em SP se não tiver cidade
       const query = /sp|são paulo|sao paulo/i.test(q) ? q : q + ', São Paulo, SP';
-      const data = await _geocodeDireto(query, 1);
-      if(!data || !data[0]) return;
+      let data = await _geocodeLoteGeoSampa(q);
+      if(!data) data = await _geocodeDireto(query, 1);
+      if(!data || !data[0]){ if(!silencioso) showToast('Endereço não encontrado'); return; }
       const lat = parseFloat(data[0].lat);
       const lng = parseFloat(data[0].lon);
       if(isNaN(lat)||isNaN(lng)) return;
@@ -12446,9 +13365,16 @@ function _triggerGeoSearch(q){
       map.invalidateSize();
       map.setView([lat,lng], 17, {animate:true});
       _searchMarker.openPopup();
-    } catch(e){ /* silencia erros de geocode */ }
-  }, 600);
+    } catch(e){ if(!silencioso) showToast('Erro na busca: '+e.message); }
+  }
 }
+document.addEventListener('keydown', ev=>{
+  if(ev.key==='Enter' && ev.target && ev.target.id==='search'){
+    clearTimeout(_searchGeoTimer);
+    const q = ev.target.value.trim();
+    if(q.length>=5) _executaGeoSearch(q, false);
+  }
+});
 
 function cadastrarNoEndereco(lat, lng, endereco){
   _removeSearchMarker();
@@ -12651,6 +13577,29 @@ function setDashFilter(type,value,btn){
   renderDashboard();
 }
 
+// Botão "🔄 Atualizar" do Painel — força uma leitura direta do servidor
+// (Firestore) em vez de confiar só no cache/escuta em tempo real, e redesenha.
+// O listener onSnapshot já recebe esse resultado e atualiza `terrenos`; aqui
+// só garantimos a busca e o redesenho do painel, com feedback visual.
+async function atualizarPainel(){
+  const btn = document.getElementById('dash-refresh-btn');
+  const textoOriginal = btn ? btn.innerHTML : '';
+  if(btn){ btn.disabled = true; btn.innerHTML = '⏳ Atualizando…'; }
+  try{
+    await db.collection('terrenos').get({source:'server'});
+    // pequena folga pro onSnapshot aplicar o resultado em `terrenos`
+    await new Promise(r=>setTimeout(r, 500));
+    renderDashboard();
+    showToast('✅ Painel atualizado');
+  }catch(err){
+    console.warn('[atualizarPainel]', err);
+    renderDashboard();
+    showToast('⚠️ Sem conexão com o servidor — mostrando os últimos dados carregados');
+  }finally{
+    if(btn){ btn.disabled = false; btn.innerHTML = textoOriginal; }
+  }
+}
+
 function toggleDashFiltros(){
   document.getElementById('dash-filters-wrap')?.classList.toggle('aberto');
   document.getElementById('dash-filtros-toggle-btn')?.classList.toggle('aberto');
@@ -12715,11 +13664,20 @@ function onKanbanDrop(ev, newStatus){
 function _populateAtaRespFilter(){
   const sel=document.getElementById('ata-resp-filter');
   if(!sel) return;
-  const resps=[...new Set(terrenos.map(t=>t.responsavel||'').filter(Boolean))].sort();
+  // Lista TODOS os membros da EQUIPE (não só quem já tem terreno atribuído, e
+  // sem depender dos terrenos já terem carregado quando o select é montado —
+  // antes, se o painel era desenhado antes do Firestore responder, só sobravam
+  // as opções fixas). Soma também qualquer valor de responsável que exista nos
+  // terrenos mas não esteja na EQUIPE (ex.: nome digitado à mão / ex-membro).
+  const equipe = (typeof EQUIPE!=='undefined' ? EQUIPE : []).map(m=>({valor:m.handle, nome:m.nome||m.handle}));
+  const conhecidos = new Set(equipe.map(e=>e.valor));
+  const extras = [...new Set(terrenos.map(t=>t.responsavel||'').filter(Boolean))]
+    .filter(r=>!conhecidos.has(r)).map(r=>({valor:r, nome:r}));
+  const opcoes = [...equipe, ...extras].sort((a,b)=>a.nome.localeCompare(b.nome,'pt-BR'));
   const cur=sel.value;
   sel.innerHTML='<option value="">👤 Responsável — Todos</option>'
     +'<option value="__SEM_RESP__"'+(cur==='__SEM_RESP__'?' selected':'')+'>🚫 Sem responsável</option>'
-    +resps.map(r=>`<option value="${escHtml(r)}"${r===cur?' selected':''}>${escHtml(r)}</option>`).join('');
+    +opcoes.map(o=>`<option value="${escHtml(o.valor)}"${o.valor===cur?' selected':''}>${escHtml(o.nome)}</option>`).join('');
 }
 
 function _populateAtaCorretorFilter(){
@@ -19650,7 +20608,7 @@ try {
     clearTimeout(_snapRefreshTimer);
     if(!modalAberto && !interagindoComMapa){
       // Debounce curto — agrupa rajadas de writes (ex: geocoding em lote) num só redraw.
-      _snapRefreshTimer = setTimeout(()=>{ refreshLayers(); renderList(); }, 400);
+      _snapRefreshTimer = setTimeout(()=>{ refreshLayers(); renderList(); try{ _populateAtaRespFilter(); _populateAtaCorretorFilter(); }catch(e){} }, 400);
     }
     checkDeepLink();
     if(!_geocodeStarted){
