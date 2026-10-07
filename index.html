@@ -311,7 +311,9 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
 .btn-draw-cancel:hover{background:#FAEAE7;}
 
 /* MAP LEGEND */
-.map-legend{position:absolute;bottom:28px;right:12px;z-index:500;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:11px;box-shadow:0 2px 12px rgba(0,0,0,.08);}
+.map-legend{position:absolute;bottom:92px;right:12px;z-index:500;background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:10px 14px;font-size:11px;box-shadow:0 2px 12px rgba(0,0,0,.08);}
+.map-legend.recolhida > *:not(.legend-head){display:none !important;}
+.map-legend.recolhida .legend-head{margin-bottom:0 !important;}
 .legend-item{display:flex;align-items:center;gap:8px;margin-bottom:4px;color:var(--text);font-family:var(--mono);font-size:10px;}
 .legend-swatch{width:24px;height:12px;border-radius:3px;flex-shrink:0;opacity:.75;}
 
@@ -501,6 +503,22 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
   .btn-mobile-add, .btn-mobile-list { display:none!important; }
 }
 
+/* ── Ajustes extras de celular ── */
+@media (max-width:768px){
+  header{ padding:0 8px; gap:6px; }
+  header h1{ font-size:11px; white-space:nowrap; letter-spacing:0; }
+  .badge-count{ white-space:nowrap; padding:3px 8px; font-size:11px; }
+  .tab-btn{ padding:6px 8px; font-size:12px; }
+  /* Lista do Painel: tabela larga rola de lado em vez de cortar colunas */
+  #dash-ata-list{ overflow-x:auto; -webkit-overflow-scrolling:touch; max-width:100%; }
+  /* Botão de Notas menor pra não cobrir o mapa */
+  /* Painel ITBI (e Resumo da formação) no celular: fixo embaixo, largura total — ignora posição arrastada no desktop */
+  #itbi-map-panel, #formacao-resumo-panel{ left:8px !important; right:8px !important; top:auto !important; bottom:8px !important; width:auto !important; max-width:none !important; }
+  #itbi-map-panel .itbi-body, #itbi-map-panel .itbi-panel-body{ max-height:55vh; overflow-y:auto; }
+  #itbi-map-panel .itbi-table{ font-size:11px; }
+  #itbi-map-panel .itbi-panel-body, #itbi-map-panel .itbi-body{ overflow-x:auto; }
+  #notas-fab{ padding:9px 14px !important; bottom:12px !important; right:12px !important; font-size:13px; }
+}
 .card-edit-btn {
   opacity:0;
   background:none;
@@ -679,6 +697,7 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
   text-transform:uppercase; letter-spacing:.04em; margin-bottom:4px; }
 .kpi-value { font-size:28px; font-weight:700; font-family:var(--sans);
   color:var(--text); line-height:1; }
+.kpi-value.prosp { color:#0891b2; }
 .kpi-value.neg  { color:#16a34a; }
 .kpi-value.ana  { color:#f59e0b; }
 .kpi-value.hold { color:#2563eb; }
@@ -1176,6 +1195,15 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
   max-height:calc(100vh - 90px); overflow-y:auto; overflow-x:hidden;
   padding-right:4px; scrollbar-width:thin;
 }
+/* Abinha para recolher/mostrar o painel de camadas (desktop) */
+#geosampa-edge-tab{
+  position:absolute; right:calc(100% + 6px); top:10px; width:24px; height:68px;
+  background:#1a1a1a; color:#fff; border:none; border-radius:8px; cursor:pointer;
+  font-size:18px; line-height:1; box-shadow:0 2px 8px rgba(0,0,0,.35); padding:0;
+}
+#geosampa-edge-tab:hover{ background:#00B0B9; }
+.geosampa-ctrl.recolhido .geosampa-ctrl-list{ display:none !important; }
+@media (max-width:768px){ #geosampa-edge-tab{ display:none; } }
 .geosampa-toggle {
   display:none; background:#00B0B9; border:1.5px solid #00B0B9; border-radius:20px;
   padding:9px 16px; font-size:14px; font-weight:700; cursor:pointer; color:#fff;
@@ -1655,9 +1683,8 @@ summary.geosampa-group-label {
         <div class="search-wrap" style="grid-column:span 2">
           <input type="text" id="search" placeholder="🔍 Buscar endereço, bairro, corretor…" oninput="renderList()">
         </div>
-        <input type="text" id="filter-setor" placeholder="Setor" oninput="renderList();_onFilterSetorQuadraInput()">
-        <input type="text" id="filter-quadra" placeholder="Quadra" oninput="renderList();_onFilterSetorQuadraInput()">
-        <button type="button" class="btn-export" onclick="_buscarSetorQuadraFiltroManual()" style="grid-column:span 2;" title="Localiza esse Setor/Quadra no mapa">🔍 Buscar área no mapa</button>
+        <input type="text" id="filter-setor" placeholder="Setor" oninput="renderList();_onFilterSetorQuadraInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();_buscarSetorQuadraFiltroManual();}">
+        <input type="text" id="filter-quadra" placeholder="Quadra" oninput="renderList();_onFilterSetorQuadraInput()" onkeydown="if(event.key==='Enter'){event.preventDefault();_buscarSetorQuadraFiltroManual();}">
         <select id="filter-corretor" onchange="renderList()">
           <option value="">Todos corretores</option>
         </select>
@@ -1668,6 +1695,9 @@ summary.geosampa-group-label {
           <div id="filter-status-dropdown" style="display:none;position:absolute;top:calc(100% + 2px);left:0;right:0;background:#fff;border:1px solid #d1d5db;border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.12);z-index:9999;padding:6px 0;min-width:160px;">
             <label style="display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:13px;font-family:var(--sans);color:#374151;user-select:none;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background=''">
               <input type="checkbox" data-val="" checked onchange="_onStatusCbChange(this)" style="accent-color:#00B0B9;"> Todos
+            </label>
+            <label style="display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:13px;font-family:var(--sans);color:#0e7490;user-select:none;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background=''">
+              <input type="checkbox" data-val="2.Prospecção" onchange="_onStatusCbChange(this)" style="accent-color:#0891b2;"> Prospecção
             </label>
             <label style="display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:13px;font-family:var(--sans);color:#15803d;user-select:none;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background=''">
               <input type="checkbox" data-val="3.Negociando" onchange="_onStatusCbChange(this)" style="accent-color:#22c55e;"> Negociando
@@ -1736,6 +1766,7 @@ summary.geosampa-group-label {
 
     <!-- GEOSAMPA TOGGLE -->
     <div class="geosampa-ctrl" id="geosampa-ctrl">
+      <button id="geosampa-edge-tab" onclick="toggleGeoCtrlEdge()" title="Recolher / mostrar camadas">›</button>
       <button class="geosampa-toggle" id="geosampa-toggle-btn" onclick="toggleGeoCtrlPanel()" title="Camadas do mapa">
         🗺️ Camadas <span id="geosampa-toggle-arrow">‹</span>
       </button>
@@ -1756,8 +1787,6 @@ summary.geosampa-group-label {
                 <button class="geosampa-btn" id="btn-geo-lotes" onclick="toggleGeoLayer('lotes')" title="Contorno de cada lote cadastrado no GeoSampa (aproxime o zoom) — clique num lote pra ver Setor/Quadra/Lote">🏘 Lotes</button>
                 <button class="geosampa-btn" id="btn-geo-zona" onclick="toggleGeoLayer('zona')" title="Zoneamento oficial (LPUOS) de cada lote — colore por zona (ZC, ZM, ZEU etc.) e mostra os parâmetros construtivos ao clicar">🏙 Zoneamento</button>
                 <button class="geosampa-btn" id="btn-geo-ouc" onclick="toggleOucLayer()" title="Perímetros de Operações Urbanas Consorciadas e Áreas de Intervenção Urbana (setor/subsetor quando disponível)">🏛 Operações Urbanas</button>
-                <button class="geosampa-btn" id="btn-geo-indisp" onclick="toggleIndispLayer()" title="Lotes sem potencial para estudo: (1) prédios em condomínio (CD) e (2) lotes que, somados aos vizinhos contínuos, não passam de 1.000 m² — aproxime o zoom">🚫 Sem potencial (CD / &lt;1.000 m²)</button>
-                <button class="geosampa-btn" id="btn-geo-indisp-cd" onclick="toggleIndispCdLayer()" title="Condomínios (CD) com pelo menos 1.500 m² e até 15 apartamentos — destacados em verde. Nº de aptos/salas = linhas da tabela \"Informações dos lotes do condomínio\" do GeoSampa (contagem feita sob demanda, pode levar alguns segundos). Aproxime o zoom.">🏢 CD ≥1.500 m² e ≤15 aptos</button>
               </div>
             </details>
             <details class="geosampa-subgroup">
@@ -1854,23 +1883,24 @@ summary.geosampa-group-label {
                   <button class="geosampa-btn" id="btn-geo-merc-2023" onclick="toggleConcorrentesMercado(2023)" title="Lançamentos de 2023 da base de Pesquisa de Mercado (mesma da aba Mercado)" style="flex:0 0 auto;margin-left:0;">2023</button>
                   <button class="geosampa-btn" id="btn-geo-merc-2022" onclick="toggleConcorrentesMercado(2022)" title="Lançamentos de 2022 da base de Pesquisa de Mercado (mesma da aba Mercado)" style="flex:0 0 auto;margin-left:0;">2022</button>
                 </div>
-                <button class="geosampa-btn" id="btn-geo-merc-batch" onclick="iniciarGeocodeBatchMercado()" title="Geocodifica TODOS os lançamentos da Pesquisa de Mercado (todos os anos) de uma vez só, em background no servidor. Uma vez feito, fica salvo pra sempre — os pins aparecem na hora, sem precisar geocodificar de novo (nem pra você, nem pra ninguém que usar o app depois).">🌍 Pré-geocodificar tudo</button>
-                <div id="geo-merc-batch-status" style="display:none;font-size:12px;font-weight:700;color:#fde68a;background:rgba(0,0,0,.25);border-radius:6px;padding:4px 8px;margin:2px 4px 4px 4px;line-height:1.4;"></div>
               </div>
             </details>
-            <button class="geosampa-btn" id="btn-geo-itbiheat" onclick="toggleItbiHeatLayer()" title="Colorir os lotes pelo preço real de venda (ITBI) — aproxime o zoom">💰 Mapa Preços</button>
+            <button class="geosampa-btn" id="btn-geo-itbiheat" onclick="toggleItbiHeatLayer()" title="Colorir os lotes pelo preço real de venda (ITBI) — aproxime o zoom">💰 Transações ITBI</button>
             <button class="geosampa-btn" id="btn-geo-avenda" onclick="toggleAvendaMapMode()" title="Verificar se o imóvel está à venda online">🏠 À Venda</button>
+                <button class="geosampa-btn" id="btn-geo-indisp" onclick="toggleIndispLayer()" title="Lotes sem potencial para estudo: (1) prédios em condomínio (CD) e (2) lotes que, somados aos vizinhos contínuos, não passam de 1.000 m² — aproxime o zoom">🚫 Sem potencial (CD / &lt;1.000 m²)</button>
+                <button class="geosampa-btn" id="btn-geo-indisp-cd" onclick="toggleIndispCdLayer()" title="Condomínios (CD) com pelo menos 1.500 m² e até 15 apartamentos — destacados em verde. Nº de aptos/salas = linhas da tabela \"Informações dos lotes do condomínio\" do GeoSampa (contagem feita sob demanda, pode levar alguns segundos). Aproxime o zoom.">🏢 CD ≥1.500 m² e ≤15 aptos</button>
           </div>
         </details>
         <button class="geosampa-btn" id="btn-geo-info" onclick="toggleLotesQuery()" title="Ativar consulta de lotes no mapa">🔍 Info lote</button>
-        <button class="geosampa-btn" id="btn-geo-pgvrua" onclick="togglePgvRuaLayer()" title="Mostrar, ao lado de cada rua/codlog, o valor oficial de PGV do Quadro 14 (Cadastro de Valor de Terreno) — aproxime o zoom">🏷️ Valores por Rua</button>
+        <button class="geosampa-btn" id="btn-geo-pgvrua" onclick="togglePgvRuaLayer()" title="Mostrar, ao lado de cada rua/codlog, o valor oficial de PGV do Quadro 14 (Cadastro de Valor de Terreno) — aproxime o zoom">🏷️ Quadro 14_2026</button>
         <button class="geosampa-btn" id="btn-medir-area" onclick="toggleMedirArea()" title="Desenhar polígono/linha e medir área ou distância">📐 Medir</button>
       </div>
     </div>
 
     <!-- LEGENDA -->
-    <div class="map-legend">
-      <div style="font-size:10px;font-weight:600;color:var(--text);margin-bottom:6px;font-family:var(--sans)">Status</div>
+    <div class="map-legend" id="map-legend">
+      <div class="legend-head" onclick="toggleLegenda()" title="Recolher/expandir legenda" style="display:flex;align-items:center;justify-content:space-between;gap:14px;cursor:pointer;font-size:10px;font-weight:600;color:var(--text);margin-bottom:6px;font-family:var(--sans)"><span>Legenda · Status</span><span id="legend-arrow" style="font-size:12px;line-height:1;">▾</span></div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#0891b2"></div>Prospecção</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#16a34a"></div>Negociando</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#f59e0b"></div>Análise</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#64748b"></div>Frio</div>
@@ -1929,6 +1959,7 @@ summary.geosampa-group-label {
         <div class="dash-filter-group">
           <span class="dash-filter-label">Status:</span>
           <button class="dash-chip active" data-filter-status="" onclick="setDashFilter('status','',this)">Todos</button>
+          <button class="dash-chip" data-filter-status="2.Prospecção" onclick="setDashFilter('status','2.Prospecção',this)">Prospecção</button>
           <button class="dash-chip" data-filter-status="3.Negociando" onclick="setDashFilter('status','3.Negociando',this)">Negociando</button>
           <button class="dash-chip" data-filter-status="4.Análise" onclick="setDashFilter('status','4.Análise',this)">Análise</button>
           <button class="dash-chip" data-filter-status="5.Frio" onclick="setDashFilter('status','5.Frio',this)">Frio</button>
@@ -2075,6 +2106,7 @@ summary.geosampa-group-label {
         <div class="field">
           <label>Status</label>
           <select id="f-status" onchange="_toggleMotivoDescarte()">
+            <option value="2.Prospecção">2. Prospecção</option>
             <option value="3.Negociando">3. Negociando</option>
             <option value="4.Análise" selected>4. Análise</option>
             <option value="5.Frio">5. Frio</option>
@@ -2304,11 +2336,11 @@ summary.geosampa-group-label {
 <script>
 // ── CONSTANTES ──────────────────────────────────────────────────────────────
 const STATUS_COLORS = {
-  '3.Negociando':'#16a34a','4.Análise':'#f59e0b',
+  '2.Prospecção':'#0891b2','3.Negociando':'#16a34a','4.Análise':'#f59e0b',
   '5.Frio':'#64748b','6.Hold':'#2563eb','8.Descartado':'#ef4444','9.Indisponível':'#7c3aed'
 };
 const STATUS_LABELS = {
-  '3.Negociando':'Negociando','4.Análise':'Análise',
+  '2.Prospecção':'Prospecção','3.Negociando':'Negociando','4.Análise':'Análise',
   '5.Frio':'Frio','6.Hold':'Hold','8.Descartado':'Descartado','9.Indisponível':'Indisponível'
 };
 
@@ -2986,10 +3018,14 @@ function _itbiRenderRows(rows, sql){
     const area = parseFloat(r.area_terreno||r.area_construida||0)||null;
     const vd   = parseFloat(r.valor_declarado||0)||null;
     const pm2  = (area && vd) ? Math.round(vd/area).toLocaleString('pt-BR') : null;
+    const aT   = parseFloat(r.area_terreno)||null;
+    const pm2T = (aT && vd) ? Math.round(vd/aT).toLocaleString('pt-BR') : null;
     html += `<div class="itbi-venda-row">
       <div>
         <div class="itbi-venda-data">${_fmtDate(r.data_transacao)}</div>
-        ${pm2?`<div style="font-size:10px;color:var(--muted);">R$ ${pm2}/m²</div>`:''}
+        ${pm2?`<div style="font-size:10px;color:var(--muted);">R$ ${pm2}/m²${aT?' (terreno)':''}</div>`:''}
+        ${aT?`<div style="font-size:10px;color:var(--muted);">Terreno: ${aT.toLocaleString('pt-BR',{maximumFractionDigits:0})} m²</div>`:''}
+        ${r.matricula?`<div style="font-size:10px;color:var(--muted);" title="${escHtml(r.cartorio||'')}">Matrícula: ${escHtml(r.matricula)}${r.cartorio?' · '+escHtml(r.cartorio):''}</div>`:''}
       </div>
       <div class="itbi-venda-right">
         ${_itbiNaturezaTag(r.natureza)}
@@ -3040,11 +3076,11 @@ function _itbiRenderCondoFiltrado(rows, prefix, sqls, totalCondo){
   </div>`;
   html += `<table class="itbi-table">
     <thead><tr>
-      <th>Data</th><th>SQL</th><th>Natureza</th><th>Área</th>
-      <th class="val">Vl. Declarado</th><th class="val">R$/m²</th>
+      <th>Data</th><th>SQL</th><th>Natureza</th><th>Área terreno</th>
+      <th class="val">Vl. Declarado</th><th class="val">R$/m² terreno</th><th>Matrícula</th>
     </tr></thead><tbody>`;
   allRows.slice(0,30).forEach(r=>{
-    const area = parseFloat(r.area_terreno||r.area_construida||0)||null;
+    const area = parseFloat(r.area_terreno)||null;
     const vd   = parseFloat(r.valor_declarado||0)||null;
     const pm2  = (area && vd) ? _fmtBRL(vd/area) : '—';
     const sqlDisp = r.sql || r.sql_base || '—';
@@ -3055,6 +3091,7 @@ function _itbiRenderCondoFiltrado(rows, prefix, sqls, totalCondo){
       <td>${_fmtM2(area)}</td>
       <td class="val">${_fmtBRL(vd)}</td>
       <td class="val muted">${pm2}</td>
+      <td style="white-space:nowrap;font-size:11px" title="${escHtml(r.cartorio||'')}">${r.matricula?escHtml(r.matricula):'—'}</td>
     </tr>`;
   });
   html += '</tbody></table>';
@@ -3100,7 +3137,7 @@ function _itbiRenderCondo(rows, sql, prefix){
   <table class="itbi-table">
     <thead><tr>
       <th>SQL / Unidade</th><th>Endereço</th><th>Última transação</th>
-      <th class="val">Últ. valor</th><th>Tx</th>
+      <th class="val">Últ. valor</th><th class="val">Área terreno</th><th class="val">R$/m² terreno</th><th>Matrícula</th><th>Tx</th>
     </tr></thead><tbody>`;
 
   unidades.slice(0, 50).forEach(unit=>{
@@ -3114,6 +3151,9 @@ function _itbiRenderCondo(rows, sql, prefix){
           title="${last.endereco||''} ${comp}">${comp||last.endereco||'—'}</td>
       <td style="white-space:nowrap">${_fmtDate(last.data_transacao)}</td>
       <td class="val">${_fmtBRL(last.valor_declarado)}</td>
+      <td class="val">${(parseFloat(last.area_terreno)>0)?_fmtM2(parseFloat(last.area_terreno)):'—'}</td>
+      <td class="val">${(parseFloat(last.area_terreno)>0 && parseFloat(last.valor_declarado)>0)?_fmtBRL(parseFloat(last.valor_declarado)/parseFloat(last.area_terreno)):'—'}</td>
+      <td style="white-space:nowrap;font-size:11px" title="${escHtml(last.cartorio||'')}">${last.matricula?escHtml(last.matricula):'—'}</td>
       <td class="val muted">${unitRows.length}</td>
     </tr>`;
   });
@@ -4657,6 +4697,16 @@ const _geoActive = { lotes: false, zona: false, areaPublica: false, arruamento: 
 function toggleGeoCtrlPanel(){
   document.getElementById('geosampa-ctrl').classList.toggle('aberto');
 }
+// Abinha lateral: recolhe/mostra o painel de camadas (lembra a escolha)
+function toggleGeoCtrlEdge(forca){
+  const c = document.getElementById('geosampa-ctrl'), t = document.getElementById('geosampa-edge-tab');
+  if(!c || !t) return;
+  const rec = (forca!=null) ? !!forca : !c.classList.contains('recolhido');
+  c.classList.toggle('recolhido', rec);
+  t.textContent = rec ? '‹' : '›';
+  try{ localStorage.setItem('geoCtrlRecolhido', rec ? '1' : '0'); }catch(e){}
+}
+try{ if(localStorage.getItem('geoCtrlRecolhido')==='1') setTimeout(()=>toggleGeoCtrlEdge(true), 0); }catch(e){}
 
 // Desativa de uma vez todas as camadas do mapa que estiverem ligadas — em vez
 // de reimplementar o "desligar" de cada camada (cada uma tem seu próprio
@@ -4774,6 +4824,7 @@ const VEC_PGVRUA_MIN = 16; // zoom mínimo para a camada de PGV por rua/codlog (
 let _vecLotesLayer  = null;
 let _vecZonaLayer   = null;
 let _vecItbiHeatLayer = null;
+const _itbiHeatCanvas = L.canvas({ padding: 0.3 }); // canvas: milhares de lotes sem travar
 let _itbiHeatMode   = false;
 // Cache em memória de TODOS os preços ITBI (por_lote/por_quadra), carregado
 // UMA VEZ em background ao abrir o app (ver _prefetchItbiPrecosCompleto, no
@@ -4784,8 +4835,13 @@ let _itbiHeatMode   = false;
 let _itbiPrecosCompletos = null; // {por_lote:{}, por_quadra:{}} depois de carregado
 let _itbiPrecosCompletosCarregando = false;
 
+let _itbiPrecosPromise = null;
 async function _prefetchItbiPrecosCompleto(force){
-  if(_itbiPrecosCompletosCarregando) return;
+  if(_itbiPrecosCompletosCarregando && _itbiPrecosPromise) return _itbiPrecosPromise;
+  _itbiPrecosPromise = _prefetchItbiPrecosCompleto2(force);
+  return _itbiPrecosPromise;
+}
+async function _prefetchItbiPrecosCompleto2(force){
   _itbiPrecosCompletosCarregando = true;
   try{
     const r = await fetch(`${API_BASE}/api/itbi/mapa-precos-completo${force?'?force=1':''}`);
@@ -5196,6 +5252,48 @@ function toggleItbiHeatLayer(){
   }
 }
 
+let _itbiHeatGen = 0;
+// Desenha (a partir dos lotes já em cache — memória/IndexedDB) todos os lotes da tela
+// coloridos pelo R$/m² real. Instantâneo quando os "tiles" já foram baixados.
+async function _itbiHeatDesenha(b){
+  const bp = b.pad(0.1);
+  const x0=bp.getWest()*INDISP_KX, x1=bp.getEast()*INDISP_KX, y0=bp.getSouth()*INDISP_KY, y1=bp.getNorth()*INDISP_KY;
+  const lotes = [];
+  _indispLotes.forEach(l=>{
+    if(!l.xy) _indispPrepara(l);
+    const bb=l.bb; if(!bb || bb[2]<x0 || bb[0]>x1 || bb[3]<y0 || bb[1]>y1) return;
+    lotes.push(l);
+  });
+  const sqls = [...new Set(lotes.map(l=>l.sql))];
+  let precos = {};
+  if(!_itbiPrecosCompletos){ _vecLoadShow('⏳ Carregando preços ITBI…'); await _prefetchItbiPrecosCompleto(); _vecLoadHide(); }
+  if(_itbiPrecosCompletos){
+    sqls.forEach(sql=>{
+      const cond = _itbiEhCondoSql(sql);
+      const key = cond ? _sqlPrefixJS(sql) : _sqlBaseJS(sql);
+      const info = key && (cond ? _itbiPrecosCompletos.por_quadra[key] : _itbiPrecosCompletos.por_lote[key]);
+      if(info) precos[sql] = info;
+    });
+  } else {
+    showToast('⏳ Carregando preços ITBI… tente de novo em instantes');
+  }
+  if(!_vecItbiHeatLayer){ _vecItbiHeatLayer = L.layerGroup().addTo(map); }
+  else { _vecItbiHeatLayer.clearLayers(); }
+  lotes.forEach(l=>{
+    const sql = l.sql, info = precos[sql];
+    const cor = info ? _itbiPrecoColor(info.preco_m2) : '#d1d5db';
+    const poly = L.polygon(l.rings, { color: cor, weight: 1, fillColor: cor, fillOpacity: info ? 0.55 : 0.15, renderer: _itbiHeatCanvas });
+    const label = info
+      ? `<b>${sql}</b><br>${_fmtBRL(info.preco_m2)}/m² · ${info.n} transaç${info.n===1?'ão':'ões'}`
+      : `<b>${sql}</b><br><span style="color:#999">sem transações ITBI</span>`;
+    // tooltip só na 1ª passada do mouse (bindTooltip em milhares de lotes deixava lento)
+    poly.once('mouseover', function(){ this.bindTooltip(label, { sticky:true, className:'geo-lote-tip' }).openTooltip(); });
+    poly.on('click', e => { L.DomEvent.stopPropagation(e); _abrirItbiConformeTipo(sql, l.num||''); });
+    _vecItbiHeatLayer.addLayer(poly);
+  });
+  console.log(`[itbiHeat] desenhados ${lotes.length} lotes, ${Object.keys(precos).length} com preço`);
+}
+
 async function _loadVecItbiHeat(){
   if(!_itbiHeatMode) return;
   const zoom = map.getZoom();
@@ -5203,73 +5301,83 @@ async function _loadVecItbiHeat(){
     if(_vecItbiHeatLayer) _vecItbiHeatLayer.clearLayers();
     return;
   }
+  const gen = ++_itbiHeatGen;
   const b = map.getBounds();
-  _vecLoadShow('⏳ Carregando lotes…');
+  const bp = b.pad(0.1);
+  const i0=Math.floor(bp.getSouth()/INDISP_TILE), i1=Math.floor(bp.getNorth()/INDISP_TILE);
+  const j0=Math.floor(bp.getWest()/INDISP_TILE),  j1=Math.floor(bp.getEast()/INDISP_TILE);
+  const falta = [];
+  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++) if(!_indispTiles.has(i+'_'+j)) falta.push([i,j]);
   try{
-    const r = await fetch(`${API_BASE}/api/geosampa-bbox?minLat=${b.getSouth()}&minLng=${b.getWest()}&maxLat=${b.getNorth()}&maxLng=${b.getEast()}&max=400`);
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const gj = await r.json();
-    const feats = (gj.features||[]).filter(f => fmtSQLprops(f.properties) !== '—');
-    if(!feats.length){ _vecLoadHide(); if(_vecItbiHeatLayer) _vecItbiHeatLayer.clearLayers(); return; }
-
-    const sqls = feats.map(f => fmtSQLprops(f.properties));
-    let precos = {};
-    if(_itbiPrecosCompletos){
-      // Cache completo já carregado em background (ver _prefetchItbiPrecosCompleto)
-      // — resolve na hora, sem round-trip nenhum, olhando por_lote/por_quadra
-      // conforme o tipo do sql (condomínio/quadra vs lote normal).
-      sqls.forEach(sql=>{
-        const key = _itbiEhCondoSql(sql) ? _sqlPrefixJS(sql) : _sqlBaseJS(sql);
-        const info = key && (_itbiEhCondoSql(sql) ? _itbiPrecosCompletos.por_quadra[key] : _itbiPrecosCompletos.por_lote[key]);
-        if(info) precos[sql] = info;
-      });
-    } else {
-      // Prefetch em background ainda não terminou (ex: primeiro carregamento
-      // da página) — cai no POST por viewport de sempre, só dessa vez.
-      try{
-        const rPrecos = await fetch(API_BASE+'/api/itbi/mapa-precos', {
-          method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ sqls })
-        });
-        const precosData = await rPrecos.json();
-        precos = (precosData && precosData.result) || {};
-      }catch(e){ console.warn('[itbiHeat] preços (fallback por viewport)', e); }
-      // Dispara/garante o prefetch completo em background pra próxima vez já vir instantâneo
-      _prefetchItbiPrecosCompleto();
+    // tiles que estão no IndexedDB entram rápido; só os realmente novos vão ao GeoSampa
+    if(falta.length){
+      _vecLoadShow('⏳ Carregando lotes…');
+      let feitos=0, idx=0;
+      const worker = async ()=>{
+        while(idx<falta.length){
+          if(gen!==_itbiHeatGen) return;
+          const [i,j] = falta[idx++];
+          try{ await _indispCarregaTile(i,j); }catch(e){ console.warn('[itbiHeat] tile',i+'_'+j,e.message); }
+          feitos++;
+          _vecLoadShow(`⏳ Carregando lotes… ${feitos}/${falta.length}`);
+          if(feitos%6===0 && gen===_itbiHeatGen) await _itbiHeatDesenha(b); // mostra aos poucos
+        }
+      };
+      await Promise.all([worker(),worker(),worker(),worker()]);
+      _vecLoadHide();
     }
-    _vecLoadHide();
-
-    const isLonLat = _detectLonLat(feats);
-    if(!_vecItbiHeatLayer){ _vecItbiHeatLayer = L.layerGroup().addTo(map); }
-    else { _vecItbiHeatLayer.clearLayers(); }
-
-    feats.forEach(f=>{
-      const p = f.properties||{};
-      const sql = fmtSQLprops(p);
-      const info = precos[sql];
-      const cor = info ? _itbiPrecoColor(info.preco_m2) : '#d1d5db';
-      const latlngsArr = _geomToLatLngs(f.geometry, isLonLat);
-      latlngsArr.forEach(latlngs=>{
-        const poly = L.polygon(latlngs, {
-          color: cor, weight: 1, fillColor: cor, fillOpacity: info ? 0.55 : 0.15,
-        });
-        const label = info
-          ? `<b>${sql}</b><br>${_fmtBRL(info.preco_m2)}/m² · ${info.n} transaç${info.n===1?'ão':'ões'}`
-          : `<b>${sql}</b><br><span style="color:#999">sem transações ITBI</span>`;
-        poly.bindTooltip(label, { sticky:true, className:'geo-lote-tip' });
-        // Camada geoportal:lote_cidadao usa cd_numero_porta (confirmado direto
-        // na API WFS) — nr_porta_logradouro/nr_porta são nomes de OUTRAS camadas
-        // GeoSampa (Sistema Viário/logradouro), mantidos aqui só de fallback.
-        const numeroLote = p.cd_numero_porta||p.nr_porta_logradouro||p.nr_porta||'';
-        poly.on('click', e => { L.DomEvent.stopPropagation(e); _abrirItbiConformeTipo(sql, numeroLote); });
-        _vecItbiHeatLayer.addLayer(poly);
-      });
-    });
-    console.log(`[itbiHeat] renderizados ${feats.length} lotes, ${Object.keys(precos).length} com preço`);
+    if(gen!==_itbiHeatGen) return;
+    await _itbiHeatDesenha(b);
   }catch(e){
     _vecLoadHide();
     console.warn('[itbiHeat]', e);
   }
 }
+
+// Baixa em segundo plano (uma vez só — fica no IndexedDB) os lotes ao redor dos terrenos
+// cadastrados ativos, pra o Mapa Preços abrir na hora ali.
+let _itbiHeatPrefetchRodando = false;
+async function _itbiHeatPrefetchTerrenos(){
+  if(_itbiHeatPrefetchRodando) return;
+  _itbiHeatPrefetchRodando = true;
+  try{
+    const ativos = (typeof terrenos!=='undefined' ? terrenos : (window._terrenos||[])).filter(t=>t && t.status!=='8.Descartado' && t.status!=='Indisponível' && !/indispon/i.test(t.status||''));
+    const chaves = new Set();
+    ativos.forEach(t=>{
+      let pts = [];
+      let pl = t.polygons; if(typeof pl==='string'){ try{pl=JSON.parse(pl);}catch(e){pl=null;} }
+      if(pl && pl.length) pl.forEach(p=>{ if(Array.isArray(p)) p.forEach(c=>{ if(c && c.length>=2) pts.push([c[0],c[1]]); }); });
+      if(!pts.length && t.lat && t.lng) pts=[[+t.lat,+t.lng]];
+      pts.forEach(([la,ln])=>{
+        const i=Math.floor(la/INDISP_TILE), j=Math.floor(ln/INDISP_TILE);
+        for(let di=-1;di<=1;di++) for(let dj=-1;dj<=1;dj++) chaves.add((i+di)+'_'+(j+dj));
+      });
+    });
+    // + miolo da cidade (raio ~9 km a partir da Paulista), do centro pra fora
+    const ci = Math.floor(-23.565/INDISP_TILE), cj = Math.floor(-46.655/INDISP_TILE), R = 20;
+    const extra = [];
+    for(let di=-R; di<=R; di++) for(let dj=-R; dj<=R; dj++){
+      const d = Math.hypot(di,dj); if(d>R) continue;
+      extra.push({k:(ci+di)+'_'+(cj+dj), d});
+    }
+    extra.sort((a,b)=>a.d-b.d).forEach(x=>chaves.add(x.k));
+    const lista = [...chaves].filter(k=>!_indispTiles.has(k)).map(k=>k.split('_').map(Number));
+    console.log(`[itbiHeat] pré-carregando ${lista.length} blocos em segundo plano (terrenos + centro de SP)`);
+    let falhas = 0, idx = 0;
+    const worker = async ()=>{
+      while(idx<lista.length){
+        if(falhas>=12) return; // GeoSampa instável — tenta de novo na próxima abertura
+        const [i,j] = lista[idx++];
+        try{ await _indispCarregaTile(i,j); }catch(e){ falhas++; await new Promise(r=>setTimeout(r,3000)); }
+        await new Promise(r=>setTimeout(r,200)); // sem pressa: não sobrecarrega o GeoSampa
+      }
+    };
+    await Promise.all([worker(),worker()]);
+    console.log('[itbiHeat] pré-carga em segundo plano concluída');
+  }catch(e){ console.warn('[itbiHeat] prefetch terrenos', e); }
+  finally{ _itbiHeatPrefetchRodando = false; }
+}
+setTimeout(_itbiHeatPrefetchTerrenos, 8000);
 
 // ── Camada "Sem potencial" (CD + conjuntos contínuos ≤ 1.000 m²) ─────────────
 // Pedido da diretoria: mostrar no mapa os lotes que NÃO servem para estudo:
@@ -5400,7 +5508,7 @@ let _indispVersao = 0, _indispVersaoCalc = -1, _indispMarcar = [], _indispUltRen
 let _indispDB = null;
 // Pane própria (abaixo dos terrenos cadastrados): dois renderers canvas no mesmo pane
 // brigam pelo mouse e o hover/tooltip deixava de funcionar.
-if(!map.getPane('indispPane')){ map.createPane('indispPane').style.zIndex = 450; } /* acima da camada vetorial "Lotes" (overlayPane=400), senão ela cobre o cinza */
+if(!map.getPane('indispPane')){ { const _p=map.createPane('indispPane'); _p.style.zIndex = 450; _p.style.pointerEvents='none'; } } /* acima da camada vetorial "Lotes" (overlayPane=400), senão ela cobre o cinza */
 const _indispCanvas = L.canvas({ pane:'indispPane', padding:0.5 });
 // Prédios em condomínio (CD): desenhados pelo PRÓPRIO mapa do GeoSampa (WMS) filtrado só para CDs e
 // escurecido em cinza — idêntico ao que o GeoSampa mostra, sem depender do contorno vetorial (que não encaixa em alguns lotes).
@@ -5443,7 +5551,7 @@ function _indispFeatToLote(f, isLonLat){
     || /COND/i.test(String(p.tx_tipo_lote||'')+' '+String(p.tx_tipo_quadra||'')) || condNum!==''
     || /^0+$/.test(String(p.cd_lote==null?'':p.cd_lote)) || /condom/i.test(String(p.dc_tipo_uso_imovel||''));
   const sqlTxt = fmtSQLprops(p);
-  return { sql:sqlTxt, rings, area, isCD, cond:condNum, q:sqlTxt.split('.').slice(0,2).join('.'), raw:[p.cd_tipo_quadra,p.cd_tipo_lote,p.cd_condominio,p.cd_lote,p.tx_tipo_lote,p.cd_situacao] };
+  return { sql:sqlTxt, num:(p.cd_numero_porta||p.nr_porta_logradouro||p.nr_porta||''), rings, area, isCD, cond:condNum, q:sqlTxt.split('.').slice(0,2).join('.'), raw:[p.cd_tipo_quadra,p.cd_tipo_lote,p.cd_condominio,p.cd_lote,p.tx_tipo_lote,p.cd_situacao] };
 }
 function _indispPrepara(l){
   if(l.xy) return l;
@@ -5497,7 +5605,7 @@ async function _indispCarregaTile(i,j){
   });
   const isLonLat = feats.length ? _detectLonLat(feats) : true;
   const lotes = feats.map(f=>_indispFeatToLote(f,isLonLat));
-  if(feats.length){ _indispDbPut(key, lotes.map(l=>({sql:l.sql,rings:l.rings,area:l.area,isCD:l.isCD,cond:l.cond,q:l.q,raw:l.raw}))); }
+  { _indispDbPut(key, lotes.map(l=>({sql:l.sql,num:l.num,rings:l.rings,area:l.area,isCD:l.isCD,cond:l.cond,q:l.q,raw:l.raw}))); }
   _indispAddTile(key, lotes);
 }
 
@@ -6066,11 +6174,16 @@ async function _indispCdVerifica(){
   _indispCdTotal += falta.length;
   _indispCdBombeia();
 }
+let _indispCdFalhas=0, _indispCdPausaAte=0;
 function _indispCdBombeia(){
+  if(Date.now()<_indispCdPausaAte){ _indispCdFila.length=0; return; }
+  if(!_indispCdMode){ _indispCdFila.length=0; return; }
   while(_indispCdAtivos<4 && _indispCdFila.length){
     const key = _indispCdFila.shift();
     _indispCdAtivos++;
     _indispCdContaUnidades(key).then(n=>{
+      // disjuntor: GeoSampa recusando várias vezes seguidas → para por 10 min (evita inundar o servidor)
+      if(n>0) _indispCdFalhas=0; else if(++_indispCdFalhas>=6){ _indispCdPausaAte=Date.now()+10*60*1000; _indispCdFila.length=0; _indispCdFalhas=0; console.warn('[indisp] contagem de aptos pausada por 10 min (GeoSampa não respondeu)'); }
       _indispCdUnid.set(key, n);
       if(n>0){
         _indispDbPut('cx_'+key, n);
@@ -6172,10 +6285,31 @@ async function _loadVecPgvRua(){
   const b = map.getBounds();
   _vecLoadShow('⏳ Carregando valores de PGV por rua…');
   try{
-    const r = await fetch(`${API_BASE}/api/geosampa-bbox?minLat=${b.getSouth()}&minLng=${b.getWest()}&maxLat=${b.getNorth()}&maxLng=${b.getEast()}&max=400`);
-    if(!r.ok) throw new Error('HTTP '+r.status);
-    const gj = await r.json();
-    const feats = (gj.features||[]).filter(f => fmtSQLprops(f.properties) !== '—');
+    // Antes pedia no máx. 400 lotes por tela — em zoom mais aberto o GeoSampa devolvia
+    // só um pedaço aleatório, e as manchas mudavam a cada zoom. Agora, se a resposta
+    // vem cheia, divide a área em 4 e busca de novo (até 3 níveis), igual à camada
+    // "Sem potencial", pra sempre mostrar TODOS os lotes da tela.
+    const _buscaHeat = async (s,w,n,e,prof)=>{
+      const r = await fetch(`${API_BASE}/api/geosampa-bbox?minLat=${s}&minLng=${w}&maxLat=${n}&maxLng=${e}&max=1500`);
+      if(!r.ok) throw new Error('HTTP '+r.status);
+      const g = await r.json();
+      const fs = g.features||[];
+      if(fs.length>=1400 && prof<3){
+        const ms=(s+n)/2, mw=(w+e)/2;
+        const partes = await Promise.all([[s,w,ms,mw],[s,mw,ms,e],[ms,w,n,mw],[ms,mw,n,e]].map(q=>_buscaHeat(q[0],q[1],q[2],q[3],prof+1)));
+        return partes.flat();
+      }
+      return fs;
+    };
+    const _bp = b.pad(0.1);
+    const _todas = await _buscaHeat(_bp.getSouth(), _bp.getWest(), _bp.getNorth(), _bp.getEast(), 0);
+    const _vistos = new Set();
+    const feats = _todas.filter(f => {
+      if(!f.geometry || fmtSQLprops(f.properties) === '—') return false;
+      const id = f.id || (f.properties.cd_identificador!=null ? 'i'+f.properties.cd_identificador : null);
+      if(id!=null){ if(_vistos.has(id)) return false; _vistos.add(id); }
+      return true;
+    });
     if(!feats.length){
       _vecLoadHide(); if(_vecPgvRuaLayer) _vecPgvRuaLayer.clearLayers();
       console.warn('[pgvRua] nenhum lote com Setor/Quadra/Lote válidos nessa área.', {
@@ -8274,7 +8408,7 @@ async function _resetGeoLancamentos(){
 // cache no localStorage do navegador pra não repetir a busca a cada sessão.
 const _concMercLayers  = {};   // { [ano]: L.layerGroup() }
 const _concMercVisible = {};   // { [ano]: bool — layer está no mapa }
-const GEO_MERC_CACHE_KEY = 'landbank_geo_merc_cache_v1';  // endereço completo → [lat,lng]|null
+const GEO_MERC_CACHE_KEY = 'landbank_geo_merc_cache_v2';  // endereço completo → [lat,lng]|null
 
 function _geoCacheGet(key){
   try{ return JSON.parse(localStorage.getItem(key) || '{}'); }
@@ -8311,7 +8445,7 @@ async function _geocodeMercViaServidor(it){
   try{
     const r = await fetch('http://localhost:8080/api/mercado/geocode-item', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ nome: it.nome||'', bairro: it.bairro||'' })
+      body: JSON.stringify({ nome: it.nome||'', bairro: it.bairro||'', endereco: it.endereco||'', cep: it.cep||'' })
     });
     if(r.ok){ const d = await r.json(); return d.coord || null; }
   }catch(e){ /* servidor sem esse endpoint ainda, ou offline — cai no fallback abaixo */ }
@@ -8443,84 +8577,14 @@ function _concMercItensAno(ano){
 // visível atual (o bug reportado pela Kamila: "mostra número, mas não
 // aparece pin nenhum").
 const _concMercRenderGen = {};
-async function _renderConcMercAno(ano){
-  const myGen = (_concMercRenderGen[ano] = (_concMercRenderGen[ano]||0) + 1);
-  const stale = () => _concMercRenderGen[ano] !== myGen;
-
-  const btn = document.getElementById('btn-geo-merc-'+ano);
-  if(!_concMercLayers[ano]) _concMercLayers[ano] = L.layerGroup();
-  const layer = _concMercLayers[ano];
-
-  const itensTodos = _concMercItensAno(ano);
-  if(!itensTodos.length){
-    if(stale()) return;
-    layer.clearLayers();
-    if(btn) btn.innerHTML = String(ano)+' (0)';
-    return;
-  }
-
-  const bounds = map.getBounds().pad(0.15); // pequena margem além da tela
-
-  // Fase 1: casa o bairro de cada item com um distrito oficial de SP, usando o
-  // mesmo GeoJSON de limites já carregado (e cacheado em memória) pela função
-  // "Selecionar área no mapa" da aba Mercado — SEM nenhuma chamada de rede por
-  // item. Modo estrito: só vira candidato (fase 2) quem tem bairro identificado
-  // E cujo distrito toca a área visível — bairro não identificado é descartado
-  // direto (prioriza velocidade: mostra só o que dá pra confirmar que está na
-  // tela, em vez de arriscar geocodificar tudo pra não perder nada).
-  if(btn) btn.innerHTML = '⏳ área…';
-  const gjDistritos = await _tamCarregarDistritos();
-  if(stale()) return; // uma chamada mais nova já assumiu (mapa se moveu de novo)
-  const distritoCache = {}; // por execução: nome de bairro normalizado → feature|null
-  const candidatos = [];
-  let descartadosSemMatch = 0;
-  itensTodos.forEach(it=>{
-    const bKey = (it.bairro||'').trim();
-    if(!bKey){ return; } // sem bairro cadastrado → não dá pra confirmar, descarta
-    if(!gjDistritos){ candidatos.push(it); return; } // GeoJSON não carregou (sem internet?) → melhor mostrar do que nada
-    const bNorm = _tamNormNome(bKey);
-    if(distritoCache[bNorm] === undefined) distritoCache[bNorm] = _matchDistritoPorNome(bNorm, gjDistritos);
-    const feat = distritoCache[bNorm];
-    if(!feat){ descartadosSemMatch++; return; } // bairro não bate com nenhum distrito oficial → descarta
-    if(_distritoIntersectaBounds(feat, bounds)) candidatos.push(it);
-  });
-  if(descartadosSemMatch) console.warn(`[Concorrentes/Mercado ${ano}] ${descartadosSemMatch} itens com bairro não identificado num distrito oficial — ficaram de fora pra manter rápido.`);
-
-  // Fase 2: geocodifica o endereço completo só dos candidatos e desenha.
-  // Ordem de prioridade: (1) cache do SERVIDOR — persistente, compartilhado
-  // entre todo mundo que usa o app, alimentado pelo botão "Pré-geocodificar
-  // tudo" e por qualquer geocodificação feita nessa camada por qualquer
-  // pessoa; (2) cache deste navegador (localStorage); (3) geocodifica na hora
-  // via /api/mercado/geocode-item, que já salva no servidor pra nunca mais
-  // precisar geocodificar esse item de novo (em nenhum computador).
-  const serverCache = await _carregarGeoMercServerCache();
-  if(stale()) return; // uma chamada mais nova já assumiu
-  const geoCache = _geoCacheGet(GEO_MERC_CACHE_KEY);
-  layer.clearLayers();
-  let shown = 0, semCoord = 0;
-  for(let i=0;i<candidatos.length;i++){
-    if(stale()) return; // aborta no meio do loop sem tocar em layer/botão de novo
-    const it = candidatos[i];
-    if(btn) btn.innerHTML = `⏳ ${i+1}/${candidatos.length}`;
-    const cacheKey = (it.nome||'')+'|'+(it.bairro||'');
-    let coord = serverCache[cacheKey];
-    if(coord === undefined) coord = geoCache[cacheKey];
-    if(coord === undefined){
-      coord = await _geocodeMercViaServidor(it); // geocodifica e já persiste no servidor
-      if(stale()) return; // o await acima pode ter demorado o suficiente pro mapa se mover
-      geoCache[cacheKey] = coord;
-      _geoCacheSet(GEO_MERC_CACHE_KEY, geoCache);
-    }
-    if(!coord){ semCoord++; continue; }
-    if(!bounds.contains(coord)) continue; // geocodificou, mas caiu fora da tela
-
-    const isYuny  = /yuny/i.test(it.incorporadora||'');
-    const vgvTxt  = it.vgv_mm!=null   ? 'R$ '+it.vgv_mm.toFixed(1).replace('.',',')+' MM' : '—';
-    const tktTxt  = it.ticket!=null   ? 'R$ '+Math.round(it.ticket).toLocaleString('pt-BR') : '—';
-    const vsoTxt  = it.vso!=null      ? Math.round(it.vso)+'%' : '—';
-    const unidTxt = it.unidades!=null ? it.unidades : '—';
-
-    const popup = `<div style="font-family:system-ui,sans-serif;min-width:200px;max-width:230px;padding:2px 0">
+const _concMercBuilt = {}; // { [ano]: { cacheRef, nItens } } — camada já montada com o cache do servidor
+function _concMercPopup(it, ano){
+  const isYuny  = /yuny/i.test(it.incorporadora||'');
+  const vgvTxt  = it.vgv_mm!=null   ? 'R$ '+it.vgv_mm.toFixed(1).replace('.',',')+' MM' : '—';
+  const tktTxt  = it.ticket!=null   ? 'R$ '+Math.round(it.ticket).toLocaleString('pt-BR') : '—';
+  const vsoTxt  = it.vso!=null      ? Math.round(it.vso)+'%' : '—';
+  const unidTxt = it.unidades!=null ? it.unidades : '—';
+  return `<div style="font-family:system-ui,sans-serif;min-width:200px;max-width:230px;padding:2px 0">
       <div style="font-weight:700;font-size:13px;color:#111;margin-bottom:2px;">${it.nome||'Sem nome'}${isYuny?' 🟠':''}</div>
       <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">${it.incorporadora||''}${it.bairro?' · '+it.bairro:''}${it.regiao?' ('+it.regiao+')':''}<br><span style="font-size:10px;color:#9ca3af;">Lançamento: ${it._mes||ano}</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;background:#f9fafb;border-radius:6px;padding:8px;">
@@ -8531,13 +8595,69 @@ async function _renderConcMercAno(ano){
       </div>
       <button onclick="switchTab('merc')" style="margin-top:8px;width:100%;padding:6px;border-radius:6px;border:none;background:#00B0B9;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">Ver na aba Mercado →</button>
     </div>`;
+}
+// Mostra TODOS os lançamentos do ano de uma vez, usando as coordenadas já
+// guardadas no cache do servidor (instantâneo). Só os itens que ainda não têm
+// coordenada (lançamentos novos do Excel) são geocodificados em segundo plano
+// — e o servidor salva o resultado, então isso só acontece uma vez na vida.
+async function _renderConcMercAno(ano){
+  const myGen = (_concMercRenderGen[ano] = (_concMercRenderGen[ano]||0) + 1);
+  const stale = () => _concMercRenderGen[ano] !== myGen;
+  const btn = document.getElementById('btn-geo-merc-'+ano);
+  if(!_concMercLayers[ano]) _concMercLayers[ano] = L.layerGroup();
+  const layer = _concMercLayers[ano];
+  const itens = _concMercItensAno(ano);
+  if(!itens.length){ layer.clearLayers(); if(btn) btn.innerHTML = String(ano)+' (0)'; return; }
 
-    const marker = L.marker(coord, { icon: _makeConcMercIcon(isYuny) });
-    marker.bindPopup(popup, { maxWidth: 240 });
-    layer.addLayer(marker);
-    shown++;
+  const serverCache = await _carregarGeoMercServerCache();
+  if(stale()) return;
+  const b = _concMercBuilt[ano];
+  if(b && b.cacheRef === serverCache && b.nItens === itens.length){
+    if(btn) btn.innerHTML = `${ano} (${b.shown})`;
+    return; // já montada — nada a baixar/recalcular
   }
-  if(semCoord) console.warn(`[Concorrentes/Mercado ${ano}] ${semCoord} sem coordenadas (não geocodificados).`);
+  const geoCache = _geoCacheGet(GEO_MERC_CACHE_KEY);
+  layer.clearLayers();
+  const pend = [];
+  let shown = 0;
+  const add = (it, coord)=>{
+    const isYuny = /yuny/i.test(it.incorporadora||'');
+    const m = L.marker(coord, { icon: _makeConcMercIcon(isYuny) });
+    m.bindPopup(()=>_concMercPopup(it, ano), { maxWidth: 240 });
+    layer.addLayer(m); shown++;
+  };
+  itens.forEach(it=>{
+    const k = (it.nome||'')+'|'+((it.endereco||'').trim()||(it.bairro||''));
+    let coord = serverCache[k];
+    if(coord === undefined) coord = geoCache[k];
+    if(coord === undefined){ if((it.bairro||'').trim()||(it.nome||'').trim()) pend.push([it,k]); return; }
+    if(coord) add(it, coord);
+  });
+  if(btn) btn.innerHTML = `${ano} (${shown})`;
+  // Muitos itens sem coordenada (ex.: planilha atualizada): o servidor está geocodificando tudo em
+  // segundo plano — mostra o que já tem e recarrega o cache daqui a pouco, sem travar a tela.
+  if(pend.length>30){
+    if(btn) btn.innerHTML = `${ano} (${shown}) ⏳ ${pend.length} localizando…`;
+    fetch(API_BASE+'/api/mercado/geocode-batch',{method:'POST'}).catch(()=>{}); // garante que o job esteja rodando
+    setTimeout(()=>{
+      if(!_concMercVisible[ano]) return;
+      _geoMercServerCache = null; _geoMercServerCacheP = null; delete _concMercBuilt[ano];
+      _renderConcMercAno(ano);
+    }, 60000);
+    return;
+  }
+  // Só marca como "montada" se não sobrou nada pendente; senão completa agora.
+  for(let i=0;i<pend.length;i++){
+    if(stale()) return;
+    const [it,k] = pend[i];
+    if(btn) btn.innerHTML = `${ano} (${shown}) ⏳ ${i+1}/${pend.length}`;
+    const coord = await _geocodeMercViaServidor(it);
+    if(stale()) return;
+    geoCache[k] = coord; _geoCacheSet(GEO_MERC_CACHE_KEY, geoCache);
+    serverCache[k] = coord; // já fica no cache em memória (servidor também salvou)
+    if(coord) add(it, coord);
+  }
+  _concMercBuilt[ano] = { cacheRef: serverCache, nItens: itens.length, shown };
   if(btn) btn.innerHTML = `${ano} (${shown})`;
 }
 
@@ -8575,6 +8695,7 @@ async function toggleConcorrentesMercado(ano){
 // arrastar/dar zoom no mapa — debounce pra não disparar a cada pixel movido.
 let _concMercRefreshTimer = null;
 function _scheduleConcMercRefresh(){
+  return; // camada agora mostra o ano inteiro de uma vez — não precisa recarregar ao mover o mapa
   const anosAtivos = Object.keys(_concMercVisible).filter(a=>_concMercVisible[a]);
   if(!anosAtivos.length) return;
   clearTimeout(_concMercRefreshTimer);
@@ -8588,6 +8709,14 @@ map.on('zoomend', _scheduleConcMercRefresh);
 // retoma o polling de status ao carregar a página (não perde o progresso).
 _pollGeocodeBatchStatus();
 
+function toggleLegenda(forca){
+  const el=document.getElementById('map-legend'); if(!el) return;
+  const rec = (typeof forca==='boolean') ? forca : !el.classList.contains('recolhida');
+  el.classList.toggle('recolhida', rec);
+  const ar=document.getElementById('legend-arrow'); if(ar) ar.textContent = rec ? '▴' : '▾';
+  try{ localStorage.setItem('legendaRecolhida', rec?'1':'0'); }catch(e){}
+}
+try{ if(localStorage.getItem('legendaRecolhida')==='1') toggleLegenda(true); }catch(e){}
 function statusColor(status){ return STATUS_COLORS[status]||'#888'; }
 
 function makePinIcon(status){
@@ -13166,7 +13295,7 @@ function _onStatusCbChange(cb){
 function _updateStatusBtn(){
   const btn = document.getElementById('filter-status-btn');
   if(!btn) return;
-  const labels = {'3.Negociando':'Negociando','4.Análise':'Análise','5.Frio':'Frio','6.Hold':'Hold','8.Descartado':'Descartado','9.Indisponível':'Indisponível'};
+  const labels = {'2.Prospecção':'Prospecção','3.Negociando':'Negociando','4.Análise':'Análise','5.Frio':'Frio','6.Hold':'Hold','8.Descartado':'Descartado','9.Indisponível':'Indisponível'};
   let txt;
   if(_statusFilters.size===0) txt = 'Todos os status';
   else if(_statusFilters.size===1) txt = labels[[..._statusFilters][0]]||[..._statusFilters][0];
@@ -13555,7 +13684,7 @@ function setAtaListEnderecoFiltro(v){
   renderAtaSection();
 }
 let _ataGroupMode='bairro';
-let _ataViewMode = (typeof window!=='undefined' && window.innerWidth<=768) ? 'list' : 'cards'; // no celular já abre em lista (mais compacto)
+let _ataViewMode = 'list'; // visão padrão: Lista (mais compacta, com todas as colunas)
 let _statusChart=null,_mensalChart=null;
 
 function setDashFilter(type,value,btn){
@@ -13711,8 +13840,8 @@ function renderDashboard(){
     : terrenos;
   const byStatus={};
   kpiData.forEach(t=>{ byStatus[t.status]=(byStatus[t.status]||0)+1; });
-  const kpiOrder=['3.Negociando','4.Análise','5.Frio','8.Descartado','9.Indisponível'];
-  const clsMap={'3.Negociando':'neg','4.Análise':'ana','5.Frio':'frio','8.Descartado':'desc','9.Indisponível':'indisp'};
+  const kpiOrder=['2.Prospecção','3.Negociando','4.Análise','5.Frio','8.Descartado','9.Indisponível'];
+  const clsMap={'2.Prospecção':'prosp','3.Negociando':'neg','4.Análise':'ana','5.Frio':'frio','8.Descartado':'desc','9.Indisponível':'indisp'};
   // KPIs são clicáveis — clicar filtra a lista de Atas abaixo por aquele
   // status (mesmo mecanismo dos chips "Status:" da seção de Atas — os dois
   // ficam sincronizados porque usam o mesmo _dashStatusFilter/setDashFilter).
@@ -13740,7 +13869,7 @@ function renderDashboard(){
 function renderStatusChart(data){
   const ctx=document.getElementById('chart-status');
   if(!ctx) return;
-  const lbls=['3.Negociando','4.Análise','5.Frio','8.Descartado','9.Indisponível'];
+  const lbls=['2.Prospecção','3.Negociando','4.Análise','5.Frio','8.Descartado','9.Indisponível'];
   const counts=lbls.map(s=>data.filter(t=>t.status===s).length);
   const colors=lbls.map(s=>STATUS_COLORS[s]||'#888');
   if(_statusChart){_statusChart.destroy();_statusChart=null;}
@@ -13990,7 +14119,7 @@ function renderAtaSection(){
         <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;flex-wrap:wrap;">
           <select id="ata-status-sel-${i}" onchange="updateAtaStatus('${t.id}',this.value,${i})"
             style="font-size:11px;font-weight:700;padding:3px 10px;border-radius:20px;border:1.5px solid ${c}44;background:${c}22;color:${c};cursor:pointer;font-family:var(--sans);outline:none;appearance:none;-webkit-appearance:none;">
-            ${['3.Negociando','4.Análise','5.Frio','8.Descartado','9.Indisponível'].map(s=>`<option value="${s}"${s===t.status?' selected':''}>${STATUS_LABELS[s]||s}</option>`).join('')}
+            ${['2.Prospecção','3.Negociando','4.Análise','5.Frio','8.Descartado','9.Indisponível'].map(s=>`<option value="${s}"${s===t.status?' selected':''}>${STATUS_LABELS[s]||s}</option>`).join('')}
           </select>
           ${infos}
         </div>
@@ -14459,7 +14588,7 @@ function renderAtaSection(){
 
   if(_ataViewMode === 'kanban'){
     // ── Kanban por status — arraste o card pra outra coluna pra mudar o status ──
-    const cols = ['3.Negociando','4.Análise','5.Frio','8.Descartado','9.Indisponível'];
+    const cols = ['2.Prospecção','3.Negociando','4.Análise','5.Frio','8.Descartado','9.Indisponível'];
     _visualHtml = cols.map(statusVal=>{
       const itens = filtered.map((t,gi)=>({t,gi})).filter(({t})=>t.status===statusVal);
       const sc = statusColor(statusVal);
