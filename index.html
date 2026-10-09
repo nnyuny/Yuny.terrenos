@@ -331,7 +331,9 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
 .modal-header{padding:20px 24px 16px;border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;cursor:grab;user-select:none;}
 .modal-header:active{cursor:grabbing;}
 .modal-header h2{font-size:16px;font-weight:600;}
-.btn-close{background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;padding:4px;}
+.btn-close{background:none;border:none;cursor:pointer;color:var(--muted);font-size:18px;padding:4px;flex-shrink:0;align-self:flex-start;}
+#modal-terreno-box .modal-header{position:sticky;top:0;z-index:20;background:#fff;gap:10px;}
+#modal-terreno-box .modal-header h2{flex-shrink:0;max-width:40%;}
 .modal-body{padding:20px 24px;}
 .field{margin-bottom:16px;}
 .field label{display:block;font-size:12px;font-weight:600;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px;}
@@ -1635,6 +1637,7 @@ summary.geosampa-group-label {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
 <script src="https://unpkg.com/leaflet-image@0.4.0/leaflet-image.js"></script>
 <script src="https://unpkg.com/pptxgenjs@latest/dist/pptxgenjs.bundle.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <!-- Tesseract.js OCR — carregado sob demanda em _ocrPdfPage() -->
 </head>
@@ -1711,10 +1714,7 @@ summary.geosampa-group-label {
             <label style="display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:13px;font-family:var(--sans);color:#b91c1c;user-select:none;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background=''">
               <input type="checkbox" data-val="8.Descartado" onchange="_onStatusCbChange(this)" style="accent-color:#ef4444;"> Descartado
             </label>
-            <label style="display:flex;align-items:center;gap:8px;padding:6px 12px;cursor:pointer;font-size:13px;font-family:var(--sans);color:#7c3aed;user-select:none;" onmouseover="this.style.background='#f3f4f6'" onmouseout="this.style.background=''">
-              <input type="checkbox" data-val="9.Indisponível" onchange="_onStatusCbChange(this)" style="accent-color:#7c3aed;"> Indisponível
-            </label>
-          </div>
+                      </div>
         </div>
         <select id="filter-status" style="display:none;"></select>
         <select id="filter-responsavel" onchange="renderList()" style="grid-column:span 2;">
@@ -1823,6 +1823,7 @@ summary.geosampa-group-label {
                 <button class="geosampa-btn" id="btn-geo-passagem" onclick="toggleGeoLayer('passagem')" title="Passagem (PS)">🚶 Passagem (PS)</button>
                 <button class="geosampa-btn" id="btn-geo-decretoDupDis" onclick="toggleGeoLayer('decretoDupDis')" title="Plantas de Decreto de Utilidade Pública / Interesse Social (DUP/DIS)">📜 Planta de Decreto (DUP/DIS)</button>
                 <button class="geosampa-btn" id="btn-geo-expropriatoria" onclick="toggleGeoLayer('expropriatoria')" title="Plantas Expropriatórias">📜 Planta Expropriatória</button>
+                <button class="geosampa-btn" id="btn-geo-patcult-enquadramento_vila" onclick="togglePatcultLayer('enquadramento_vila')" title="Enquadramento como Vila — lotes com despacho decisório (Res. CTLU 001/2022) que definiu se são ou não vila; base para aplicar o art. 64 da LPUOS (restrições de construção na vila e no entorno). Aproxime o zoom.">🏘️ Enquadramento como Vila</button>
                 <button class="geosampa-btn" id="btn-geo-infra-viaria" onclick="toggleInfraViariaLayer()" title="Lei de Melhoramento Viário (perímetro indicativo de área afetada por abertura/alargamento de via — a certidão oficial é pelo Portal 156) e Faixa Não Edificável (faixa non aedificandi ao longo de córregos, do antigo Código de Obras de 1992) — dados do GeoSampa">🛣️ Melhoramento Viário / Faixa Não Edif.</button>
               </div>
             </details>
@@ -1905,7 +1906,6 @@ summary.geosampa-group-label {
       <div class="legend-item"><div class="legend-swatch" style="background:#f59e0b"></div>Análise</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#64748b"></div>Frio</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#ef4444"></div>Descartado</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#7c3aed"></div>Indisponível</div>
       <div style="margin-top:8px;padding-top:8px;border-top:1px solid var(--border);font-size:10px;color:var(--muted);font-family:var(--mono);">
         📍 pin = sem polígono<br>⬜ cinza = sem coord.
       </div>
@@ -2081,7 +2081,7 @@ summary.geosampa-group-label {
   <div class="modal" id="modal-terreno-box" onclick="event.stopPropagation()">
     <div class="modal-header">
       <h2 id="modal-title">Novo Terreno</h2>
-      <div style="display:flex;align-items:center;gap:8px;">
+      <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;justify-content:flex-end;flex:1;min-width:0;">
         <button id="btn-abrir-maps" onclick="abrirGoogleMaps()" title="Abrir no Google Maps"
           style="padding:5px 12px;border:1px solid #4285f433;border-radius:20px;background:#eef4ff;color:#1a56c4;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);">
           🗺 Maps
@@ -2089,6 +2089,14 @@ summary.geosampa-group-label {
         <button id="btn-abrir-geosampa" onclick="abrirGeoSampaZoom()" title="Abrir no GeoSampa já no zoom da área cadastrada"
           style="padding:5px 12px;border:1px solid #0ea5e944;border-radius:20px;background:#e0f2fe;color:#0369a1;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);">
           🌐 GeoSampa
+        </button>
+        <button id="btn-abrir-conc" onclick="concAbrirTela()" title="Concorrentes no raio do terreno"
+          style="padding:5px 12px;border:1px solid #f9731633;border-radius:20px;background:#fff7ed;color:#c2410c;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);">
+          🏢 Concorrentes
+        </button>
+        <button id="btn-material-corretor" onclick="gerarMaterialCorretor()" title="Gera um pacote (ZIP) para corretores: planta do terreno com medidas, mapas e dados"
+          style="padding:5px 12px;border:1px solid #16a34a44;border-radius:20px;background:#f0fdf4;color:#15803d;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);">
+          📦 Material corretor
         </button>
         <button id="btn-ir-painel" onclick="irParaPainel(editingId)" title="Ver no Painel"
           style="display:none;padding:5px 12px;border:1px solid #00B0B933;border-radius:20px;background:#f0fdfe;color:#00858c;font-size:11px;font-weight:600;cursor:pointer;font-family:var(--sans);">
@@ -2140,8 +2148,12 @@ summary.geosampa-group-label {
       </div>
       <div class="field" id="field-vincular-pasta" style="display:none;">
         <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;">
-          <input type="checkbox" id="f-vincular-pasta" onchange="document.getElementById('vincular-pasta-hint').style.display=this.checked?'':'none'" style="width:15px;height:15px;cursor:pointer;">
+          <input type="checkbox" id="f-vincular-pasta" onchange="document.getElementById('vincular-pasta-hint').style.display=this.checked?'':'none'; if(this.checked) document.getElementById('f-sem-pasta').checked=false;" style="width:15px;height:15px;cursor:pointer;">
           📁 Já existe uma pasta pra esse terreno na rede — vincular pasta existente em vez de criar nova
+        </label>
+        <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;margin-top:6px;">
+          <input type="checkbox" id="f-sem-pasta" onchange="if(this.checked){ document.getElementById('f-vincular-pasta').checked=false; document.getElementById('vincular-pasta-hint').style.display='none'; }" style="width:15px;height:15px;cursor:pointer;">
+          🚫 Não criar pasta na rede para este terreno
         </label>
         <div id="vincular-pasta-hint" style="display:none;font-size:11px;color:var(--muted);margin-top:4px;">Ao salvar, você escolhe a pasta certa numa lista — nenhuma pasta nova será criada.</div>
       </div>
@@ -2288,6 +2300,19 @@ summary.geosampa-group-label {
         </div>
         <div id="modal-avenda-body" style="font-size:12px;color:var(--muted);">Clique em Buscar anúncios para verificar se o terreno está à venda online.</div>
       </div>
+      <!-- Concorrentes no raio -->
+      <div class="field" id="modal-conc-section" style="padding-bottom:4px;">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;gap:6px;flex-wrap:wrap;">
+          <label style="margin:0">🏢 Concorrentes no raio</label>
+          <div style="display:flex;gap:6px;align-items:center;">
+            <button type="button" onclick="concCarregar('modal-conc-body')" id="btn-modal-conc"
+              style="font-size:11px;padding:4px 12px;border-radius:6px;border:1px solid #00B0B9;background:none;color:#00B0B9;cursor:pointer;font-family:var(--sans);">Consultar</button>
+            <button type="button" onclick="concAbrirTela()"
+              style="font-size:11px;padding:4px 10px;border-radius:6px;border:1px solid #1a3c4d;background:none;color:#1a3c4d;cursor:pointer;font-family:var(--sans);">⛶ Tela cheia</button>
+          </div>
+        </div>
+        <div id="modal-conc-body" style="font-size:12px;color:var(--muted);">Clique em Consultar para ver os lançamentos da Pesquisa de Mercado num raio de 2 km do terreno.</div>
+      </div>
       <!-- HISTÓRICO DE RECEBIMENTO -->
       <div class="field" style="padding-top:4px;border-top:1px dashed var(--border);">
         <label style="margin-bottom:6px;">📎 Histórico de recebimento</label>
@@ -2369,6 +2394,8 @@ const db = firebase.firestore();
 const API_BASE = (function(){
   const h = location.hostname;
   if (h === 'localhost' || h === '127.0.0.1' || h === '') return ''; // servidor local
+  // servidor na rede interna (ex.: http://192.168.0.25:8080 ou http://NOME-DO-PC:8080)
+  if (/^(10\.|192\.168\.|172\.(1[6-9]|2\d|3[01])\.)/.test(h) || (h.indexOf('.') < 0)) return '';
   return 'https://landbank-backend-hf24.onrender.com'; // backend na nuvem (Render)
 })();
 
@@ -2591,7 +2618,6 @@ const EQUIPE = [
   { handle: 'kamila',    nome: 'Kamila',    email: 'ksantos@yuny.com.br'       },
   { handle: 'alexandre', nome: 'Alexandre', email: 'adaud@yuny.com.br'         },
   { handle: 'matheus',   nome: 'Matheus',   email: 'matheus.maria@yuny.com.br' },
-  { handle: 'eric',      nome: 'Eric',      email: 'eric.igel@yuny.com.br'     },
 ];
 // Credenciais do EmailJS — preencha após criar conta em https://emailjs.com
 const EMAILJS_PUBLIC_KEY  = 'uvxPXmyON_JKOzK_r';
@@ -2766,7 +2792,7 @@ function _desativarLotesQuerySeNecessario(){
   if(!_itbiMode && !_avendaMapMode && !infoLoteAtivo){
     _vecLotesQueryMode = false;
     const mapEl = document.getElementById('map');
-    mapEl.classList.remove('lotes-query-on');
+    if(!(typeof _geoActive!=='undefined' && _geoActive['lotes'])) mapEl.classList.remove('lotes-query-on'); // camada Lotes ligada: lotes seguem clicáveis
     mapEl.classList.remove('info-lote-on');
   }
 }
@@ -3286,13 +3312,13 @@ function _recebRenderGrid(){
       const _semDownload = img._arquivadoNaPasta || !img.url;
       const _corpo = `<span style="font-size:18px;line-height:1;">📧</span>
           <span style="white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%;margin-top:2px;">${img.nome||'arquivo'}</span>
-          ${_semDownload ? '<span style="font-size:7px;color:#9ca3af;">só na pasta de rede</span>' : '<span style="font-size:7px;color:#00838f;">clique p/ ampliar</span>'}`;
+          ${_semDownload ? '<span style="font-size:7px;color:#00838f;">clique p/ abrir (pasta)</span>' : '<span style="font-size:7px;color:#00838f;">clique p/ ampliar</span>'}`;
       const _estiloCard = 'width:80px;height:60px;display:flex;flex-direction:column;align-items:center;justify-content:center;background:#f3f4f6;border-radius:6px;border:1px solid #e5e7eb;text-decoration:none;color:#374151;font-size:9px;padding:4px;box-sizing:border-box;overflow:hidden;';
       // Clique no card abre o e-mail ampliado dentro do app (_recebAbrirEmailGrande);
       // o download do arquivo original vira um botãozinho ⬇ separado, no
       // canto, pra não perder essa opção.
       const _tag = _semDownload
-        ? `<div title="${img.nome||''} — ${data} — arquivo já salvo na pasta de rede do terreno" style="${_estiloCard}cursor:default;">${_corpo}</div>`
+        ? `<div onclick="_recebAbrirDaPasta(${i})" title="${img.nome||''} — ${data} — clique para abrir (arquivo salvo na pasta de rede do terreno)" style="${_estiloCard}cursor:pointer;">${_corpo}</div>`
         : `<div onclick="_recebAbrirEmailGrande(${i})" title="${img.nome||''} — ${data} — clique para ver o e-mail ampliado" style="${_estiloCard}cursor:pointer;">${_corpo}</div>`;
       return `<div style="position:relative;width:80px;flex-shrink:0;">
         ${_tag}
@@ -3338,9 +3364,33 @@ function _recebZoomImg(i){
 // (_extrairInfoEmailArquivo) e o mesmo template de página usado pra salvar o
 // e-mail na pasta de rede (_construirEmailHtmlStandalone), só que exibido na
 // hora em vez de só salvo em disco. Cai pro download bruto se algo falhar.
+// Anexo que ficou só na pasta de rede (base64 removido do Firestore): busca o
+// arquivo no servidor (pasta do terreno → "E-mail do Terreno") e abre.
+async function _recebAbrirDaPasta(i){
+  const img = _recebimentoImgs[i]; if(!img) return;
+  const t = editingId ? terrenos.find(x=>x.id===editingId) : null;
+  const endereco = t?.endereco || document.getElementById('f-endereco')?.value || '';
+  if(!endereco && !t?.pasta_rede){ showToast('⚠️ Salve o terreno antes de abrir o anexo.'); return; }
+  showToast('🔍 Buscando arquivo na pasta de rede…');
+  try{
+    const qs = `endereco=${encodeURIComponent(endereco)}&pastaRede=${encodeURIComponent(t?.pasta_rede||'')}&nome=${encodeURIComponent(img.nome||'')}&ts=${img.ts||0}`;
+    const r = await fetch(`${API_BASE}/api/abrir-anexo-terreno?${qs}`);
+    if(!r.ok){ const j = await r.json().catch(()=>({})); throw new Error(j.error||('HTTP '+r.status)); }
+    const blob = await r.blob();
+    const url = URL.createObjectURL(blob);
+    const ehEmail = /\.(msg|eml)$/i.test(img.nome||'');
+    if(ehEmail){ img._tmpUrl = url; return _recebAbrirEmailGrande(i); }
+    if(/^(image|application\/pdf|text\/html)/.test(blob.type)){ window.open(url,'_blank'); return; }
+    const a = document.createElement('a'); a.href = url; a.download = img.nome||'arquivo';
+    document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){
+    showToast('⚠️ Não consegui abrir o arquivo da pasta: '+e.message, 7000);
+  }
+}
 async function _recebAbrirEmailGrande(i){
   const img = _recebimentoImgs[i];
-  if(!img || !img.url){ showToast('⚠️ Esse arquivo só existe na pasta de rede do terreno — abra por lá.'); return; }
+  const _src = img && (img.url || img._tmpUrl);
+  if(!img || !_src){ showToast('⚠️ Esse arquivo só existe na pasta de rede do terreno — abra por lá.'); return; }
   // Abre a janela JÁ AQUI, ANTES de qualquer await — chamar window.open()
   // depois de um await perde a associação com o clique do usuário, e o
   // navegador some abre uma popup minúscula em vez de uma aba/janela cheia
@@ -3354,7 +3404,7 @@ async function _recebAbrirEmailGrande(i){
   win.document.write('<body style="font-family:sans-serif;padding:40px;color:#888;font-size:14px;">⏳ Abrindo e-mail…</body>');
   showToast('🔍 Abrindo e-mail…');
   try{
-    const resp = await fetch(img.url);
+    const resp = await fetch(_src);
     const blob = await resp.blob();
     const file = new File([blob], img.nome||'arquivo', {type: blob.type||'application/octet-stream'});
     const info = _recebimentoEmailInfo[i] || await _extrairInfoEmailArquivo(file);
@@ -3367,7 +3417,7 @@ async function _recebAbrirEmailGrande(i){
     win.close();
     showToast('⚠️ Não consegui abrir o e-mail ampliado — baixando o arquivo original.', 6000);
     const a = document.createElement('a');
-    a.href = img.url; a.download = img.nome || 'arquivo';
+    a.href = _src; a.download = img.nome || 'arquivo';
     document.body.appendChild(a); a.click(); a.remove();
   }
 }
@@ -3671,6 +3721,253 @@ function _recebHandlePaste(e){
   }
 }
 document.addEventListener('paste', _recebHandlePaste);
+
+// ── CONCORRENTES NO RAIO ─────────────────────────────────────────────────────
+const _conc = { raio:2, filtro:'todos', dados:null, maps:{}, sort:'dist', exp:{}, de:'2023-01', ate:'' };
+// Datas digitáveis (dd/mm/aaaa, mm/aaaa ou aaaa-mm) → 'AAAA-MM'
+function _concParseMes(s){
+  s=String(s||'').trim(); if(!s) return '';
+  let m=s.match(/^(\d{4})-(\d{1,2})/); if(m) return m[1]+'-'+m[2].padStart(2,'0');
+  m=s.match(/^(?:\d{1,2}\/)?(\d{1,2})\/(\d{4})$/); if(m && +m[1]>=1 && +m[1]<=12) return m[2]+'-'+m[1].padStart(2,'0');
+  return null;
+}
+function _concFmtMes(ym, fim){
+  if(!ym) return '';
+  const [y,mo]=ym.split('-'); const d=fim ? new Date(+y,+mo,0).getDate() : 1;
+  return String(d).padStart(2,'0')+'/'+mo+'/'+y;
+}
+function _concMask(el){ let v=el.value.replace(/\D/g,'').slice(0,8); if(v.length>4) v=v.slice(0,2)+'/'+v.slice(2,4)+'/'+v.slice(4); else if(v.length>2) v=v.slice(0,2)+'/'+v.slice(2); el.value=v; }
+function concSetMes(destId,k,val){
+  const p=_concParseMes(val);
+  if(p===null){ alert('Data inválida. Use dd/mm/aaaa (ex.: 01/01/2023).'); concRender(destId); return; }
+  _conc[k]=p; concRender(destId);
+}
+function _concCentro(){
+  const t = (terrenos||[]).find(x=>x.id===editingId);
+  if(!t) return null;
+  if(t.lat!=null && t.lng!=null && !isNaN(+t.lat)) return [+t.lat, +t.lng];
+  let p = t.polygons || t.polygon;
+  if(typeof p==='string'){ try{ p=JSON.parse(p);}catch(e){ p=null; } }
+  const pts=[];
+  (function walk(a){
+    if(!Array.isArray(a)) { if(a && typeof a==='object' && a.lat!=null) pts.push([+a.lat,+(a.lng!=null?a.lng:a.lon)]); return; }
+    if(a.length>=2 && typeof a[0]==='number' && typeof a[1]==='number'){ pts.push([a[0],a[1]]); return; }
+    a.forEach(walk);
+  })(p);
+  if(!pts.length) return null;
+  let la=0,ln=0; pts.forEach(q=>{la+=q[0];ln+=q[1];});
+  la/=pts.length; ln/=pts.length;
+  if(Math.abs(la)>90){ const s=la; la=ln; ln=s; }   // [lng,lat] → [lat,lng]
+  return [la,ln];
+}
+function _concFmtR$(v){ if(v==null) return '—'; return v>=1e6 ? 'R$ '+(v/1e6).toFixed(2).replace('.',',')+' mi' : 'R$ '+Math.round(v/1e3)+' mil'; }
+function _concFmtN(v){ return v==null?'—':Number(v).toLocaleString('pt-BR'); }
+function _concEsc(s){ return String(s==null?'':s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+async function concCarregar(destId){
+  const body = document.getElementById(destId);
+  if(!body) return;
+  const c = _concCentro();
+  if(!c){ body.innerHTML='<span style="color:#b45309">Terreno sem coordenadas — desenhe o polígono ou marque o ponto no mapa primeiro.</span>'; return; }
+  body.innerHTML='⏳ Buscando concorrentes… <span style="font-size:10px;color:#94a3b8">(na 1ª vez após ligar o servidor pode levar ~2 min; depois é instantâneo)</span>';
+  try{
+    const r = await fetch(`${API_BASE}/api/mercado/concorrentes-raio?lat=${c[0]}&lng=${c[1]}&raio=${_conc.raio}`);
+    const d = await r.json();
+    if(!d.ok) throw new Error(d.error||'erro');
+    _conc.dados = d; _conc.centro = c;
+    concRender(destId);
+  }catch(e){ body.innerHTML='<span style="color:#dc2626">Erro: '+_concEsc(e.message)+'</span>'; }
+}
+function concSet(destId, k, v){
+  if(k==='raio'){ _conc.raio=+v; concCarregar(destId); return; }
+  _conc[k]=v; concRender(destId);
+}
+function concToggle(destId, i){ _conc.exp[i]=!_conc.exp[i]; concRender(destId); }
+function concRender(destId){
+  const body = document.getElementById(destId); const d=_conc.dados;
+  if(!body||!d) return;
+  let itens = d.itens.filter(e=> (_conc.filtro==='todos' || (_conc.filtro==='obras' ? e.status==='Em obras' : e.status==='Pronto'))
+    && (!_conc.de || (e.lancamento && e.lancamento>=_conc.de)) && (!_conc.ate || (e.lancamento && e.lancamento<=_conc.ate)));
+  const ord = {
+    dist:(a,b)=>a.dist_m-b.dist_m,
+    unid:(a,b)=>(b.unidades||0)-(a.unidades||0),
+    vend:(a,b)=>(b.pct_vendido||0)-(a.pct_vendido||0),
+    pm2:(a,b)=>(b.preco_m2||0)-(a.preco_m2||0),
+    lanc:(a,b)=>String(b.lancamento||'').localeCompare(String(a.lancamento||'')),
+    terr:(a,b)=>(b.area_terreno||0)-(a.area_terreno||0)
+  }[_conc.sort];
+  itens = itens.slice().sort(ord);
+  const uni = itens.reduce((s,e)=>s+(e.unidades||0),0), est = itens.reduce((s,e)=>s+(e.estoque||0),0);
+  const pctEst = uni? Math.round(est/uni*100):0;
+  const chip=(v,l)=>`<button type="button" onclick="concSet('${destId}','filtro','${v}')" style="font-size:11px;padding:3px 10px;border-radius:12px;border:1px solid #00B0B9;cursor:pointer;background:${_conc.filtro===v?'#00B0B9':'#fff'};color:${_conc.filtro===v?'#fff':'#00B0B9'};">${l}</button>`;
+  const th=(k,l)=>`<th onclick="concSet('${destId}','sort','${k}')" style="cursor:pointer;text-align:left;padding:5px 6px;font-size:10px;text-transform:uppercase;color:#64748b;white-space:nowrap;${_conc.sort===k?'color:#00B0B9;':''}">${l}${_conc.sort===k?' ↓':''}</th>`;
+  const mapId = 'conc-map-'+destId;
+  let h = `<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:8px;">
+    <span style="font-size:11px">Raio:</span>
+    <select onchange="concSet('${destId}','raio',this.value)" style="font-size:11px;padding:2px 4px;">${[1,2,3,5].map(k=>`<option value="${k}" ${k==_conc.raio?'selected':''}>${k} km</option>`).join('')}</select>
+    ${chip('todos','Todos')}${chip('obras','Em obras')}${chip('pronto','Prontos')}
+    <span style="font-size:11px;margin-left:6px">Lançados de</span>
+    <input type="text" inputmode="numeric" placeholder="dd/mm/aaaa" maxlength="10" value="${_concFmtMes(_conc.de,false)}" oninput="_concMask(this)" onchange="concSetMes('${destId}','de',this.value)" style="font-size:12px;padding:3px 6px;width:92px;border:1px solid #cbd5e1;border-radius:6px;">
+    <span style="font-size:11px">até</span>
+    <input type="text" inputmode="numeric" placeholder="dd/mm/aaaa" maxlength="10" value="${_concFmtMes(_conc.ate,true)}" oninput="_concMask(this)" onchange="concSetMes('${destId}','ate',this.value)" style="font-size:12px;padding:3px 6px;width:92px;border:1px solid #cbd5e1;border-radius:6px;">
+    ${(_conc.de||_conc.ate)?`<button type="button" onclick="_conc.de='';_conc.ate='';concRender('${destId}')" style="font-size:11px;border:none;background:none;color:#dc2626;cursor:pointer">✕ limpar</button>`:''}
+    ${(_conc.de!=='2023-01'||_conc.ate)?`<button type="button" onclick="_conc.de='2023-01';_conc.ate='';concRender('${destId}')" style="font-size:11px;border:none;background:none;color:#00858c;cursor:pointer">↺ desde 01/01/2023</button>`:''}
+    <span style="font-size:11px;color:#64748b;margin-left:auto">${itens.length} empreendimento(s)</span>
+    <button type="button" onclick="concExportPdf('${destId}')" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #dc2626;background:#fff;color:#dc2626;cursor:pointer">📄 PDF</button>
+    <button type="button" onclick="concExportPpt('${destId}')" style="font-size:11px;padding:3px 10px;border-radius:6px;border:1px solid #c2410c;background:#fff;color:#c2410c;cursor:pointer">📊 PPT</button></div>
+    <div style="display:flex;gap:10px;margin-bottom:8px;flex-wrap:wrap;">
+      <div style="flex:1;min-width:140px;background:#f0fafa;border-radius:8px;padding:8px 10px"><div style="font-size:10px;color:#64748b">UNIDADES LANÇADAS</div><div style="font-size:20px;font-weight:700;color:#1a3c4d">${_concFmtN(uni)}</div></div>
+      <div style="flex:1;min-width:140px;background:#fff7ed;border-radius:8px;padding:8px 10px"><div style="font-size:10px;color:#64748b">ESTOQUE DISPONÍVEL</div><div style="font-size:20px;font-weight:700;color:#f97316">${_concFmtN(est)} <span style="font-size:11px;color:#64748b">(${pctEst}%)</span></div>
+      <div style="height:5px;background:#e5e7eb;border-radius:3px;margin-top:4px"><div style="height:5px;width:${pctEst}%;background:#f97316;border-radius:3px"></div></div></div>
+    </div>
+    <div style="display:flex;gap:12px;font-size:10px;color:#475569;margin-bottom:4px;flex-wrap:wrap">
+      <span><b style="color:#16a34a">●</b> Pronto</span><span><b style="color:#00B0B9">●</b> Em obras</span><span><b style="color:#f97316">●</b> YUNY</span><span><b style="color:#facc15;text-shadow:0 0 1px #1a3c4d">◆</b> Terreno</span></div>
+    <div id="${mapId}" style="height:${destId==='conc-full-body'?340:240}px;border-radius:8px;margin-bottom:8px;border:1px solid var(--border)"></div>`;
+  if(!itens.length) h += '<div style="color:#64748b;padding:8px">Nenhum empreendimento no raio com esse filtro.</div>';
+  else{
+    h += `<div style="overflow-x:auto"><table style="width:100%;border-collapse:collapse;font-size:11.5px"><thead><tr style="border-bottom:2px solid #e5e7eb">
+      <th style="padding:5px 6px">#</th><th style="text-align:left;padding:5px 6px;font-size:10px;color:#64748b">EMPREENDIMENTO</th>${th('dist','Dist.')}<th style="text-align:left;padding:5px 6px;font-size:10px;color:#64748b">INCORPORADORA</th>${th('lanc','Lanç.')}${th('terr','Terreno')}${th('unid','Unid.')}<th style="text-align:left;padding:5px 6px;font-size:10px;color:#64748b">VEND.</th>${th('vend','% vend.')}<th style="text-align:left;padding:5px 6px;font-size:10px;color:#64748b">TICKET</th>${th('pm2','R$/m²')}</tr></thead><tbody>`;
+    itens.forEach((e,i)=>{
+      const yuny=/yuny/i.test(e.incorporadora||'');
+      const cor = e.status==='Pronto'?'#16a34a':'#f97316';
+      const pct = e.pct_vendido||0;
+      h += `<tr onclick="concToggle('${destId}',${i})" style="cursor:pointer;border-bottom:1px solid #f1f5f9;${yuny?'background:#fff7ed':''}">
+        <td style="padding:5px 6px"><span style="display:inline-block;min-width:20px;text-align:center;border-radius:10px;background:#00B0B9;color:#fff;font-size:10px;padding:1px 4px">${i+1}</span></td>
+        <td style="padding:5px 6px"><b>${_concEsc(e.nome)}</b> <span style="font-size:9px;color:#fff;background:${cor};border-radius:8px;padding:1px 6px">${e.status}</span><div style="font-size:10px;color:#64748b">${_concEsc(e.endereco||e.bairro)}</div></td>
+        <td style="padding:5px 6px;white-space:nowrap">${(e.dist_m/1000).toFixed(2).replace('.',',')} km</td>
+        <td style="padding:5px 6px">${_concEsc(e.incorporadora)}</td>
+        <td style="padding:5px 6px;white-space:nowrap">${_concEsc(e.lancamento||'—')}</td>
+        <td style="padding:5px 6px;white-space:nowrap">${e.area_terreno?_concFmtN(Math.round(e.area_terreno))+' m²':'—'}</td>
+        <td style="padding:5px 6px">${_concFmtN(e.unidades)}</td>
+        <td style="padding:5px 6px">${_concFmtN(e.vendidas)}</td>
+        <td style="padding:5px 6px;min-width:80px"><div style="height:6px;background:#e5e7eb;border-radius:3px"><div style="height:6px;width:${Math.min(pct,100)}%;background:#00B0B9;border-radius:3px"></div></div><b style="font-size:11px">${e.pct_vendido!=null?e.pct_vendido.toFixed(0)+'%':'—'}</b></td>
+        <td style="padding:5px 6px;white-space:nowrap">${e.preco_min?_concFmtR$(e.preco_min)+(e.preco_max&&e.preco_max!==e.preco_min?' – '+_concFmtR$(e.preco_max):''):'—'} <span style="font-size:9px;color:#94a3b8">(${e.n_tipologias} tip.)</span></td>
+        <td style="padding:5px 6px">${e.preco_m2?_concFmtN(e.preco_m2):'—'}</td></tr>`;
+      if(_conc.exp[i]){
+        h += `<tr><td></td><td colspan="9" style="padding:4px 6px 8px"><table style="width:100%;font-size:11px;background:#f8fafc"><tr style="color:#64748b"><th align="left">Dorms</th><th align="left">Área</th><th align="left">Vagas</th><th align="left">Unid.</th><th align="left">Vend.</th><th align="left">Estoque</th><th align="left">% vend.</th><th align="left">Preço</th><th align="left">R$/m²</th></tr>`+
+          (e.tipologias||[]).map(t=>`<tr><td>${t.dorms??'—'}</td><td>${t.area!=null?t.area+' m²':'—'}</td><td>${t.vagas??'—'}</td><td>${_concFmtN(t.unidades)}</td><td>${_concFmtN(t.vendidas)}</td><td>${_concFmtN(t.estoque)}</td><td><b>${t.pct!=null?Math.round(t.pct)+'%':'—'}</b></td><td>${_concFmtR$(t.preco)}</td><td>${_concFmtN(t.preco_m2)}</td></tr>`).join('')+`</table></td></tr>`;
+      }
+    });
+    h += '</tbody></table></div>';
+  }
+  if(d.pendentes>0) h += `<div style="font-size:10px;color:#b45309;margin-top:6px">⚠️ ${d.pendentes} empreendimento(s) da Pesquisa ainda sem coordenada (geocodificação em andamento) — a lista pode estar incompleta.</div>`;
+  h += `<div style="font-size:10px;color:#94a3b8;margin-top:4px">Fonte: Pesquisa de Mercado (DataZap/GeoImóvel). Clique numa linha para ver as tipologias.</div>`;
+  body.innerHTML = h;
+  // mini mapa
+  if(_conc.maps[mapId]){ try{ _conc.maps[mapId].remove(); }catch(e){} }
+  const c=_conc.centro;
+  const m = L.map(mapId,{scrollWheelZoom:true}).setView(c,13);
+  _conc.maps[mapId]=m;
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{maxZoom:19,attribution:'© OSM'}).addTo(m);
+  const circ=L.circle(c,{radius:_conc.raio*1000,color:'#00B0B9',weight:2,fillOpacity:.06}).addTo(m);
+  m.fitBounds(circ.getBounds());
+  L.marker(c,{icon:L.divIcon({className:'',html:'<div style="width:18px;height:18px;background:#facc15;border:2px solid #1a3c4d;transform:rotate(45deg)"></div>',iconSize:[18,18],iconAnchor:[9,9]})}).addTo(m).bindTooltip('Terreno');
+  itens.forEach((e,i)=>{
+    const cor=/yuny/i.test(e.incorporadora||'')?'#f97316':(e.status==='Pronto'?'#16a34a':'#00B0B9');
+    L.marker([e.lat,e.lng],{icon:L.divIcon({className:'',html:`<div style="background:${cor};color:#fff;border-radius:50%;width:22px;height:22px;line-height:22px;text-align:center;font-size:11px;font-weight:700;border:2px solid #fff;box-shadow:0 1px 3px rgba(0,0,0,.4)">${i+1}</div>`,iconSize:[22,22],iconAnchor:[11,11]})}).addTo(m).bindPopup(_concPopupHtml(e,i),{maxWidth:300,minWidth:240});
+  });
+  setTimeout(()=>m.invalidateSize(),150);
+}
+function _concPopupHtml(e,i){
+  const cor = /yuny/i.test(e.incorporadora||'')?'#f97316':(e.status==='Pronto'?'#16a34a':'#00B0B9');
+  const cel=(k,v)=>`<div><div style="color:#9ca3af;font-size:9px;text-transform:uppercase;font-weight:600">${k}</div><div style="font-weight:700;color:#111;font-size:12px">${v}</div></div>`;
+  const tip=(e.tipologias||[]).map(t=>`<tr><td>${t.dorms??'—'} dorm</td><td>${t.area!=null?t.area+' m²':'—'}</td><td>${_concFmtN(t.unidades)} un.</td><td><b>${t.pct!=null?Math.round(t.pct)+'%':'—'}</b></td><td>${_concFmtR$(t.preco)}</td></tr>`).join('');
+  return `<div style="font-family:system-ui,sans-serif;font-size:11px;max-height:300px;overflow:auto">
+    <div style="font-weight:700;font-size:13px;color:#111">#${i+1} ${_concEsc(e.nome)} <span style="font-size:9px;color:#fff;background:${cor};border-radius:8px;padding:1px 6px">${_concEsc(e.status||'')}</span></div>
+    <div style="color:#6b7280;margin-bottom:6px">${_concEsc(e.incorporadora||'')}<br>${_concEsc(e.endereco||e.bairro||'')} · ${(e.dist_m/1000).toFixed(2).replace('.',',')} km</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;background:#f9fafb;border-radius:6px;padding:8px">
+      ${cel('Lançamento',_concEsc(e.lancamento||'—'))}${cel('Terreno',e.area_terreno?_concFmtN(Math.round(e.area_terreno))+' m²':'—')}
+      ${cel('Unidades',_concFmtN(e.unidades))}${cel('Vendidas',_concFmtN(e.vendidas)+(e.pct_vendido!=null?' ('+Math.round(e.pct_vendido)+'%)':''))}
+      ${cel('Estoque',_concFmtN(e.estoque))}${cel('R$/m²',e.preco_m2?_concFmtN(e.preco_m2):'—')}
+      ${cel('Ticket',e.preco_min?_concFmtR$(e.preco_min)+(e.preco_max&&e.preco_max!==e.preco_min?' – '+_concFmtR$(e.preco_max):''):'—')}
+    </div>
+    ${tip?`<table style="width:100%;margin-top:6px;font-size:10.5px;border-collapse:collapse"><tr style="color:#64748b;text-align:left"><th>Tipo</th><th>Área</th><th>Unid.</th><th>% vend.</th><th>Preço</th></tr>${tip}</table>`:''}
+  </div>`;
+}
+// ── Exportar PDF / PPT ──
+function _concItensAtuais(){
+  const d=_conc.dados; if(!d) return [];
+  const ord={dist:(a,b)=>a.dist_m-b.dist_m,unid:(a,b)=>(b.unidades||0)-(a.unidades||0),vend:(a,b)=>(b.pct_vendido||0)-(a.pct_vendido||0),pm2:(a,b)=>(b.preco_m2||0)-(a.preco_m2||0),lanc:(a,b)=>String(b.lancamento||'').localeCompare(String(a.lancamento||'')),terr:(a,b)=>(b.area_terreno||0)-(a.area_terreno||0)}[_conc.sort];
+  return d.itens.filter(e=>(_conc.filtro==='todos'||(_conc.filtro==='obras'?e.status==='Em obras':e.status==='Pronto'))
+    &&(!_conc.de||(e.lancamento&&e.lancamento>=_conc.de))&&(!_conc.ate||(e.lancamento&&e.lancamento<=_conc.ate))).sort(ord);
+}
+function _concMapaImg(destId){
+  return new Promise(res=>{
+    const m=_conc.maps['conc-map-'+destId];
+    if(!m||typeof leafletImage!=='function') return res(null);
+    const t=setTimeout(()=>res(null),12000);
+    try{ leafletImage(m,(err,cv)=>{
+      clearTimeout(t); if(err||!cv) return res(null);
+      try{
+        const ctx=cv.getContext('2d'), itens=_concItensAtuais();
+        const pt=ll=>m.latLngToContainerPoint(ll);
+        let p=pt(_conc.centro); ctx.fillStyle='#facc15'; ctx.strokeStyle='#1a3c4d'; ctx.lineWidth=2;
+        ctx.save(); ctx.translate(p.x,p.y); ctx.rotate(Math.PI/4); ctx.fillRect(-9,-9,18,18); ctx.strokeRect(-9,-9,18,18); ctx.restore();
+        ctx.font='700 11px sans-serif'; ctx.textAlign='center'; ctx.textBaseline='middle';
+        itens.forEach((e,i)=>{ const q=pt([e.lat,e.lng]);
+          ctx.beginPath(); ctx.arc(q.x,q.y,11,0,7); ctx.fillStyle=/yuny/i.test(e.incorporadora||'')?'#f97316':(e.status==='Pronto'?'#16a34a':'#00B0B9'); ctx.fill();
+          ctx.strokeStyle='#fff'; ctx.lineWidth=2; ctx.stroke(); ctx.fillStyle='#fff'; ctx.fillText(String(i+1),q.x,q.y+1); });
+        res(cv.toDataURL('image/png'));
+      }catch(e){ res(null); }
+    }); }catch(e){ clearTimeout(t); res(null); }
+  });
+}
+function _concTitulo(){ const t=(terrenos||[]).find(x=>x.id===editingId)||{}; return (t.apelido||t.endereco||t.nome||'Terreno'); }
+async function concExportPdf(destId){
+  const itens=_concItensAtuais(); if(!itens.length) return alert('Consulte os concorrentes primeiro (nenhum item para exportar).');
+  const img=await _concMapaImg(destId);
+  const uni=itens.reduce((s,e)=>s+(e.unidades||0),0), est=itens.reduce((s,e)=>s+(e.estoque||0),0);
+  const rows=itens.map((e,i)=>`<tr><td>${i+1}</td><td><b>${_concEsc(e.nome)}</b><br><small>${_concEsc(e.endereco||e.bairro)} · ${e.status}</small></td><td>${(e.dist_m/1000).toFixed(2)} km</td><td>${_concEsc(e.incorporadora)}</td><td>${_concEsc(e.lancamento||'—')}</td><td>${e.area_terreno?_concFmtN(Math.round(e.area_terreno)):'—'}</td><td>${_concFmtN(e.unidades)}</td><td>${_concFmtN(e.vendidas)}</td><td><b>${e.pct_vendido!=null?e.pct_vendido.toFixed(0)+'%':'—'}</b></td><td>${e.preco_min?_concFmtR$(e.preco_min)+(e.preco_max&&e.preco_max!==e.preco_min?' – '+_concFmtR$(e.preco_max):''):'—'}</td><td>${e.preco_m2?_concFmtN(e.preco_m2):'—'}</td></tr>`).join('');
+  const per=(_conc.de||_conc.ate)?` · Lançamentos ${_conc.de||'…'} a ${_conc.ate||'…'}`:'';
+  const w=window.open('','_blank'); if(!w) return alert('Permita pop-ups para exportar o PDF.');
+  w.document.write(`<html><head><meta charset="utf-8"><title>Concorrentes — ${_concEsc(_concTitulo())}</title><style>
+  @page{size:A4 landscape;margin:10mm}body{font-family:Arial,sans-serif;font-size:10px;color:#1a3c4d}h1{font-size:16px;margin:0}
+  .k{display:flex;gap:12px;margin:8px 0}.k div{background:#f0fafa;padding:6px 12px;border-radius:6px}.k b{font-size:16px}
+  table{width:100%;border-collapse:collapse}th{background:#1a3c4d;color:#fff;text-align:left;padding:4px;font-size:9px}td{padding:4px;border-bottom:1px solid #e5e7eb;vertical-align:top}small{color:#64748b}
+  img{width:100%;max-height:300px;object-fit:cover;border-radius:6px;margin-bottom:8px}</style></head><body>
+  <h1>🏢 Concorrentes no raio de ${_conc.raio} km — ${_concEsc(_concTitulo())}</h1>
+  <div style="color:#64748b">Fonte: Pesquisa de Mercado${per} · ${new Date().toLocaleDateString('pt-BR')}</div>
+  <div class="k"><div>Empreendimentos<br><b>${itens.length}</b></div><div>Unidades lançadas<br><b>${_concFmtN(uni)}</b></div><div>Estoque<br><b>${_concFmtN(est)}</b> (${uni?Math.round(est/uni*100):0}%)</div></div>
+  ${img?`<img src="${img}">`:''}
+  <table><thead><tr><th>#</th><th>Empreendimento</th><th>Dist.</th><th>Incorporadora</th><th>Lanç.</th><th>Terreno m²</th><th>Unid.</th><th>Vend.</th><th>% vend.</th><th>Ticket</th><th>R$/m²</th></tr></thead><tbody>${rows}</tbody></table>
+  <script>setTimeout(()=>window.print(),600)<\/script></body></html>`);
+  w.document.close();
+}
+async function concExportPpt(destId){
+  const itens=_concItensAtuais(); if(!itens.length) return alert('Consulte os concorrentes primeiro (nenhum item para exportar).');
+  if(typeof PptxGenJS==='undefined') return alert('Biblioteca de PPT não carregada (precisa de internet).');
+  const img=await _concMapaImg(destId);
+  const pres=new PptxGenJS(); pres.layout='LAYOUT_WIDE';
+  const NAVY='1A3C4D', TEAL='00B0B9';
+  const uni=itens.reduce((s,e)=>s+(e.unidades||0),0), est=itens.reduce((s,e)=>s+(e.estoque||0),0);
+  const per=(_conc.de||_conc.ate)?` · Lançamentos ${_conc.de||'…'} a ${_conc.ate||'…'}`:'';
+  let s=pres.addSlide();
+  s.addText('Concorrentes no raio de '+_conc.raio+' km',{x:0.5,y:0.3,w:12,h:0.6,fontSize:24,bold:true,color:NAVY});
+  s.addText(_concTitulo()+per,{x:0.5,y:0.9,w:12,h:0.4,fontSize:13,color:'64748B'});
+  [['Empreendimentos',_concFmtN(itens.length)],['Unidades lançadas',_concFmtN(uni)],['Estoque',_concFmtN(est)+' ('+(uni?Math.round(est/uni*100):0)+'%)']].forEach((k,i)=>{
+    s.addShape('roundRect',{x:0.5+i*2.6,y:1.4,w:2.4,h:0.9,fill:{color:'F0FAFA'},line:{color:'F0FAFA'}});
+    s.addText(k[0],{x:0.5+i*2.6,y:1.42,w:2.4,h:0.3,fontSize:10,color:'64748B',align:'center'});
+    s.addText(k[1],{x:0.5+i*2.6,y:1.7,w:2.4,h:0.5,fontSize:20,bold:true,color:NAVY,align:'center'});
+  });
+  if(img) s.addImage({data:img,x:0.5,y:2.5,w:8.2,h:4.6,sizing:{type:'contain',w:8.2,h:4.6}});
+  s.addText('● Pronto  ● Em obras  ● YUNY  ◆ Terreno',{x:9,y:2.5,w:4,h:0.4,fontSize:10,color:'475569'});
+  const H=['#','Empreendimento','Dist.','Incorporadora','Lanç.','Terreno m²','Unid.','% vend.','Ticket','R$/m²'].map(t=>({text:t,options:{bold:true,color:'FFFFFF',fill:{color:NAVY},fontSize:9}}));
+  const por=14;
+  for(let p=0;p<itens.length;p+=por){
+    const sl=pres.addSlide();
+    sl.addText('Empreendimentos no raio ('+(p+1)+'–'+Math.min(p+por,itens.length)+' de '+itens.length+')',{x:0.4,y:0.2,w:12,h:0.4,fontSize:16,bold:true,color:NAVY});
+    const body=itens.slice(p,p+por).map((e,j)=>[p+j+1,e.nome+' ('+e.status+')',(e.dist_m/1000).toFixed(2)+' km',e.incorporadora||'',e.lancamento||'—',e.area_terreno?_concFmtN(Math.round(e.area_terreno)):'—',_concFmtN(e.unidades),e.pct_vendido!=null?e.pct_vendido.toFixed(0)+'%':'—',e.preco_min?_concFmtR$(e.preco_min)+(e.preco_max&&e.preco_max!==e.preco_min?' – '+_concFmtR$(e.preco_max):''):'—',e.preco_m2?_concFmtN(e.preco_m2):'—'].map(v=>({text:String(v),options:{fontSize:8,color:'1A3C4D'}})));
+    sl.addTable([H].concat(body),{x:0.4,y:0.7,w:12.5,colW:[0.4,3.2,0.8,2.4,0.8,1,0.7,0.8,1.6,0.8],border:{type:'solid',color:'E5E7EB',pt:0.5},rowH:0.38});
+  }
+  pres.writeFile({fileName:'Concorrentes_'+_concTitulo().replace(/[^\w\-]+/g,'_')+'.pptx'});
+}
+function concAbrirTela(){
+  let ov=document.getElementById('conc-full'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='conc-full';
+  ov.style.cssText='position:fixed;inset:0;z-index:100000;background:#fff;overflow:auto;padding:16px 24px;';
+  ov.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px"><h2 style="margin:0;color:#1a3c4d;font-size:18px">🏢 Concorrentes no raio</h2><button onclick="document.getElementById(\'conc-full\').remove()" style="font-size:13px;padding:5px 14px;border:1px solid #1a3c4d;background:#fff;border-radius:6px;cursor:pointer">✕ Fechar</button></div><div id="conc-full-body"></div>';
+  document.body.appendChild(ov);
+  concCarregar('conc-full-body');
+}
 
 // ── À VENDA ──────────────────────────────────────────────────────────────────
 async function loadModalAvenda(forceRefresh=false){
@@ -4804,9 +5101,10 @@ function toggleGeoLayer(key){
     if(btn) btn.classList.add('active');
     if(btnM) btnM.classList.add('active');
     // Modo vetorial: não adiciona WMS — _loadVec* decide tile vs vetorial
-    if(key==='lotes'){ _geoLayers.lotes.addTo(map); _loadVecLotes(); }
+    if(key==='lotes'){ _geoLayers.lotes.addTo(map); _loadVecLotes(); document.getElementById('map').classList.add('lotes-query-on'); }
     else _geoLayers[key].addTo(map);
   } else {
+    if(key==='lotes'){ setTimeout(()=>{ if(!_vecLotesQueryMode && !_itbiMode && !_avendaMapMode) document.getElementById('map').classList.remove('lotes-query-on'); },0); }
     // Remove tile e vetorial
     if(map.hasLayer(_geoLayers[key])) map.removeLayer(_geoLayers[key]);
     if(key==='lotes' && _vecLotesLayer) _vecLotesLayer.clearLayers();
@@ -4844,10 +5142,25 @@ async function _prefetchItbiPrecosCompleto(force){
 async function _prefetchItbiPrecosCompleto2(force){
   _itbiPrecosCompletosCarregando = true;
   try{
+    try{ if(navigator.storage && navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+    // 1) usa na hora a cópia guardada neste computador (IndexedDB), se houver
+    let idade = Infinity;
+    if(!force){
+      const c = await _indispDbGet('itbi_precos');
+      if(c && c.por_lote){
+        _itbiPrecosCompletos = { por_lote: c.por_lote, por_quadra: c.por_quadra||{} };
+        idade = Date.now() - (c.ts||0);
+        console.log('[itbiHeat] preços ITBI carregados do cache local');
+        if(_itbiHeatMode && map.getZoom() >= VEC_ITBI_MIN) _loadVecItbiHeat();
+        if(idade < 24*3600*1000) return; // cache de menos de 24 h: não baixa de novo
+      }
+    }
+    // 2) senão (ou se velho) baixa do servidor e guarda
     const r = await fetch(`${API_BASE}/api/itbi/mapa-precos-completo${force?'?force=1':''}`);
     const data = await r.json();
     if(data && data.ok){
       _itbiPrecosCompletos = { por_lote: data.por_lote||{}, por_quadra: data.por_quadra||{} };
+      _indispDbPut('itbi_precos', { por_lote:_itbiPrecosCompletos.por_lote, por_quadra:_itbiPrecosCompletos.por_quadra, ts:Date.now() });
       console.log(`[itbiHeat] mapa de preços completo carregado em background: ${Object.keys(_itbiPrecosCompletos.por_lote).length} lotes, ${Object.keys(_itbiPrecosCompletos.por_quadra).length} quadras`);
       // Se a camada já estava ligada esperando esse cache, redesenha agora com os preços certos
       if(_itbiHeatMode && map.getZoom() >= VEC_ITBI_MIN) _loadVecItbiHeat();
@@ -5091,7 +5404,10 @@ async function _loadVecLotes(){
             showAvendaForProps(p, sql);
             return;
           }
-          if(!_vecLotesQueryMode) return;
+          // Info lote ligado OU camada Lotes visível (clique direto no lote, sem precisar do botão)
+          if(!_vecLotesQueryMode){
+            if(!_geoActive['lotes'] || drawingActive || _medirMode || _alturaComarMode || _itbiHeatMode) return;
+          }
           L.DomEvent.stopPropagation(e);
           // Se o clique cair dentro do polígono de um terreno já cadastrado,
           // prioriza abrir o terreno em vez do painel genérico de lote.
@@ -5113,6 +5429,8 @@ async function _loadVecLotes(){
             PROPRIETARIO:p.nm_contribuinte||p.nome_contribuinte||p.nm_prop||'',
             _fromWFS:true,
           };
+          window._lotePainelFeat = f;
+          try{ const c = poly.getBounds().getCenter(); window._lotePainelLL = [c.lat, c.lng]; }catch(_){ window._lotePainelLL = e && e.latlng ? [e.latlng.lat, e.latlng.lng] : null; }
           _showGeoSampaPanel(sql, _parseSql(sql), wfsData);
         });
         const areaFmt = area ? parseFloat(area).toLocaleString('pt-BR',{maximumFractionDigits:0})+' m²' : '';
@@ -5227,7 +5545,8 @@ function _showItbiHeatLegend(){
       <div class="legend-item"><div class="legend-swatch" style="background:#00B0B9"></div>5 a 8 mil</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#005f63"></div>8 a 12 mil</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#1a3c4d"></div>acima de 12 mil</div>
-      <div class="legend-item"><div class="legend-swatch" style="background:#d1d5db"></div>sem transações</div>`;
+      <div class="legend-item"><div class="legend-swatch" style="background:#d1d5db"></div>sem transações</div>`
+      + (API_BASE==='' ? `<button onclick="exportarLotesParaNuvem()" style="margin-top:6px;font-size:10px;padding:3px 6px;cursor:pointer" title="Gera o arquivo de lotes do centro para enviar ao servidor da nuvem (leva alguns minutos)">⬇ Exportar lotes p/ nuvem</button>` : '');
     document.getElementById('map').appendChild(el);
   }
   el.style.display = 'block';
@@ -5235,6 +5554,35 @@ function _showItbiHeatLegend(){
 function _hideItbiHeatLegend(){
   const el = document.getElementById('itbi-heat-legend');
   if(el) el.style.display = 'none';
+}
+
+// Com a camada "Transações ITBI" ligada, clicar num terreno cadastrado que cobre um lote COM
+// transação abre o painel ITBI do lote (em vez do card do terreno). Devolve true se tratou o clique.
+function _itbiLoteNoPonto(ll){
+  const y=ll.lat, x=ll.lng;
+  const inRing=r=>{ let d=false; for(let i=0,j=r.length-1;i<r.length;j=i++){ const a=r[i],b=r[j];
+    if(((a[0]>y)!==(b[0]>y)) && (x < (b[1]-a[1])*(y-a[0])/(b[0]-a[0])+a[1])) d=!d; } return d; };
+  for(const l of _indispLotes.values ? _indispLotes.values() : Object.values(_indispLotes)){
+    let rings=l.rings; if(!rings||!rings.length) continue;
+    if(typeof rings[0][0]==='number') rings=[rings];
+    if(!rings.some(inRing)) continue;
+    const sql=l.sql, cond=_itbiEhCondoSql(sql);
+    const key=cond?_sqlPrefixJS(sql):_sqlBaseJS(sql);
+    const pc=_itbiPrecosCompletos;
+    const info=pc && key && (cond?pc.por_quadra[key]:pc.por_lote[key]);
+    if(info) return { sql, num:l.num||'' };
+  }
+  return null;
+}
+function _itbiCliqueSobreTerreno(e){
+  try{
+    if(!_itbiHeatMode || map.getZoom()<VEC_ITBI_MIN || !e || !e.latlng) return false;
+    const r=_itbiLoteNoPonto(e.latlng);
+    if(!r) return false;
+    map.closePopup();
+    _abrirItbiConformeTipo(r.sql, r.num);
+    return true;
+  }catch(err){ console.warn('[itbi sobre terreno]', err); return false; }
 }
 
 function toggleItbiHeatLayer(){
@@ -5302,6 +5650,7 @@ async function _loadVecItbiHeat(){
     return;
   }
   const gen = ++_itbiHeatGen;
+  if(!_lotesCentralPronto){ _vecLoadShow('⏳ Carregando lotes do centro…'); await _carregaLotesCentral(); _vecLoadHide(); if(gen!==_itbiHeatGen) return; }
   const b = map.getBounds();
   const bp = b.pad(0.1);
   const i0=Math.floor(bp.getSouth()/INDISP_TILE), i1=Math.floor(bp.getNorth()/INDISP_TILE);
@@ -5339,6 +5688,7 @@ async function _loadVecItbiHeat(){
 let _itbiHeatPrefetchRodando = false;
 async function _itbiHeatPrefetchTerrenos(){
   if(_itbiHeatPrefetchRodando) return;
+  if(API_BASE !== '') return; // link público: nunca baixa blocos pesados do GeoSampa em massa — usa o arquivo pronto do servidor
   _itbiHeatPrefetchRodando = true;
   try{
     const ativos = (typeof terrenos!=='undefined' ? terrenos : (window._terrenos||[])).filter(t=>t && t.status!=='8.Descartado' && t.status!=='Indisponível' && !/indispon/i.test(t.status||''));
@@ -5353,16 +5703,8 @@ async function _itbiHeatPrefetchTerrenos(){
         for(let di=-1;di<=1;di++) for(let dj=-1;dj<=1;dj++) chaves.add((i+di)+'_'+(j+dj));
       });
     });
-    // + miolo da cidade (raio ~9 km a partir da Paulista), do centro pra fora
-    const ci = Math.floor(-23.565/INDISP_TILE), cj = Math.floor(-46.655/INDISP_TILE), R = 20;
-    const extra = [];
-    for(let di=-R; di<=R; di++) for(let dj=-R; dj<=R; dj++){
-      const d = Math.hypot(di,dj); if(d>R) continue;
-      extra.push({k:(ci+di)+'_'+(cj+dj), d});
-    }
-    extra.sort((a,b)=>a.d-b.d).forEach(x=>chaves.add(x.k));
     const lista = [...chaves].filter(k=>!_indispTiles.has(k)).map(k=>k.split('_').map(Number));
-    console.log(`[itbiHeat] pré-carregando ${lista.length} blocos em segundo plano (terrenos + centro de SP)`);
+    console.log(`[itbiHeat] pré-carregando ${lista.length} blocos ao redor dos terrenos (em segundo plano)`);
     let falhas = 0, idx = 0;
     const worker = async ()=>{
       while(idx<lista.length){
@@ -5378,6 +5720,110 @@ async function _itbiHeatPrefetchTerrenos(){
   finally{ _itbiHeatPrefetchRodando = false; }
 }
 setTimeout(_itbiHeatPrefetchTerrenos, 8000);
+
+// ── Lotes do centro de SP já prontos no servidor (1 arquivo, gerado uma vez) ───────────
+// Em vez de cada pessoa baixar ~600 blocos do GeoSampa (lento e trava a página), o servidor
+// guarda um arquivo único com os lotes do centro; o navegador baixa 1 vez (fica no cache do
+// navegador) e desenha na hora. Gerado pelo botão "Exportar lotes p/ nuvem" (app local).
+let _lotesCentralPromise = null, _lotesCentralPronto = false;
+function _carregaLotesCentral(){
+  if(_lotesCentralPromise) return _lotesCentralPromise;
+  _lotesCentralPromise = (async ()=>{
+    try{
+      const r = await fetch(`${API_BASE}/api/lotes-central`);
+      if(!r.ok) return false;
+      const d = await r.json();
+      const keys = Object.keys(d.tiles||{});
+      for(let n=0; n<keys.length; n+=6){        // aos poucos, sem travar a tela
+        keys.slice(n,n+6).forEach(k=>{
+          if(_indispTiles.has(k)) return;
+          const lotes = d.tiles[k].map(a=>({ sql:a[0], num:a[1], rings:a[2], area:a[3], isCD:!!a[4], cond:a[5],
+            q:String(a[0]).split('.').slice(0,2).join('.'), raw:[null,null,null,a[6]] }));
+          _indispAddTile(k, lotes);
+        });
+        await new Promise(res=>setTimeout(res,0));
+      }
+      _lotesCentralPronto = true;
+      console.log(`[itbiHeat] lotes do centro carregados do servidor: ${keys.length} blocos`);
+      if(_itbiHeatMode && map.getZoom() >= VEC_ITBI_MIN) _loadVecItbiHeat();
+      return true;
+    }catch(e){ console.warn('[itbiHeat] lotes-central', e); return false; }
+  })();
+  return _lotesCentralPromise;
+}
+setTimeout(_carregaLotesCentral, 3000);
+
+// Diagnóstico: no Console (F12) digite  itbiDiag()  — mostra, para cada bloco da tela, se os lotes
+// carregaram e, nos que falharam, o que o GeoSampa/servidor respondeu.
+async function itbiDiag(){
+  const b = map.getBounds();
+  const i0=Math.floor(b.getSouth()/INDISP_TILE), i1=Math.floor(b.getNorth()/INDISP_TILE);
+  const j0=Math.floor(b.getWest()/INDISP_TILE),  j1=Math.floor(b.getEast()/INDISP_TILE);
+  const linhas = [];
+  for(let i=i0;i<=i1;i++) for(let j=j0;j<=j1;j++){
+    const key=i+'_'+j;
+    let n=0; _indispLotes.forEach(l=>{ if(l.rings&&l.rings[0]&&l.rings[0][0] && Math.floor(l.rings[0][0][0]/INDISP_TILE)===i && Math.floor(l.rings[0][0][1]/INDISP_TILE)===j) n++; });
+    const l = {bloco:key, carregado:_indispTiles.has(key), lotes:n, resposta:''};
+    if(!l.carregado || n===0){
+      const s=i*INDISP_TILE, w=j*INDISP_TILE;
+      const t0=performance.now();
+      try{
+        const r = await fetch(`${API_BASE}/api/geosampa-bbox?minLat=${s}&minLng=${w}&maxLat=${s+INDISP_TILE}&maxLng=${w+INDISP_TILE}&max=1500`);
+        const gj = await r.json();
+        l.resposta = `HTTP ${r.status} · ${(gj.features||[]).length} lotes · _erro=${gj._erro} · ${Math.round(performance.now()-t0)} ms`;
+      }catch(e){ l.resposta = 'ERRO: '+e.message+' · '+Math.round(performance.now()-t0)+' ms'; }
+    }
+    linhas.push(l);
+  }
+  console.table(linhas);
+  return linhas;
+}
+
+// Gera o arquivo lotes_central.json.gz (rodar no app LOCAL, uma vez; depois enviar ao servidor).
+async function exportarLotesParaNuvem(R){
+  R = R || 12;  // raio em blocos de ~440 m  (12 ≈ 5 km a partir da Paulista)
+  if(API_BASE !== ''){ showToast('Rode isto no app local (localhost:8080)'); return; }
+  const ci = Math.floor(-23.565/INDISP_TILE), cj = Math.floor(-46.655/INDISP_TILE);
+  const regiao = new Set(), lista = [];
+  for(let di=-R; di<=R; di++) for(let dj=-R; dj<=R; dj++){
+    const d = Math.hypot(di,dj); if(d>R) continue;
+    const k=(ci+di)+'_'+(cj+dj); regiao.add(k); lista.push({i:ci+di,j:cj+dj,d});
+  }
+  lista.sort((a,b)=>a.d-b.d);
+  let feitos = 0, idx = 0, falhas = 0;
+  const worker = async ()=>{
+    while(idx<lista.length){
+      const t = lista[idx++];
+      for(let tent=0; tent<4; tent++){
+        try{ await _indispCarregaTile(t.i,t.j); break; }
+        catch(e){ if(tent===3) falhas++; await new Promise(r=>setTimeout(r,2500)); }
+      }
+      feitos++;
+      _vecLoadShow(`⏳ Exportando lotes… ${feitos}/${lista.length}`);
+    }
+  };
+  await Promise.all([worker(),worker(),worker()]);
+  _vecLoadHide();
+  const tiles = {}; let nLotes = 0;
+  _indispLotes.forEach(l=>{
+    if(l.manualId || !l.rings || !l.rings[0] || !l.rings[0][0]) return;
+    const [la,ln] = l.rings[0][0];
+    const k = Math.floor(la/INDISP_TILE)+'_'+Math.floor(ln/INDISP_TILE);
+    if(!regiao.has(k)) return;
+    const rings = l.rings.map(rg=>rg.map(c=>[+(+c[0]).toFixed(5), +(+c[1]).toFixed(5)]));
+    (tiles[k] = tiles[k] || []).push([l.sql, l.num||'', rings, Math.round(l.area||0), l.isCD?1:0, l.cond||'', l.raw && l.raw[3]!=null ? l.raw[3] : null]);
+    nLotes++;
+  });
+  const json = JSON.stringify({ v:1, gerado:new Date().toISOString(), tiles });
+  let blob;
+  if(typeof CompressionStream !== 'undefined'){
+    blob = await new Response(new Blob([json]).stream().pipeThrough(new CompressionStream('gzip'))).blob();
+  } else { showToast('Navegador sem compressão — use o Chrome'); return; }
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = 'lotes_central.json.gz';
+  document.body.appendChild(a); a.click(); a.remove();
+  showToast(`✅ ${nLotes.toLocaleString('pt-BR')} lotes exportados (${(blob.size/1048576).toFixed(1)} MB)` + (falhas?` — ${falhas} blocos falharam`:''));
+}
 
 // ── Camada "Sem potencial" (CD + conjuntos contínuos ≤ 1.000 m²) ─────────────
 // Pedido da diretoria: mostrar no mapa os lotes que NÃO servem para estudo:
@@ -5400,6 +5846,8 @@ function toggleIndispLayer(){
   if(_indispMode){
     btn.classList.add('active');
     _indispWmsCd.addTo(map);
+    try{ map.doubleClickZoom.disable(); }catch(_){}   // duplo clique cadastra CD (não dá zoom)
+    _indispMode = true; _indispTerrenosAtualiza();
     _showIndispLegend();
     _cdAllCarrega();
     if(map.getZoom() >= 15) _loadVecIndisp();
@@ -5408,6 +5856,8 @@ function toggleIndispLayer(){
   } else {
     btn.classList.remove('active');
     map.removeLayer(_indispWmsCd);
+    try{ map.doubleClickZoom.enable(); }catch(_){}
+    _indispTerrenosAtualiza();
     if(_vecIndispLayer) _vecIndispLayer.clearLayers();
     if(!_indispCdMode){ _indispFila.length=0; _indispHideTip(); }
     const el = document.getElementById('indisp-legend'); if(el) el.style.display='none';
@@ -5451,15 +5901,31 @@ function _showIndispLegend(){
     el = document.createElement('div');
     el.id = 'indisp-legend';
     el.style.cssText = 'position:absolute;left:10px;bottom:30px;z-index:900;background:#fff;border-radius:8px;padding:8px 10px;font-size:11px;box-shadow:0 2px 8px rgba(0,0,0,.25);line-height:1.6;';
-    el.innerHTML = `<b>Sem potencial para estudo</b>
+    el.innerHTML = `<div style="display:flex;align-items:center;justify-content:space-between;gap:10px;"><b>Sem potencial para estudo</b>
+      <button id="btn-indisp-recolher" onclick="event.stopPropagation();_indispLegendaToggle()" title="Recolher/expandir legenda" style="border:none;background:#f1f5f9;border-radius:4px;cursor:pointer;font-size:12px;line-height:1;padding:2px 7px;color:#475569;">▾</button></div>
+      <div id="indisp-legend-body">
       <div class="legend-item"><div class="legend-swatch" style="background:#475569"></div>Prédio em condomínio (CD)</div>
       <div class="legend-item"><div class="legend-swatch" style="background:#b45309"></div>Conjunto contínuo ≤ 1.000 m²</div>
+      <div class="legend-item"><div class="legend-swatch" style="background:#7c3aed"></div>Terreno indisponível</div>
       <div style="color:#888;font-size:10px;">Áreas ainda não carregadas não são avaliadas</div>
-      <div style="color:#475569;font-size:10px;">⌥ <b>Alt+clique</b> num lote: incluir/remover como CD</div>
-      <button onclick="event.stopPropagation();_indispIniciaDesenho()" style="margin-top:4px;width:100%;padding:3px 6px;font-size:11px;border:1px solid #0ea5e9;background:#f0f9ff;color:#0369a1;border-radius:5px;cursor:pointer;">✏️ Desenhar CD à mão</button>`;
+      <div style="color:#475569;font-size:10px;">🖱️ <b>2 cliques</b> num lote: cadastrar/remover como CD</div>
+      <button id="btn-indisp-marcar" onclick="event.stopPropagation();_indispToggleMarcar(this)" title="Liga o modo manual: cada clique num lote pergunta se ele entra (ou sai) da camada Sem potencial — sem precisar segurar Alt" style="margin-top:4px;width:100%;padding:3px 6px;font-size:11px;border:1px solid #b45309;background:#fffbeb;color:#92400e;border-radius:5px;cursor:pointer;">🖱️ Marcar lote manualmente (clique)</button>
+      <button onclick="event.stopPropagation();_indispIniciaDesenho()" style="margin-top:4px;width:100%;padding:3px 6px;font-size:11px;border:1px solid #0ea5e9;background:#f0f9ff;color:#0369a1;border-radius:5px;cursor:pointer;">✏️ Desenhar CD à mão</button></div>`;
     document.getElementById('map').appendChild(el);
+    L.DomEvent.disableClickPropagation(el);
+    L.DomEvent.disableScrollPropagation(el);
+    if(window._indispLegRecolhida) _indispLegendaToggle(true);
   }
   el.style.display = 'block';
+}
+function _indispLegendaToggle(forcar){
+  const body = document.getElementById('indisp-legend-body');
+  const btn  = document.getElementById('btn-indisp-recolher');
+  if(!body) return;
+  const recolher = (forcar===true) ? true : body.style.display !== 'none';
+  body.style.display = recolher ? 'none' : '';
+  if(btn) btn.textContent = recolher ? '▸' : '▾';
+  window._indispLegRecolhida = recolher;
 }
 
 // Área (m²) de um anel lat/lng, plano local equirretangular
@@ -5579,7 +6045,7 @@ async function _indispCarregaTile(i,j){
   const key = i+'_'+j;
   if(_indispTiles.has(key)) return;
   const cached = await _indispDbGet(key);
-  if(cached){ _indispAddTile(key, cached); return; }
+  if(cached && cached.length){ _indispAddTile(key, cached); return; } // cache vazio = resposta ruim do GeoSampa → baixa de novo
   const s=i*INDISP_TILE, w=j*INDISP_TILE, n=s+INDISP_TILE, e=w+INDISP_TILE;
   // Se a resposta veio cheia (bateu no limite), divide a área em 4 e busca de novo — senão lotes ficam de fora
   const buscaBbox = async (s,w,n,e,prof)=>{
@@ -5595,7 +6061,9 @@ async function _indispCarregaTile(i,j){
     }
     return fs;
   };
-  const todas = await buscaBbox(s,w,n,e,0);
+  let todas = await buscaBbox(s,w,n,e,0);
+  // GeoSampa às vezes responde "vazio" sob carga: tenta de novo antes de aceitar que o bloco está vazio
+  for(let t=0; t<2 && !todas.length; t++){ await new Promise(r=>setTimeout(r,1200)); todas = await buscaBbox(s,w,n,e,0); }
   const vistos = new Set();
   const feats = todas.filter(f=>{
     if(!f.geometry || fmtSQLprops(f.properties)==='—') return false;
@@ -5605,7 +6073,7 @@ async function _indispCarregaTile(i,j){
   });
   const isLonLat = feats.length ? _detectLonLat(feats) : true;
   const lotes = feats.map(f=>_indispFeatToLote(f,isLonLat));
-  { _indispDbPut(key, lotes.map(l=>({sql:l.sql,num:l.num,rings:l.rings,area:l.area,isCD:l.isCD,cond:l.cond,q:l.q,raw:l.raw}))); }
+  if(lotes.length){ _indispDbPut(key, lotes.map(l=>({sql:l.sql,num:l.num,rings:l.rings,area:l.area,isCD:l.isCD,cond:l.cond,q:l.q,raw:l.raw}))); }
   _indispAddTile(key, lotes);
 }
 
@@ -5658,7 +6126,7 @@ function _indispCalcula(){
   const lots = [..._indispLotes.values()];
   if(!lots.length){ _indispMarcar=[]; return; }
   // ajustes manuais da equipe: 'inc' = tratar como CD, 'exc' = não é CD
-  lots.forEach(l=>{ let m=_indispManual.get(l._k); if(m==null && l.cond) m=_indispManual.get('C:'+l.q+'|'+l.cond); l.isCD = m==='inc' ? true : m==='exc' ? false : l.isCD0; });
+  lots.forEach(l=>{ let m=_indispManual.get(l._k); if(m==null && l.cond) m=_indispManual.get('C:'+l.q+'|'+l.cond); l.isCD = m==='inc' ? true : m==='exc' ? false : l.isCD0; l._cc = (m==='cc'); });
 
   // grade espacial (células de 60 m) p/ achar vizinhos sem comparar todos contra todos
   const CELL=60, grid=new Map();
@@ -5700,6 +6168,9 @@ function _indispCalcula(){
     if(!g.every(completo)) return;
     g.forEach(l=>marcar.push({l,tipo:'area',total,n:g.length}));
   });
+  // lotes forçados manualmente como "conjunto contínuo" (marrom), mesmo que o cálculo automático não os marque
+  const _jaMarc = new Set(marcar.map(o=>o.l));
+  lots.filter(l=>l._cc && !l.isCD && !_jaMarc.has(l)).forEach(l=>marcar.push({l,tipo:'area',total:l.area,n:1}));
 
   _indispMarcar = marcar;
   // Subcamada CD: candidatos = condomínios (quadra + nº do CD) com ≥ 1.500 m² de terreno.
@@ -5887,10 +6358,21 @@ try{
     if(_indispMode || _indispCdMode) _indispRender();
   }, e=>console.warn('[indisp_manual]', e));
 }catch(e){ console.warn('[indisp_manual] Firestore indisponível', e); }
+// Botão da legenda: modo manual por clique simples (equivale ao Alt+clique)
+function _indispToggleMarcar(btn){
+  window._indispMarcarMode = !window._indispMarcarMode;
+  if(btn){
+    btn.style.background = window._indispMarcarMode ? '#b45309' : '#fffbeb';
+    btn.style.color = window._indispMarcarMode ? '#fff' : '#92400e';
+    btn.textContent = window._indispMarcarMode ? '🖱️ Modo manual LIGADO — clique no lote (clique aqui p/ sair)' : '🖱️ Marcar lote manualmente (clique)';
+  }
+  map.getContainer().style.cursor = window._indispMarcarMode ? 'crosshair' : '';
+  showToast(window._indispMarcarMode ? 'Clique num lote para incluir/remover da camada Sem potencial' : 'Modo manual desligado');
+}
 // Alt+clique num lote (camada "Sem potencial" ligada) → incluir como CD / voltar ao automático
-map.on('click', async e=>{
+async function _indispClickHandler(e, viaDbl){
   const oe = e.originalEvent;
-  if(!_indispMode || !oe || !oe.altKey || map.getZoom()<15) return;
+  if(!_indispMode || !oe || !(oe.altKey || window._indispMarcarMode || viaDbl) || map.getZoom()<15) return;
   const x=e.latlng.lng*INDISP_KX, y=e.latlng.lat*INDISP_KY;
   let achados=[..._indispLotes.values()].filter(l=>l.bb && x>=l.bb[0]&&x<=l.bb[2]&&y>=l.bb[1]&&y<=l.bb[3] && l.xy.some(rg=>_indispPontoNoPoligono(x,y,rg)));
   if(!achados.length){
@@ -5985,9 +6467,19 @@ map.on('click', async e=>{
     else if(confirm(`Lote ${l.sql} está marcado como CD.\nNão é CD? Remover da camada?`)) salva('exc','Lote removido da camada');
   } else {
     if(m==='exc') { if(confirm(`Lote ${l.sql} foi removido manualmente.\nVoltar ao automático?`)) salva(null,'Voltou ao automático'); }
-    else if(confirm(`Incluir o lote ${l.sql} (${Math.round(l.area).toLocaleString('pt-BR')} m²) como CD na camada "Sem potencial"?`)) salva('inc','Lote incluído como CD');
+    else if(m==='cc') { if(confirm(`Lote ${l.sql} foi incluído manualmente como conjunto contínuo (marrom).\nRemover a inclusão?`)) salva(null,'Inclusão removida'); }
+    else {
+      const r = prompt(`Lote ${l.sql} (${Math.round(l.area).toLocaleString('pt-BR')} m²)\nIncluir na camada "Sem potencial" como:\n\n1 = Prédio em condomínio (CD) — cinza\n2 = Conjunto contínuo ≤ 1.000 m² — marrom\n\n(Cancelar = não fazer nada)`, '2');
+      if(r===null) return;
+      const op = r.trim();
+      if(op==='1') salva('inc','Lote incluído como CD');
+      else if(op==='2') salva('cc','Lote incluído como conjunto contínuo');
+    }
   }
-});
+}
+map.on('click', e=>_indispClickHandler(e,false));
+// 2 cliques seguidos no lote (camada Sem potencial ligada) = cadastrar/remover CD
+map.on('dblclick', e=>_indispClickHandler(e,true));
 // ── CD desenhado à mão (para lotes que o GeoSampa não entrega com o contorno certo) ──
 // Salvo no Firestore ('indisp_poly'), compartilhado com a equipe. Alt+clique num deles → excluir.
 let _indispDraw = null; // { pts:[L.LatLng], prev:L.Polygon }
@@ -6123,6 +6615,7 @@ document.addEventListener('keydown', ev=>{ if(ev.key==='Escape') _indispFechaCon
 map.on('click', async e=>{
   if((!_indispCdMode && !_indispMode) || _indispDraw || map.getZoom()<15) return;
   if(e.originalEvent && e.originalEvent.altKey) return; // Alt+clique = incluir/remover CD
+  if(window._indispMarcarMode) return; // modo manual: o clique só marca o lote (não abre o painel Info lote)
   // 1) subcamada verde/azul: já sabemos qual condomínio é
   if(_indispCdMode){
     const x=e.latlng.lng*INDISP_KX, y=e.latlng.lat*INDISP_KY;
@@ -6671,6 +7164,7 @@ const PATCULT_LABELS = {
   corredor_onibus:         'Corredor de Ônibus',
   faixa_onibus:            'Faixa Exclusiva de Ônibus',
   linha_onibus:            'Linha de Ônibus',
+  enquadramento_vila:      'Enquadramento como Vila',
 };
 const PATCULT_CORES = {
   bairro_ambiental:'#84cc16', lugar_paisagistico:'#f97316', envoltoria_conpresp:'#eab308',
@@ -6679,7 +7173,7 @@ const PATCULT_CORES = {
   bem_arqueologico:'#c026d3', bem_registrado:'#db2777', selo_valor_cultural:'#e11d48',
   memoria_paulistana:'#0d9488', zepec_apc:'#059669', monumento:'#78716c',
   ponto_onibus:'#0ea5e9', terminal_onibus:'#2563eb', corredor_onibus:'#dc2626',
-  faixa_onibus:'#f97316', linha_onibus:'#16a34a',
+  faixa_onibus:'#f97316', linha_onibus:'#16a34a', enquadramento_vila:'#be185d',
 };
 let _vecPatcultLayer = null;
 const _patcultActive = {};
@@ -6768,6 +7262,7 @@ function _patcultNomeDe(p){
     'nm_bairro_ambiental','nm_lugar','nm_area_tombada','nm_sitio','nm_monumento',
     'nm_bem_cultural','nm_endereco','ds_denominacao','ds_nome',
     // Ônibus
+    'tx_indicador_enquadramento_vila',
     'nm_ponto_onibus','nm_terminal','nm_corredor','nm_denominacao_faixa_corredor',
     'nm_linha_onibus_geometria','tx_endereco_ponto_onibus','tx_endereco_terminal',
   ];
@@ -6777,7 +7272,9 @@ function _patcultNomeDe(p){
 function _patcultPopupHtml(label, nome, p){
   const rows = Object.entries(p).filter(([,v])=>v!==null && v!=='' && typeof v!=='object')
     .map(([k,v])=>`<tr><td style="color:#666;padding:2px 8px 2px 0;font-size:11px;font-family:monospace">${k}</td><td style="font-weight:600;font-size:11px">${escHtml(String(v))}</td></tr>`).join('');
-  return `<b style="font-size:13px">🏛️ ${escHtml(label)}</b><br><span style="color:#666">${escHtml(nome)}</span>`+
+  const _link = p.tx_link_despacho_diario_oficial
+    ? `<div style="margin-top:6px;font-size:11px;">📄 Despacho: <a href="${escHtml(p.tx_link_despacho_diario_oficial)}" target="_blank" rel="noopener">Diário Oficial${p.dt_despacho_diario_oficial?' ('+escHtml(String(p.dt_despacho_diario_oficial).replace('Z',''))+')':''}</a></div>` : '';
+  return `<b style="font-size:13px">🏛️ ${escHtml(label)}</b><br><span style="color:#666">${escHtml(nome)}</span>`+_link+
     (rows ? `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px;color:#555;">Ver dados completos</summary><table style="margin-top:4px">${rows}</table></details>` : '');
 }
 
@@ -8593,8 +9090,66 @@ function _concMercPopup(it, ano){
         <div><div style="color:#9ca3af;font-size:9px;text-transform:uppercase;font-weight:600;">Unidades</div><div style="font-weight:700;color:#111;">${unidTxt}</div></div>
         <div><div style="color:#9ca3af;font-size:9px;text-transform:uppercase;font-weight:600;">VSO</div><div style="font-weight:700;color:#111;">${vsoTxt}</div></div>
       </div>
-      <button onclick="switchTab('merc')" style="margin-top:8px;width:100%;padding:6px;border-radius:6px;border:none;background:#00B0B9;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">Ver na aba Mercado →</button>
+      <button onclick="concMercQuadro(${_concMercReg(it)})" style="margin-top:8px;width:100%;padding:6px;border-radius:6px;border:none;background:#00B0B9;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">📋 Abrir quadro completo</button>
+      <button onclick="switchTab('merc')" style="margin-top:4px;width:100%;padding:4px;border-radius:6px;border:1px solid #00B0B9;background:#fff;color:#00B0B9;font-size:10px;font-weight:600;cursor:pointer;">Ver na aba Mercado →</button>
     </div>`;
+}
+const _concMercSel = [];
+function _concMercReg(it){ let i=_concMercSel.indexOf(it); if(i<0){ _concMercSel.push(it); i=_concMercSel.length-1; } return i; }
+async function concMercQuadro(i){
+  const it = _concMercSel[i]; if(!it) return;
+  let ov=document.getElementById('conc-quadro'); if(ov) ov.remove();
+  ov=document.createElement('div'); ov.id='conc-quadro';
+  ov.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;';
+  ov.onclick=ev=>{ if(ev.target===ov) ov.remove(); };
+  ov.innerHTML=`<div style="background:#fff;border-radius:12px;max-width:760px;width:100%;max-height:90vh;overflow:auto;padding:18px 22px;font-family:system-ui,sans-serif">
+    <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:10px"><div><h2 style="margin:0;font-size:18px;color:#1a3c4d">${_concEsc(it.nome||'Empreendimento')}</h2>
+    <div style="font-size:12px;color:#64748b">${_concEsc(it.incorporadora||'')}${it.bairro?' · '+_concEsc(it.bairro):''}${it.regiao?' ('+_concEsc(it.regiao)+')':''}</div></div>
+    <button onclick="document.getElementById('conc-quadro').remove()" style="font-size:13px;padding:4px 12px;border:1px solid #1a3c4d;background:#fff;border-radius:6px;cursor:pointer">✕</button></div>
+    <div id="conc-quadro-body" style="margin-top:12px;font-size:12px">⏳ Buscando detalhes…</div></div>`;
+  document.body.appendChild(ov);
+  const body=document.getElementById('conc-quadro-body');
+  const kv=(rows)=>`<table style="width:100%;border-collapse:collapse">${rows.filter(r=>r[1]!=null&&r[1]!==''&&r[1]!=='—').map(([k,v])=>`<tr><td style="padding:5px 8px;border-bottom:1px solid #eee;color:#64748b;width:38%;font-weight:600">${k}</td><td style="padding:5px 8px;border-bottom:1px solid #eee">${v}</td></tr>`).join('')}</table>`;
+  const basico=[
+    ['Lançamento', _concEsc(it._mes||'')],
+    ['VGV', it.vgv_mm!=null?'R$ '+it.vgv_mm.toFixed(1).replace('.',',')+' MM':''],
+    ['Ticket médio', it.ticket!=null?'R$ '+Math.round(it.ticket).toLocaleString('pt-BR'):''],
+    ['Unidades', it.unidades!=null?_concFmtN(it.unidades):''],
+    ['VSO', it.vso!=null?Math.round(it.vso)+'%':''],
+    ['Endereço', _concEsc(it.endereco||'')],
+  ];
+  body.innerHTML = kv(basico);
+  // Detalhes completos (tipologias, terreno, estoque, preços) vindos da Pesquisa de Mercado
+  try{
+    const ll = it._ll;
+    if(!ll) return;
+    const r = await fetch(`${API_BASE}/api/mercado/concorrentes-raio?lat=${ll[0]}&lng=${ll[1]}&raio=0.4`);
+    const d = await r.json(); if(!d.ok) throw new Error(d.error||'erro');
+    const nn=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+    const alvo=nn(it.nome);
+    const e = d.itens.find(x=>nn(x.nome)===alvo) || d.itens.slice().sort((a,b)=>a.dist_m-b.dist_m).find(x=>nn(x.nome).includes(alvo)||alvo.includes(nn(x.nome)));
+    if(!e){ body.innerHTML += '<div style="margin-top:8px;color:#64748b;font-size:11px">Sem detalhes adicionais (tipologias) na Pesquisa de Mercado para este empreendimento.</div>'; return; }
+    const pct = e.pct_vendido!=null ? Math.round(e.pct_vendido)+'%' : '';
+    const full=[
+      ['Status', _concEsc(e.status||'')],
+      ['Lançamento', _concEsc(e.lancamento||it._mes||'')],
+      ['Endereço', _concEsc(e.endereco||it.endereco||'')],
+      ['Área do terreno', e.area_terreno?_concFmtN(Math.round(e.area_terreno))+' m²':''],
+      ['Unidades lançadas', _concFmtN(e.unidades)],
+      ['Vendidas', _concFmtN(e.vendidas)],
+      ['Estoque', _concFmtN(e.estoque)],
+      ['% vendido', pct],
+      ['Ticket (faixa)', e.preco_min?_concFmtR$(e.preco_min)+(e.preco_max&&e.preco_max!==e.preco_min?' – '+_concFmtR$(e.preco_max):''):''],
+      ['R$/m² privativo', e.preco_m2?_concFmtN(e.preco_m2):''],
+      ['VGV', it.vgv_mm!=null?'R$ '+it.vgv_mm.toFixed(1).replace('.',',')+' MM':''],
+    ];
+    let h = kv(full);
+    if((e.tipologias||[]).length){
+      h += `<h3 style="margin:14px 0 6px;font-size:13px;color:#1a3c4d">Tipologias</h3><table style="width:100%;font-size:11.5px;border-collapse:collapse"><tr style="background:#1a3c4d;color:#fff">${['Dorms','Área','Vagas','Unid.','Vend.','Estoque','% vend.','Preço','R$/m²'].map(x=>`<th style="text-align:left;padding:4px 6px">${x}</th>`).join('')}</tr>`+
+        e.tipologias.map(t=>`<tr style="border-bottom:1px solid #eee"><td style="padding:4px 6px">${t.dorms??'—'}</td><td>${t.area!=null?t.area+' m²':'—'}</td><td>${t.vagas??'—'}</td><td>${_concFmtN(t.unidades)}</td><td>${_concFmtN(t.vendidas)}</td><td>${_concFmtN(t.estoque)}</td><td><b>${t.pct!=null?Math.round(t.pct)+'%':'—'}</b></td><td>${_concFmtR$(t.preco)}</td><td>${_concFmtN(t.preco_m2)}</td></tr>`).join('')+`</table>`;
+    }
+    body.innerHTML = h;
+  }catch(err){ body.innerHTML += `<div style="margin-top:8px;color:#b45309;font-size:11px">Não foi possível buscar os detalhes: ${_concEsc(err.message)}</div>`; }
 }
 // Mostra TODOS os lançamentos do ano de uma vez, usando as coordenadas já
 // guardadas no cache do servidor (instantâneo). Só os itens que ainda não têm
@@ -8623,6 +9178,7 @@ async function _renderConcMercAno(ano){
   const add = (it, coord)=>{
     const isYuny = /yuny/i.test(it.incorporadora||'');
     const m = L.marker(coord, { icon: _makeConcMercIcon(isYuny) });
+    it._ll = Array.isArray(coord) ? coord : [coord.lat, coord.lng];
     m.bindPopup(()=>_concMercPopup(it, ano), { maxWidth: 240 });
     layer.addLayer(m); shown++;
   };
@@ -8771,6 +9327,7 @@ function addLayer(t){
         // só clicar em área vazia do mapa funcionava. Chamando direto aqui,
         // com o ponto exato clicado (e.latlng), corrige isso.
         if(_alturaComarMode){ _alturaComarClick(e); return; }
+        if(_itbiCliqueSobreTerreno(e)) return;   // camada ITBI ligada: abre o lote, não o card
         selectCard(t.id);
       });
       poly.on('dblclick',(e)=>{L.DomEvent.stop(e);map.zoomIn();});
@@ -8787,10 +9344,11 @@ function addLayer(t){
       }).addTo(map);
       dot.bindPopup(popupHtml(t));
       dot.on('popupopen',()=>{ if(_medirMode) dot.closePopup(); });
-      dot.on('click',()=>{ if(_medirMode) return; selectCard(t.id); });
+      dot.on('click',(e)=>{ if(_medirMode) return; if(_itbiCliqueSobreTerreno(e)) return; selectCard(t.id); });
       rendered.push(dot);
     }
     layers[t.id] = rendered.length===1 ? rendered[0] : rendered;
+    _indispTerrenoVisib(t);
   } else if(t.lat && t.lng){
     const m = L.marker([t.lat,t.lng],{icon:makePinIcon(t.status)}).addTo(map);
     m.bindPopup(popupHtml(t));
@@ -8798,8 +9356,22 @@ function addLayer(t){
     m.on('click',()=>{ if(_medirMode) return; selectCard(t.id); });
     m.on('dblclick',(e)=>{L.DomEvent.stop(e);map.zoomIn();});
     layers[t.id] = m;
+    _indispTerrenoVisib(t);
   }
 }
+
+// Terrenos com status "Indisponível" (já comercializados, roxos) fazem parte da camada
+// "Sem potencial para estudo": só aparecem no mapa quando ela está ligada.
+function _ehTerrenoIndisp(t){ return !!t && /indispon/i.test(t.status||''); }
+function _indispTerrenoVisib(t){
+  if(!_ehTerrenoIndisp(t)) return;
+  const l = layers[t.id]; if(!l) return;
+  (Array.isArray(l)?l:[l]).forEach(x=>{
+    if(_indispMode){ if(!map.hasLayer(x)) x.addTo(map); }
+    else if(map.hasLayer(x)) map.removeLayer(x);
+  });
+}
+function _indispTerrenosAtualiza(){ (terrenos||[]).forEach(_indispTerrenoVisib); }
 
 function refreshLayers(){
   Object.values(layers).forEach(l=>{
@@ -8847,6 +9419,7 @@ function filterLayers(){
       }
     });
   });
+  _indispTerrenosAtualiza();
 }
 
 function openViewCard(id){
@@ -9293,6 +9866,7 @@ function openModal(id, viewMode=false){
   // sentido pra terreno NOVO — terreno já cadastrado já tem pasta resolvida.
   if(_fEl('field-vincular-pasta')) _fEl('field-vincular-pasta').style.display = t ? 'none' : '';
   if(_fEl('f-vincular-pasta')) _fEl('f-vincular-pasta').checked = false;
+  if(_fEl('f-sem-pasta')) _fEl('f-sem-pasta').checked = false;
   if(_fEl('vincular-pasta-hint')) _fEl('vincular-pasta-hint').style.display = 'none';
   if(_fEl('f-bairro'))   _fEl('f-bairro').value   = t?.bairro||'';
   if(_fEl('f-area'))     _fEl('f-area').value     = t?.area||'';
@@ -9903,6 +10477,26 @@ function _showGeoSampaPanel(sql, parsed, data) {
   const btnAdd = `<button onclick="addLoteInput('${escHtml(sql)}',${areaNum});document.getElementById('geosampa-panel').remove();"
     style="flex:1;padding:7px;font-size:11px;font-weight:600;background:#00B0B9;color:#fff;border:none;border-radius:6px;cursor:pointer;">+ Adicionar à lista</button>`;
 
+  // Botão Google Maps: usa o centro do lote clicado; sem coordenada, cai no endereço do lote
+  const _ll = window._lotePainelLL; window._lotePainelLL = null;
+  const _gmUrl = _ll
+    ? `https://www.google.com/maps/search/?api=1&query=${_ll[0]},${_ll[1]}`
+    : (logr ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(logr+(num?', '+num:'')+', São Paulo, SP')}` : '');
+  const btnMaps = _gmUrl ? `<button onclick="window.open('${_gmUrl}','_blank')" title="Abrir este lote no Google Maps"
+    style="flex:1;padding:7px;font-size:11px;font-weight:600;background:#eef4ff;color:#1a56c4;border:1px solid #4285f455;border-radius:6px;cursor:pointer;">🗺 Google Maps</button>` : '';
+
+  // Botão "Cadastrar terreno": abre o cadastro já com este lote (SQL, área, endereço, contorno)
+  window._lotePainelCad = { sql, area: areaNum, logr, num, bairro: v(target,'BAIRRO','bairro','nm_bairro'), uso, feat: window._lotePainelFeat || null };
+  window._lotePainelFeat = null;
+  const btnCad = `<button onclick="_cadastrarLoteDoPainel()" title="Cadastrar este lote como novo terreno no LandBank"
+    style="flex:1 1 100%;padding:7px;font-size:11px;font-weight:700;background:#1a3c4d;color:#fff;border:none;border-radius:6px;cursor:pointer;">➕ Cadastrar terreno</button>`;
+
+  // Botão ITBI: fecha este painel e abre o histórico de transações do lote
+  const _sqlJs = String(sql).replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+  const _numJs = String(num||'').replace(/'/g,"\\'");
+  const btnItbi = `<button onclick="document.getElementById('geosampa-panel').remove();_abrirItbiConformeTipo('${_sqlJs}','${_numJs}')" title="Ver transações de compra e venda (ITBI) deste lote"
+    style="flex:1 1 100%;padding:7px;font-size:11px;font-weight:700;background:#fff7ed;color:#c2410c;border:1px solid #f9731655;border-radius:6px;cursor:pointer;">🏷️ Ver ITBI deste lote</button>`;
+
   const panel = document.createElement('div');
   panel.id = 'geosampa-panel';
   panel.style.cssText = [
@@ -9928,8 +10522,8 @@ function _showGeoSampaPanel(sql, parsed, data) {
       <div style="padding:8px 10px;font-size:11px;color:#888;">⏳ Calculando pela localização do lote…</div>
     </div>
     ${outrosHtml}
-    <div style="padding:8px 10px;border-top:1px solid #eee;display:flex;gap:6px;">
-      ${btnAdd}
+    <div style="padding:8px 10px;border-top:1px solid #eee;display:flex;gap:6px;flex-wrap:wrap;">
+      ${btnItbi}${btnCad}${btnMaps}${btnAdd}
     </div>`;
 
   document.body.appendChild(panel);
@@ -10241,6 +10835,28 @@ function _toggleMotivoDescarte(){
   const status = document.getElementById('f-status')?.value;
   const field  = document.getElementById('field-motivo-descarte');
   if(field) field.style.display = (status === '8.Descartado') ? '' : 'none';
+  _aplicarModoIndisponivel(status);
+}
+// Terreno "Indisponível" (já comercializado): cadastro simplificado — sem
+// corretor, responsável nem pasta na rede.
+function _aplicarModoIndisponivel(status){
+  const indisp = (status === '9.Indisponível');
+  const g = id => document.getElementById(id);
+  const hide = (el, v) => { if(el) el.style.display = v ? 'none' : ''; };
+  hide(g('f-corretor')?.closest('.field'), indisp);
+  hide(g('corretor-exclusividade'), indisp);
+  hide(g('f-responsavel')?.closest('.field'), indisp);
+  if(indisp){
+    // não cria nem vincula pasta
+    if(g('f-sem-pasta')) g('f-sem-pasta').checked = true;
+    if(g('f-vincular-pasta')) g('f-vincular-pasta').checked = false;
+    const vh = g('vincular-pasta-hint'); if(vh) vh.style.display = 'none';
+    hide(g('field-vincular-pasta'), true);
+  } else if(g('field-vincular-pasta') && !editingId){
+    hide(g('field-vincular-pasta'), false);
+    if(g('f-sem-pasta') && g('f-sem-pasta')._autoIndisp){ g('f-sem-pasta').checked = false; }
+  }
+  if(g('f-sem-pasta')) g('f-sem-pasta')._autoIndisp = indisp;
 }
 
 // ── Exclusividade de corretor (1 ano após descarte) + histórico ─────────────
@@ -10264,16 +10880,29 @@ function renderCorretorExclusividade(t){
       </div>`;
     }
   }
-  const hist = Array.isArray(t.corretor_hist) ? t.corretor_hist : [];
+  // Histórico = linha do tempo dos corretores cadastrados: o atual no topo
+  // (marcado "atual") e, abaixo, os anteriores do mais recente ao mais antigo.
+  // Entradas "fantasma" (sem nenhuma data/motivo e com o mesmo nome do corretor
+  // atual ou de outra entrada — sobras de mesclagem de cadastros) não são mostradas.
+  const histBruto = Array.isArray(t.corretor_hist) ? t.corretor_hist : [];
+  const _nm = s => String(s||'').trim().toLowerCase();
+  const hist = histBruto.filter((h,i)=>{
+    const vazia = !h.desde && !h.descarte && !h.prazo_fim && !h.motivo && !h.ate;
+    if(!vazia) return true;
+    if(_nm(h.corretor)===_nm(t.corretor)) return false;
+    return !histBruto.some((o,j)=>j!==i && _nm(o.corretor)===_nm(h.corretor) && (o.desde||o.descarte||o.motivo));
+  });
+  const linhaHist = (h, atual)=>`
+          <div style="font-size:11px;font-family:var(--mono);padding:6px 8px;background:${atual?'#f0fdfe':'var(--bg)'};border:1px solid ${atual?'#00B0B955':'var(--border)'};border-radius:6px;">
+            <b>${escHtml(h.corretor||'—')}</b>${atual?' <span style="color:#00858c">· atual</span>':''}${h.desde?` · desde ${formatAtaDate(h.desde)}`:''}${h.ate?` · até ${formatAtaDate(h.ate)}`:''}${h.descarte?` · descartado em ${formatAtaDate(h.descarte)}`:''}${h.prazo_fim?` · exclusividade até ${formatAtaDate(h.prazo_fim)}`:''}${h.motivo?`<br><span style="color:var(--muted)">Motivo: ${escHtml(h.motivo)}</span>`:''}
+          </div>`;
+  const atualEntrada = t.corretor ? { corretor:t.corretor, desde:t.corretor_desde, descarte:t.corretor_descarte, prazo_fim:t.corretor_prazo_fim, motivo:t.motivo_descarte } : null;
   let histHtml = '';
-  if(hist.length){
-    histHtml = `<details style="margin-top:6px;">
-      <summary style="cursor:pointer;font-size:11px;color:var(--muted);font-weight:600;">📜 Histórico de corretores (${hist.length})</summary>
+  if(hist.length || atualEntrada){
+    histHtml = `<details style="margin-top:6px;" open>
+      <summary style="cursor:pointer;font-size:11px;color:var(--muted);font-weight:600;">📜 Histórico de corretores (${hist.length+(atualEntrada?1:0)})</summary>
       <div style="margin-top:6px;display:flex;flex-direction:column;gap:4px;">
-        ${[...hist].reverse().map(h=>`
-          <div style="font-size:11px;font-family:var(--mono);padding:6px 8px;background:var(--bg);border:1px solid var(--border);border-radius:6px;">
-            <b>${escHtml(h.corretor||'—')}</b>${h.desde?` · desde ${formatAtaDate(h.desde)}`:''}${h.descarte?` · descartado em ${formatAtaDate(h.descarte)}`:''}${h.prazo_fim?` · exclusividade até ${formatAtaDate(h.prazo_fim)}`:''}${h.motivo?`<br><span style="color:var(--muted)">Motivo: ${escHtml(h.motivo)}</span>`:''}
-          </div>`).join('')}
+        ${atualEntrada?linhaHist(atualEntrada,true):''}${[...hist].reverse().map(h=>linhaHist(h,false)).join('')}
       </div>
     </details>`;
   }
@@ -10648,8 +11277,9 @@ async function saveTerreno(){
       descarte: corretor_descarte,
       prazo_fim: corretor_prazo_fim,
       motivo: _existing.motivo_descarte || null,
+      ate: _hoje, // dia em que o corretor foi trocado
     });
-    corretor_desde = _dataForm || _hoje;
+    corretor_desde = _hoje; // o novo corretor vale a partir do dia em que foi cadastrado
     corretor_descarte = null;
     corretor_prazo_fim = null;
   } else if(!corretor_desde && corretor){
@@ -10792,6 +11422,7 @@ async function saveTerreno(){
         // criar, abre um seletor pra escolher a pasta certa numa lista e
         // vincula essa (sem criar nada).
         const _vincularExistente = document.getElementById('f-vincular-pasta')?.checked;
+        const _semPasta = document.getElementById('f-sem-pasta')?.checked;
         try{
           let dPasta;
           if(_vincularExistente){
@@ -10806,6 +11437,9 @@ async function saveTerreno(){
               });
               dPasta = await rPasta.json();
             }
+          } else if(_semPasta){
+            dPasta = null;
+            showToast('ℹ️ Terreno salvo sem criar pasta na rede (conforme escolhido).', 5000);
           } else {
             const rPasta = await fetch(`${API_BASE}/api/criar-pasta-terreno`, {
               method:'POST', headers:{'Content-Type':'application/json'},
@@ -10961,10 +11595,24 @@ async function relocalizarTerreno(id){
   const endFull = bairro && !endereco.toLowerCase().includes(bairro.toLowerCase())
     ? `${endereco}, ${bairro}, São Paulo, Brasil`
     : `${endereco}, São Paulo, Brasil`;
-  const url = `/api/geocode?q=${encodeURIComponent(endFull)}&limit=3`;
+  const url = `${API_BASE}/api/geocode?q=${encodeURIComponent(endFull)}&limit=3`;
   try{
-    const r = await fetch(url);
-    const d = await r.json();
+    // 1º: cadastro de lotes do GeoSampa (rua + número — mais preciso); 2º: Nominatim
+    let d = await _geocodeLoteGeoSampa(endereco);
+    if(!d || !d.length){
+      try{
+        const r = await fetch(url);
+        d = await r.json();
+        if(!Array.isArray(d)) d = [];
+      }catch(_){ d = []; }
+      // sem resultado: tenta de novo com "Rua" na frente (ex.: "Regente Feijó, 1739") e sem o bairro
+      if(!d.length && !/^(r\.?|rua|av\.?|avenida|al\.?|alameda|tv\.?|travessa|pc\.?|praça|largo|estrada)\b/i.test(endereco)){
+        try{
+          const r2 = await fetch(`${API_BASE}/api/geocode?q=${encodeURIComponent('Rua '+endereco+', São Paulo, Brasil')}&limit=3`);
+          const d2 = await r2.json(); if(Array.isArray(d2)) d = d2;
+        }catch(_){}
+      }
+    }
     const sp = d.filter(x => x.display_name && x.display_name.toLowerCase().includes('são paulo'));
     const best = sp.length ? sp[0] : d[0];
     if(best){
@@ -11492,6 +12140,59 @@ async function _autoPreencherEndereco(sql){
   }catch(e){ console.warn('[autoEndereco] erro:', e.message); }
 }
 
+// Endereço da formação: usa o logradouro dos lotes selecionados. Se houver mais de uma rua,
+// escolhe a de MAIOR valor (R$) no Quadro 14 – 2026 (/api/pgv-codlogs). Devolve true se preencheu.
+async function _autoPreencherEnderecoDeFeatures(feats){
+  const fEnd = document.getElementById('f-endereco');
+  if(!fEnd || fEnd.value.trim()) return false;
+  const lotes = [];
+  (feats||[]).forEach(f=>{
+    const p = f.properties||{};
+    const nome = (p.nm_logradouro||p.NOME_LOGRADOURO||p.logradouro||'').toString().trim();
+    if(!nome) return;
+    const codlog = (p.cd_logradouro||p.cd_codlog||p.CODLOG||p.codlog||'').toString().trim().padStart(6,'0');
+    lotes.push({
+      nome, codlog,
+      num: (p.nr_porta_logradouro||p.nr_porta||'').toString().trim(),
+      setor: String(p.cd_setor_fiscal||'').replace(/\D/g,'').padStart(3,'0'),
+      quadra: String(p.cd_quadra_fiscal||'').replace(/\D/g,'').padStart(3,'0'),
+      area: parseFloat(p.qt_area_terreno||p.ar_terreno||0)||0,
+    });
+  });
+  if(!lotes.length) return false;
+  let escolhido = null;
+  const ruas = new Set(lotes.map(l=>l.codlog||l.nome));
+  if(ruas.size > 1){
+    // mais de uma rua: cruza com o Quadro 14 de cada Setor/Quadra envolvida
+    const quadras = [...new Set(lotes.map(l=>l.setor+'|'+l.quadra))];
+    const valores = {};  // codlog -> maior valor
+    await Promise.all(quadras.map(async q=>{
+      const [s,qd] = q.split('|');
+      if(!/^\d{3}$/.test(s) || !/^\d{3}$/.test(qd)) return;
+      try{
+        const r = await fetch(`${API_BASE}/api/pgv-codlogs?setor=${s}&quadra=${qd}`);
+        const lst = r.ok ? await r.json() : [];
+        lst.forEach(it=>{ const c=String(it.codlog).trim().padStart(6,'0'); if(!(valores[c] >= it.valor)) valores[c] = +it.valor; });
+      }catch(e){}
+    }));
+    let melhor = -1;
+    lotes.forEach(l=>{
+      const v = valores[l.codlog];
+      if(v!=null && v>melhor){ melhor=v; escolhido=l; }
+    });
+    if(escolhido){
+      // dentro da rua vencedora, prefere o lote de maior área
+      const daRua = lotes.filter(l=>l.codlog===escolhido.codlog).sort((a,b)=>b.area-a.area);
+      escolhido = daRua[0];
+      showToast(`📍 Endereço: ${escolhido.nome} (rua de maior PGV no Quadro 14 — R$ ${melhor.toLocaleString('pt-BR')})`);
+    }
+  }
+  if(!escolhido) escolhido = lotes.slice().sort((a,b)=>b.area-a.area)[0];
+  if(fEnd.value.trim()) return true;
+  fEnd.value = escolhido.num && escolhido.num!=='0' ? `${escolhido.nome}, ${escolhido.num}` : escolhido.nome;
+  return true;
+}
+
 function _criarPoligonoDeFeatures(feats, opts){
   opts = opts || {};
   // manterExistente=true (usado pelo botão "➕ Adicionar lote ao polígono"):
@@ -11509,7 +12210,15 @@ function _criarPoligonoDeFeatures(feats, opts){
   // estar preenchido, então não mexe nele (só Setor/Quadra, informativo).
   for(const f of feats){
     const sql = fmtSQLprops(f.properties);
-    if(sql !== '—'){ _autoSetorQuadra(sql); if(!manterExistente) _autoPreencherEndereco(sql); break; }
+    if(sql !== '—'){
+      _autoSetorQuadra(sql);
+      if(!manterExistente){
+        // 1º tenta pelo logradouro dos próprios lotes (rua de maior PGV se houver várias);
+        // se não vier nada, cai na consulta antiga pelo 1º lote.
+        _autoPreencherEnderecoDeFeatures(feats).then(ok=>{ if(!ok) _autoPreencherEndereco(sql); }).catch(()=>_autoPreencherEndereco(sql));
+      }
+      break;
+    }
   }
 
   let hull = null;
@@ -13423,10 +14132,18 @@ async function _geocodeLoteGeoSampa(q){
     const GEN = new Set(['AV','AVENIDA','R','RUA','AL','ALAMEDA','TV','TRAVESSA','PC','PRACA','LG','LARGO','EST','ESTRADA','ENG','ENGENHEIRO','DR','DOUTOR','PROF','PROFESSOR','CEL','CORONEL','GAL','GENERAL','MAL','MARECHAL','PE','PADRE','DE','DA','DO','DAS','DOS','E','SAO','SANTA','SANTO','VER','VEREADOR']);
     const tokens = partes.slice(0,iNum).filter(t=>!GEN.has(t) && t.length>=3).map(t=>t.length>=7 ? t.slice(0,t.length-2) : t.length>=5 ? t.slice(0,t.length-1) : t);
     if(!tokens.length) return null;
-    const r = await fetch(`${API_BASE}/api/geosampa-endereco?numero=${numero}&tokens=${encodeURIComponent(tokens.join(','))}`);
-    if(!r.ok) return null;
-    const gj = await r.json();
-    const f = (gj.features||[])[0];
+    // 1ª tentativa: nome como digitado; 2ª (tolerante a erro de digitação, ex.: "Irugueli" x "Irulegui"):
+    // só as 3 primeiras letras de cada palavra.
+    let gj = null, f = null, fuzzy = false;
+    const tentativas = [tokens, tokens.map(t=>t.length>3 ? t.slice(0,3) : t)];
+    for(let k=0;k<tentativas.length;k++){
+      const tk = tentativas[k];
+      if(k===1 && tk.join(',')===tokens.join(',')) break;
+      const r = await fetch(`${API_BASE}/api/geosampa-endereco?numero=${numero}&tokens=${encodeURIComponent(tk.join(','))}`);
+      if(!r.ok) continue;
+      const g = await r.json();
+      if((g.features||[])[0]){ gj = g; f = g.features[0]; fuzzy = k===1; break; }
+    }
     if(!f) return null;
     const c = _loteCentroid(f); // [lng,lat]
     if(!c) return null;
@@ -13434,7 +14151,7 @@ async function _geocodeLoteGeoSampa(q){
     const sql = fmtSQLprops(p);
     const extra = (gj.features.length>1) ? ` (+${gj.features.length-1} lote(s) com o mesmo endereço)` : '';
     const aprox = gj._aproximado ? ` ⚠️ nº ${numero} não existe no cadastro — mostrando o nº ${p.cd_numero_porta} mais próximo` : '';
-    return [{ lat:c[1], lon:c[0], display_name:`${p.nm_logradouro_completo||''}, ${p.cd_numero_porta||numero} — lote ${sql} (cadastro GeoSampa)${extra}${aprox}` }];
+    return [{ lat:c[1], lon:c[0], display_name:`${p.nm_logradouro_completo||''}, ${p.cd_numero_porta||numero} — lote ${sql} (cadastro GeoSampa)${extra}${aprox}${fuzzy?' ⚠️ nome da rua parecido com o digitado — confira':''}` }];
   }catch(e){ return null; }
 }
 
@@ -24425,6 +25142,12 @@ function toggleMedirArea(){
     map.getContainer().style.cursor = 'crosshair';
     map.on('click', _medirClick);
     map.on('dblclick', _medirDblClick);
+    // Captura os cliques ANTES de qualquer camada/painel (lotes, terrenos, zoneamento,
+    // Info lote, ITBI…): no modo medir, clicar em qualquer lugar só adiciona ponto.
+    map.getContainer().addEventListener('click', _medirCapture, true);
+    map.getContainer().addEventListener('dblclick', _medirCapture, true);
+    try{ map.closePopup(); }catch(_){}
+    document.getElementById('geosampa-panel')?.remove();
     window.addEventListener('keydown', _medirKeydown);
     showToast(_medirModo==='area' ? '📐 Modo medir — clique para adicionar pontos' : '📏 Modo medir — clique para adicionar pontos da linha');
   } else {
@@ -24439,8 +25162,19 @@ function cancelMedirArea(){
   map.getContainer().style.cursor = '';
   map.off('click', _medirClick);
   map.off('dblclick', _medirDblClick);
+  map.getContainer().removeEventListener('click', _medirCapture, true);
+  map.getContainer().removeEventListener('dblclick', _medirCapture, true);
   window.removeEventListener('keydown', _medirKeydown);
   _limparMedicao();
+}
+function _medirCapture(ev){
+  if(!_medirMode || _medirLocked) return;
+  const t = ev.target;
+  if(t && t.closest && t.closest('.leaflet-control, .medir-vertice, button, a, input, select, label, #medir-panel')) return;
+  ev.stopPropagation();
+  ev.preventDefault();
+  const fake = { latlng: map.mouseEventToLatLng(ev), originalEvent: ev };
+  if(ev.type === 'click') _medirClick(fake); else _medirDblClick(fake);
 }
 
 // Alterna entre medir Área (polígono) e Distância (linha aberta) — reinicia
@@ -24551,7 +25285,7 @@ function _updateMedirLayer(){
   // Marcadores nos vértices
   _medirPts.forEach((p,i) => {
     const icon = L.divIcon({
-      className:'',
+      className:'medir-vertice',
       html:`<div style="width:10px;height:10px;background:#00B0B9;border:2px solid #fff;border-radius:50%;box-shadow:0 1px 4px rgba(0,0,0,.3)"></div>`,
       iconSize:[10,10], iconAnchor:[5,5]
     });
@@ -25001,6 +25735,29 @@ function _mprospecRenderClusters(){
   }).join('');
 }
 
+// Painel "Info lote" → "➕ Cadastrar terreno": abre o cadastro novo já preenchido com o lote clicado.
+function _cadastrarLoteDoPainel(){
+  const d = window._lotePainelCad; if(!d) return;
+  document.getElementById('geosampa-panel')?.remove();
+  switchTab('mapa');
+  setTimeout(()=>{
+    startNewTerreno();
+    setTimeout(()=>{
+      const fe=document.getElementById('f-endereco'), fb=document.getElementById('f-bairro'), fo=document.getElementById('f-obs');
+      if(fe) fe.value = d.logr ? d.logr + (d.num ? ', '+d.num : '') : '';
+      if(fb && d.bairro) fb.value = d.bairro;
+      if(fo && !fo.value) fo.value = `Cadastrado a partir do lote ${d.sql}${d.uso?' ('+d.uso+')':''}.`;
+      addLoteInput(d.sql||'', Math.round(d.area||0));
+      updateLotesTotal();
+      if(d.feat && d.feat.geometry){
+        _geomToLatLngs(d.feat.geometry, true).forEach(ring=>{ if(ring.length>=3) pendingPolygons.push(ring); });
+        renderPolyList();
+      }
+      showToast('Lote carregado no cadastro — complete os dados e salve.');
+    }, 400);
+  }, 200);
+}
+
 // Cadastra o conjunto inteiro como um único terreno: soma a área, junta os
 // SQLs na lista de Lotes (mesmo mecanismo do botão "+ Adicionar à lista" do
 // painel de Info do lote) e desenha o contorno de cada lote como polígono do
@@ -25017,7 +25774,10 @@ function _mprospecCadastrarCluster(idx){
       const fe = document.getElementById('f-endereco');
       const fz = document.getElementById('f-zone');
       const fo = document.getElementById('f-obs');
-      if(fe) fe.value = ruas[0] || '';
+      if(fe){
+        fe.value = '';
+        _autoPreencherEnderecoDeFeatures(cl.data.map(d=>d.lote)).then(ok=>{ if(!ok && !fe.value) fe.value = ruas[0] || ''; }).catch(()=>{ if(!fe.value) fe.value = ruas[0] || ''; });
+      }
       if(fz && cl.data[0]?.zona) fz.value = cl.data[0].zona;
       if(fo) fo.value = `Conjunto contínuo de ${cl.data.length} lotes sem prédio, identificado via Prospecção. SQLs: ${cl.data.map(d=>d.sql).join(', ')}`;
       cl.data.forEach(d=>addLoteInput(d.sql||'', Math.round(d.area||0)));
@@ -31670,6 +32430,270 @@ async function _apresentGerarImagensTerreno(t){
     map.on('zoomend', _scheduleVecLoad);
   }
   return imgs;
+}
+
+// ── MATERIAL PARA CORRETOR (pacote ZIP: planta do terreno + mapas + dados) ─────
+// Inspirado no "Material para corretor" do galpao.org: plantas em PDF + imagens
+// prontas pra enviar. Aqui a "planta" é a planta de situação do terreno, desenhada
+// a partir do polígono cadastrado, com a medida de cada lado e a área.
+function _mcFmt(n, d){ return Number(n).toLocaleString('pt-BR',{minimumFractionDigits:d||0,maximumFractionDigits:d==null?0:d}); }
+function _mcAreaRing(r){ let a=0; for(let i=0;i<r.length;i++){ const p=r[i], q=r[(i+1)%r.length]; a+=p[0]*q[1]-q[0]*p[1]; } return Math.abs(a)/2; }
+
+function _mcPlantaSvg(t){
+  const polys = _apresentPoligonoCoords(t);
+  if(!polys) return null;
+  const all = polys.flat().filter(p=>Array.isArray(p) && p.length>=2);
+  const lat0 = all.reduce((s,p)=>s+p[0],0)/all.length, lng0 = all.reduce((s,p)=>s+p[1],0)/all.length;
+  const kx = 111320*Math.cos(lat0*Math.PI/180), ky = 110540;
+  const rings = polys.map(r=>{
+    let pts = r.map(p=>[(p[1]-lng0)*kx, (p[0]-lat0)*ky]);
+    if(pts.length>1){ const a=pts[0], b=pts[pts.length-1]; if(Math.abs(a[0]-b[0])<0.01 && Math.abs(a[1]-b[1])<0.01) pts.pop(); }
+    return pts;
+  }).filter(r=>r.length>=3);
+  if(!rings.length) return null;
+  const xs = rings.flat().map(p=>p[0]), ys = rings.flat().map(p=>p[1]);
+  const minX=Math.min(...xs), maxX=Math.max(...xs), minY=Math.min(...ys), maxY=Math.max(...ys);
+  const W=1100, H=780, mL=90, mR=90, mT=145, mB=150;
+  const dw=W-mL-mR, dh=H-mT-mB;
+  const s = Math.min(dw/Math.max(maxX-minX,1), dh/Math.max(maxY-minY,1));
+  const offX = mL + (dw-(maxX-minX)*s)/2, offY = mT + (dh-(maxY-minY)*s)/2;
+  const sx = x=>offX+(x-minX)*s, sy = y=>offY+(maxY-y)*s;
+  const esc = escHtml;
+  // texto com "halo" branco desenhado por baixo (funciona em qualquer renderizador de SVG)
+  const halo = (txt,x,y,size,cor,tr)=>{
+    const base = `x="${x.toFixed(1)}" y="${y.toFixed(1)}" ${tr?`transform="${tr}" `:''}text-anchor="middle" dominant-baseline="central" font-size="${size}" font-weight="700"`;
+    return `<text ${base} fill="#fff" stroke="#fff" stroke-width="${size>16?6:5}" stroke-linejoin="round">${txt}</text><text ${base} fill="${cor}">${txt}</text>`;
+  };
+  let g = '';
+  let areaTotal = 0;
+  rings.forEach(r=>{
+    const area = _mcAreaRing(r); areaTotal += area;
+    const sp = r.map(p=>[sx(p[0]),sy(p[1])]);
+    g += `<polygon points="${sp.map(p=>p[0].toFixed(1)+','+p[1].toFixed(1)).join(' ')}" fill="#dff3f4" fill-opacity="0.95" stroke="#1a3c4d" stroke-width="2.5" stroke-linejoin="round"/>`;
+    const cx = sp.reduce((a,p)=>a+p[0],0)/sp.length, cy = sp.reduce((a,p)=>a+p[1],0)/sp.length;
+    // medida de cada lado
+    for(let i=0;i<r.length;i++){
+      const p=r[i], q=r[(i+1)%r.length];
+      const len = Math.hypot(q[0]-p[0], q[1]-p[1]);
+      const a=sp[i], b=sp[(i+1)%sp.length];
+      const lenPx = Math.hypot(b[0]-a[0], b[1]-a[1]);
+      if(len<1.5 || lenPx<44) continue;
+      const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2;
+      let nx = -(b[1]-a[1])/lenPx, ny = (b[0]-a[0])/lenPx;
+      if(nx*(mx-cx)+ny*(my-cy) < 0){ nx=-nx; ny=-ny; }
+      let ang = Math.atan2(b[1]-a[1], b[0]-a[0])*180/Math.PI;
+      if(ang>90) ang-=180; if(ang<-90) ang+=180;
+      const tx=mx+nx*17, ty=my+ny*17;
+      g += halo(`${_mcFmt(len,2)} m`, tx, ty, 14, '#1a3c4d', `rotate(${ang.toFixed(1)} ${tx.toFixed(1)} ${ty.toFixed(1)})`);
+    }
+    sp.forEach(p=>{ g += `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4" fill="#00B0B9" stroke="#fff" stroke-width="1.5"/>`; });
+    g += halo(`${_mcFmt(area,0)} m²`, cx, cy, 20, '#00606a', '');
+  });
+  // barra de escala
+  const nice=[5,10,20,25,50,100,200,500];
+  const L = nice.filter(n=>n*s<=240).pop() || nice[0];
+  const barX=mL, barY=H-mB+55, bw=L*s;
+  const scale = `<g><rect x="${barX}" y="${barY}" width="${bw/2}" height="8" fill="#1a3c4d"/><rect x="${barX+bw/2}" y="${barY}" width="${bw/2}" height="8" fill="#fff" stroke="#1a3c4d"/>
+    <rect x="${barX}" y="${barY}" width="${bw}" height="8" fill="none" stroke="#1a3c4d"/>
+    <text x="${barX}" y="${barY+24}" font-size="12" fill="#1a3c4d">0</text><text x="${barX+bw}" y="${barY+24}" font-size="12" fill="#1a3c4d" text-anchor="middle">${L} m</text></g>`;
+  // norte
+  const nxp=W-mR-10, nyp=mT-30;
+  const north = `<g><polygon points="${nxp},${nyp-30} ${nxp-11},${nyp+14} ${nxp},${nyp+6} ${nxp+11},${nyp+14}" fill="#1a3c4d"/><text x="${nxp}" y="${nyp-36}" text-anchor="middle" font-size="16" font-weight="700" fill="#1a3c4d">N</text></g>`;
+  // lotes
+  const lotes = Array.isArray(t.lotes) ? t.lotes : [];
+  const la = t.lotes_areas || {};
+  const lotesTxt = lotes.map(sql=>sql+(la[sql]?` (${_mcFmt(la[sql],0)} m²)`:'')).join(' · ');
+  const linhas = []; let cur='';
+  lotesTxt.split(' · ').forEach(it=>{ if((cur+' · '+it).length>120 && cur){ linhas.push(cur); cur=it; } else cur = cur?cur+' · '+it:it; });
+  if(cur) linhas.push(cur);
+  const lotesSvg = linhas.length ? `<text x="${mL}" y="${H-mB+95}" font-size="12" font-weight="700" fill="#1a3c4d">Lotes (SQL):</text>` + linhas.slice(0,3).map((ln,i)=>`<text x="${mL+78}" y="${H-mB+95+i*16}" font-size="12" fill="#334155">${esc(ln)}</text>`).join('') : '';
+  const titulo = (t.apelido&&t.apelido.trim()) ? t.apelido.trim() : (t.endereco||'Terreno');
+  const sub = [t.endereco&&t.endereco!==titulo?t.endereco:'', t.bairro, t.zoneamento?('Zoneamento '+t.zoneamento):'', (t.setor&&t.quadra)?('Setor '+t.setor+' · Quadra '+t.quadra):''].filter(Boolean).join('  ·  ');
+  return { svg:`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" font-family="Arial, Helvetica, sans-serif">
+    <rect width="${W}" height="${H}" fill="#ffffff"/><rect x="14" y="14" width="${W-28}" height="${H-28}" fill="none" stroke="#1a3c4d" stroke-width="1.5"/>
+    <text x="${mL}" y="58" font-size="14" font-weight="700" fill="#00B0B9" letter-spacing="2">PLANTA DE SITUAÇÃO DO TERRENO</text>
+    <text x="${mL}" y="88" font-size="26" font-weight="700" fill="#1a3c4d">${esc(titulo)}</text>
+    <text x="${mL}" y="110" font-size="13" fill="#475569">${esc(sub)}</text>
+    ${g}${scale}${north}${lotesSvg}
+    <text x="${W-mR}" y="${H-mB+55+8}" text-anchor="end" font-size="13" font-weight="700" fill="#1a3c4d">Área total do desenho: ${_mcFmt(areaTotal,0)} m²${t.area?'  ·  Cadastro: '+esc(t.area):''}</text>
+    <text x="${W/2}" y="${H-28}" text-anchor="middle" font-size="10" fill="#64748b">Medidas aproximadas, obtidas do contorno cadastrado (mapa/GeoSampa). Não substituem levantamento topográfico nem a matrícula do imóvel.</text>
+  </svg>`, areaTotal, titulo, sub, W, H };
+}
+
+function _mcSvgParaPng(svg, W, H, esc){
+  return new Promise(resolve=>{
+    const img = new Image();
+    img.onload = ()=>{ try{
+      const c = document.createElement('canvas'); c.width=W*2; c.height=H*2;
+      const ctx = c.getContext('2d'); ctx.fillStyle='#fff'; ctx.fillRect(0,0,c.width,c.height); ctx.drawImage(img,0,0,c.width,c.height);
+      resolve(c.toDataURL('image/png'));
+    }catch(e){ resolve(null); } };
+    img.onerror = ()=>resolve(null);
+    img.src = 'data:image/svg+xml;charset=utf-8,'+encodeURIComponent(svg);
+  });
+}
+
+function _mcHtmlPdf(t, planta, imgs, extra){
+  extra = extra || {};
+  const e = escHtml;
+  const lotes = Array.isArray(t.lotes) ? t.lotes : []; const la = t.lotes_areas||{};
+  const linhas = [
+    ['Endereço', t.endereco], ['Bairro', t.bairro], ['Área do terreno', t.area],
+    ['Área medida no desenho', _mcFmt(planta.areaTotal,0)+' m²'], ['Zoneamento', t.zoneamento],
+    ['Setor / Quadra', (t.setor&&t.quadra)?`${t.setor} / ${t.quadra}`:''],
+    ['Lotes (SQL)', lotes.map(s=>s+(la[s]?` (${_mcFmt(la[s],0)} m²)`:'')).join('<br>')]
+  ].filter(r=>r[1]);
+  const im = (src, leg)=> src ? `<div class="im"><img src="${src}"><div class="lg">${leg}</div></div>` : '';
+  return `<!doctype html><html><head><meta charset="utf-8"><title>Material do terreno</title><style>
+  @page{size:A4 landscape;margin:8mm} *{box-sizing:border-box} body{font-family:Arial,Helvetica,sans-serif;color:#1a3c4d;margin:0}
+  .pg{page-break-after:always;height:190mm;overflow:hidden} .pg:last-child{page-break-after:auto}
+  .pl svg{width:100%;height:auto;max-height:186mm}
+  h1{font-size:20px;margin:0 0 2px} .tag{color:#00B0B9;font-weight:700;letter-spacing:2px;font-size:11px}
+  table{border-collapse:collapse;width:100%;font-size:13px} td{padding:7px 10px;border-bottom:1px solid #e5e7eb;vertical-align:top} td:first-child{width:34%;color:#64748b;font-weight:700}
+  .grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px} .im img{width:100%;height:76mm;object-fit:cover;border-radius:6px;border:1px solid #d1d5db} .lg{font-size:11px;color:#475569;margin-top:3px}
+  .ft{font-size:10px;color:#94a3b8;margin-top:8px}
+  </style></head><body>
+  <div class="pg pl">${planta.svg}</div>
+  <div class="pg"><div class="tag">MATERIAL PARA CORRETORES</div><h1>${e(planta.titulo)}</h1>
+    <div style="display:grid;grid-template-columns:1fr 1.25fr;gap:14px;margin-top:8px"><table>${linhas.map(r=>`<tr><td>${r[0]}</td><td>${r[0]==='Lotes (SQL)'?r[1]:e(r[1])}</td></tr>`).join('')}</table>
+    <div class="grid" style="margin-top:0">${im(imgs.poligono,'Contorno do terreno (satélite)')}${im(imgs.rua,'Croqui de localização')}</div></div>
+    <div class="ft">Medidas e áreas aproximadas, obtidas do contorno cadastrado. Material preparado por YUNY Novos Negócios.</div></div>
+  ${(imgs.perto||imgs.longe)?`<div class="pg"><div class="tag">LOCALIZAÇÃO</div><h1>${e(planta.titulo)}</h1><div class="grid">${im(imgs.perto,'Vista aproximada')}${im(imgs.longe,'Vista regional')}</div></div>`:''}
+  ${extra.zon?`<div class="pg"><div class="tag">ZONEAMENTO</div><h1>${e(planta.titulo)}${t.zoneamento?' — '+e(t.zoneamento):''}</h1><img src="${extra.zon}" style="width:100%;max-height:165mm;object-fit:contain;border:1px solid #d1d5db;border-radius:6px;margin-top:6px"><div class="ft">Zoneamento conforme camada oficial do GeoSampa (Lei 18.177/2024). Consulte a legislação vigente para os parâmetros construtivos.</div></div>`:''}
+  ${(extra.fotos||[]).length?(()=>{ const f=extra.fotos, out=[]; for(let i=0;i<f.length;i+=6){ out.push(`<div class="pg"><div class="tag">FOTOS</div><h1>${e(planta.titulo)}</h1><div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:8px">${f.slice(i,i+6).map(x=>`<img src="${x}" style="width:100%;height:80mm;object-fit:cover;border-radius:6px;border:1px solid #d1d5db">`).join('')}</div></div>`); } return out.join(''); })():''}
+  </body></html>`;
+}
+
+function _mcCarregaImg(url){
+  return new Promise((res,rej)=>{ const im=new Image(); im.crossOrigin='anonymous'; im.onload=()=>res(im); im.onerror=()=>rej(new Error('imagem não carregou')); im.src=url; });
+}
+// Mapa de zoneamento: base de rua (ArcGIS) + camada oficial de zonas do GeoSampa (via servidor) + contorno do terreno + legenda
+async function _mcMapaZoneamento(t){
+  const polys = _apresentPoligonoCoords(t); if(!polys) return null;
+  const all = polys.flat().filter(p=>Array.isArray(p));
+  const la = all.map(p=>p[0]), ln = all.map(p=>p[1]);
+  const clat=(Math.min(...la)+Math.max(...la))/2, clng=(Math.min(...ln)+Math.max(...ln))/2;
+  const W=1100, H=780;
+  const extentM = Math.max((Math.max(...la)-Math.min(...la))*110540, (Math.max(...ln)-Math.min(...ln))*111320*Math.cos(clat*Math.PI/180));
+  const hM = Math.max(500, extentM*3);
+  const dLat = hM/110540, dLng = dLat*(W/H)/Math.cos(clat*Math.PI/180);
+  const bb = [clng-dLng/2, clat-dLat/2, clng+dLng/2, clat+dLat/2];
+  const bbS = bb.join(',');
+  const LAYER = 'geoportal:perimetro_zona_lei_18177_24';
+  const [base, ov] = await Promise.all([
+    _mcCarregaImg(`https://server.arcgisonline.com/ArcGIS/rest/services/World_Street_Map/MapServer/export?bbox=${bbS}&bboxSR=4326&imageSR=4326&size=${W},${H}&format=png&transparent=false&f=image`),
+    _mcCarregaImg(`${API_BASE}/api/wms-img?layers=${encodeURIComponent(LAYER)}&bbox=${bbS}&w=${W}&h=${H}`)
+  ]);
+  let leg = null; try{ leg = await _mcCarregaImg(`${API_BASE}/api/wms-img?layers=${encodeURIComponent(LAYER)}&legend=1`); }catch(_){}
+  const legW = leg ? 250 : 0;
+  const c = document.createElement('canvas'); c.width=W+legW; c.height=H;
+  const x = c.getContext('2d'); x.fillStyle='#fff'; x.fillRect(0,0,c.width,c.height);
+  x.drawImage(base,0,0,W,H);
+  x.globalAlpha=0.6; x.drawImage(ov,0,0,W,H); x.globalAlpha=1;
+  const px = p=>[ (p[1]-bb[0])/(bb[2]-bb[0])*W, (bb[3]-p[0])/(bb[3]-bb[1])*H ];
+  polys.forEach(r=>{
+    x.beginPath(); r.forEach((p,i)=>{ const q=px(p); i?x.lineTo(q[0],q[1]):x.moveTo(q[0],q[1]); }); x.closePath();
+    x.fillStyle='rgba(239,68,68,0.15)'; x.fill(); x.lineWidth=3.5; x.strokeStyle='#dc2626'; x.stroke();
+  });
+  const rot = (t.apelido||t.endereco||'Terreno')+(t.zoneamento?'  ·  '+t.zoneamento:'');
+  x.font='bold 18px Arial'; const tw=x.measureText(rot).width+24;
+  x.fillStyle='rgba(255,255,255,.92)'; x.fillRect(12,12,tw,34); x.fillStyle='#1a3c4d'; x.fillText(rot,24,36);
+  if(leg){
+    const sc = Math.min(legW/leg.width, (H-20)/leg.height, 1.4);
+    x.drawImage(leg, W+(legW-leg.width*sc)/2, 10, leg.width*sc, leg.height*sc);
+  }
+  try{ return { img: c.toDataURL('image/png') }; }catch(e){ throw new Error('canvas bloqueado (CORS): '+e.message); }
+}
+// Lê fotos escolhidas e reduz (máx. 1600 px, JPEG) para o ZIP/PDF não ficar gigante
+function _mcLerFotos(files){
+  return Promise.all([...files].map(f=>new Promise(res=>{
+    const fr=new FileReader();
+    fr.onload=()=>{ const im=new Image(); im.onload=()=>{
+      const k=Math.min(1,1600/Math.max(im.width,im.height)); const c=document.createElement('canvas'); c.width=Math.round(im.width*k); c.height=Math.round(im.height*k);
+      c.getContext('2d').drawImage(im,0,0,c.width,c.height); res(c.toDataURL('image/jpeg',0.85)); };
+      im.onerror=()=>res(null); im.src=fr.result; };
+    fr.onerror=()=>res(null); fr.readAsDataURL(f);
+  }))).then(a=>a.filter(Boolean));
+}
+function gerarMaterialCorretor(){
+  const t = editingId ? terrenos.find(x=>x.id===editingId) : null;
+  if(!t){ alert('Salve o terreno antes de gerar o material para corretor.'); return; }
+  document.getElementById('mc-dialogo')?.remove();
+  const ov = document.createElement('div'); ov.id='mc-dialogo';
+  ov.style.cssText='position:fixed;inset:0;z-index:100001;background:rgba(0,0,0,.45);display:flex;align-items:center;justify-content:center;padding:16px;';
+  ov.onclick=e=>{ if(e.target===ov) ov.remove(); };
+  ov.innerHTML=`<div style="background:#fff;border-radius:12px;max-width:440px;width:100%;padding:18px 22px;font-family:system-ui,sans-serif;font-size:13px;color:#1a3c4d">
+    <h3 style="margin:0 0 4px;font-size:16px">📦 Material para corretor</h3>
+    <div style="color:#64748b;font-size:12px;margin-bottom:12px">Gera um ZIP com a planta do terreno, mapas e ficha de dados (PDF).</div>
+    <label style="display:flex;gap:8px;align-items:center;margin-bottom:10px;cursor:pointer"><input type="checkbox" id="mc-zon" checked> Incluir mapa de zoneamento (precisa do servidor ligado)</label>
+    <div style="margin-bottom:12px"><div style="font-weight:600;margin-bottom:4px">Fotos do terreno (opcional)</div>
+      <input type="file" id="mc-fotos" accept="image/*" multiple style="font-size:12px"><div id="mc-fotos-n" style="font-size:11px;color:#64748b;margin-top:3px">Nenhuma foto selecionada</div></div>
+    <div style="display:flex;gap:8px;justify-content:flex-end"><button onclick="document.getElementById('mc-dialogo').remove()" style="padding:6px 14px;border:1px solid #cbd5e1;background:#fff;border-radius:6px;cursor:pointer">Cancelar</button>
+    <button id="mc-go" style="padding:6px 16px;border:none;background:#16a34a;color:#fff;border-radius:6px;cursor:pointer;font-weight:700">Gerar ZIP</button></div></div>`;
+  document.body.appendChild(ov);
+  const inp=document.getElementById('mc-fotos');
+  inp.onchange=()=>{ document.getElementById('mc-fotos-n').textContent = inp.files.length ? inp.files.length+' foto(s) selecionada(s)' : 'Nenhuma foto selecionada'; };
+  document.getElementById('mc-go').onclick=async()=>{
+    const zoneamento=document.getElementById('mc-zon').checked; const files=[...inp.files]; ov.remove();
+    const fotos = files.length ? await _mcLerFotos(files) : [];
+    _mcGerar({ zoneamento, fotos });
+  };
+}
+async function _mcGerar(opts){
+  opts = opts || {};
+  const btn = document.getElementById('btn-material-corretor');
+  const t = editingId ? terrenos.find(x=>x.id===editingId) : null;
+  if(!t){ alert('Salve o terreno antes de gerar o material para corretor.'); return; }
+  if(typeof JSZip==='undefined'){ alert('Biblioteca de ZIP não carregada (precisa de internet). Recarregue a página e tente de novo.'); return; }
+  const planta = _mcPlantaSvg(t);
+  if(!planta){ alert('Este terreno ainda não tem polígono desenhado — desenhe o contorno no mapa e salve para gerar a planta.'); return; }
+  const rot = btn ? btn.textContent : '';
+  const prog = m=>{ if(btn) btn.textContent = m; };
+  if(btn) btn.disabled = true;
+  try{
+    prog('⏳ Planta…');
+    const plantaPng = await _mcSvgParaPng(planta.svg, planta.W, planta.H);
+    prog('⏳ Mapas…');
+    if(!document.getElementById('tab-mapa')?.classList.contains('active')){ switchTab('mapa'); await new Promise(r=>setTimeout(r,400)); }
+    map.invalidateSize();
+    let imgs = {};
+    try{ imgs = await _apresentGerarImagensTerreno(t) || {}; }catch(e){ console.warn('[materialCorretor] mapas', e); }
+    prog('⏳ PDF…');
+    let zon = null, zonLegenda = null;
+    if(opts.zoneamento){
+      prog('⏳ Zoneamento…');
+      try{ const z = await _mcMapaZoneamento(t); if(z){ zon = z.img; zonLegenda = z.legenda; } }catch(e){ console.warn('[materialCorretor] zoneamento', e); }
+    }
+    const fotos = opts.fotos || [];
+    const html = _mcHtmlPdf(t, planta, imgs, { zon, fotos });
+    let pdfBlob = null, erroPdf = '';
+    try{
+      const r = await fetch(API_BASE+'/api/html-para-pdf', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({ html, landscape:true }) });
+      if(r.ok) pdfBlob = await r.blob(); else { const j = await r.json().catch(()=>({})); erroPdf = j.error||('HTTP '+r.status); }
+    }catch(e){ erroPdf = e.message; }
+    prog('⏳ ZIP…');
+    const zip = new JSZip();
+    const b64 = d=>d.replace(/^data:[^,]+,/,'');
+    if(pdfBlob) zip.file('Material_do_terreno.pdf', pdfBlob);
+    else zip.file('Material_do_terreno.html', html);
+    zip.file('01_Planta_do_terreno.svg', planta.svg);
+    if(plantaPng) zip.file('01_Planta_do_terreno.png', b64(plantaPng), {base64:true});
+    const nomes = { poligono:'02_Contorno_satelite.png', rua:'03_Croqui_localizacao.png', perto:'04_Vista_aproximada.png', longe:'05_Vista_regional.png' };
+    Object.keys(nomes).forEach(k=>{ if(imgs[k]) zip.file(nomes[k], b64(imgs[k]), {base64:true}); });
+    if(zon) zip.file('06_Mapa_de_zoneamento.png', b64(zon), {base64:true});
+    fotos.forEach((f,i)=>zip.file('Fotos/Foto_'+String(i+1).padStart(2,'0')+'.jpg', b64(f), {base64:true}));
+    const blob = await zip.generateAsync({type:'blob'});
+    const slug = (t.apelido||t.endereco||'terreno').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^\w]+/g,'_').slice(0,50);
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'Material_Corretor_'+slug+'.zip';
+    document.body.appendChild(a); a.click(); a.remove();
+    if(opts.zoneamento && !zon) showToast('⚠️ Não consegui montar o mapa de zoneamento (servidor/internet). O restante foi gerado.', 7000);
+    showToast(pdfBlob ? '📦 Material para corretor gerado!' : '📦 ZIP gerado, mas sem PDF ('+erroPdf+'). Abra o .html e imprima em PDF.', pdfBlob?4000:9000);
+  }catch(e){
+    console.error('[materialCorretor]', e);
+    alert('Não consegui gerar o material: '+e.message);
+  }finally{
+    if(btn){ btn.disabled = false; btn.textContent = rot || '📦 Material corretor'; }
+  }
 }
 
 // Coleta tudo que um terreno precisa pra virar 5 slides (prints do mapa +
