@@ -152,6 +152,8 @@ async function importExcel(input){
       const iFup  = headers.findIndex(h => h.toLowerCase().includes('follow') || h.toLowerCase().includes('obs'));
       const iSet  = headers.findIndex(h => h.toLowerCase().includes('setor'));
       const iQua  = headers.findIndex(h => h.toLowerCase().includes('quadra'));
+      const iLat  = headers.findIndex(h => h.toLowerCase().startsWith('lat'));
+      const iLng  = headers.findIndex(h => h.toLowerCase().startsWith('lon'));
 
       // Mapa endereço normalizado → terreno existente
       const existingMap = {};
@@ -187,6 +189,12 @@ async function importExcel(input){
           if((setor || quadra) && (!existing.setor || !existing.quadra)){
             updates.setor  = setor;
             updates.quadra = quadra;
+          }
+          // Recupera posição (marcador no mapa) de terrenos que perderam lat/lng — só se estiver vazio
+          const latX = iLat>=0 ? parseFloat(String(row[iLat]).replace(',','.')) : NaN;
+          const lngX = iLng>=0 ? parseFloat(String(row[iLng]).replace(',','.')) : NaN;
+          if(!isNaN(latX) && !isNaN(lngX) && !existing.lat && !existing.lng && !(existing.polygons && existing.polygons.length)){
+            updates.lat = latX; updates.lng = lngX;
           }
           // Atualiza obs se a planilha tiver versão mais recente (mais longa)
           if(obs && obs.length > (existing.obs||'').length){
@@ -1886,7 +1894,6 @@ summary.geosampa-group-label {
                 </div>
               </div>
             </details>
-            <button class="geosampa-btn" id="btn-geo-itbiheat" onclick="toggleItbiHeatLayer()" title="Colorir os lotes pelo preço real de venda (ITBI) — aproxime o zoom">💰 Transações ITBI</button>
             <button class="geosampa-btn" id="btn-geo-avenda" onclick="toggleAvendaMapMode()" title="Verificar se o imóvel está à venda online">🏠 À Venda</button>
                 <button class="geosampa-btn" id="btn-geo-indisp" onclick="toggleIndispLayer()" title="Lotes sem potencial para estudo: (1) prédios em condomínio (CD) e (2) lotes que, somados aos vizinhos contínuos, não passam de 1.000 m² — aproxime o zoom">🚫 Sem potencial (CD / &lt;1.000 m²)</button>
                 <button class="geosampa-btn" id="btn-geo-indisp-cd" onclick="toggleIndispCdLayer()" title="Condomínios (CD) com pelo menos 1.500 m² e até 15 apartamentos — destacados em verde. Nº de aptos/salas = linhas da tabela \"Informações dos lotes do condomínio\" do GeoSampa (contagem feita sob demanda, pode levar alguns segundos). Aproxime o zoom.">🏢 CD ≥1.500 m² e ≤15 aptos</button>
@@ -1895,6 +1902,7 @@ summary.geosampa-group-label {
         <button class="geosampa-btn" id="btn-geo-info" onclick="toggleLotesQuery()" title="Ativar consulta de lotes no mapa">🔍 Info lote</button>
         <button class="geosampa-btn" id="btn-geo-pgvrua" onclick="togglePgvRuaLayer()" title="Mostrar, ao lado de cada rua/codlog, o valor oficial de PGV do Quadro 14 (Cadastro de Valor de Terreno) — aproxime o zoom">🏷️ Quadro 14_2026</button>
         <button class="geosampa-btn" id="btn-medir-area" onclick="toggleMedirArea()" title="Desenhar polígono/linha e medir área ou distância">📐 Medir</button>
+        <button class="geosampa-btn" id="btn-geo-itbiheat" onclick="toggleItbiHeatLayer()" title="Colorir os lotes pelo preço real de venda (ITBI) — aproxime o zoom">💰 Transações ITBI</button>
       </div>
     </div>
 
@@ -2133,7 +2141,7 @@ summary.geosampa-group-label {
       <div class="field">
         <label>Endereço *</label>
         <div style="display:flex;gap:8px;align-items:center">
-          <input type="text" id="f-endereco" placeholder="R. Augusta, 1200 — Consolação" style="flex:1" onblur="_checarDuplicataTerreno()">
+          <input type="text" id="f-endereco" autocomplete="off" name="end-terreno-x" placeholder="R. Augusta, 1200 — Consolação" style="flex:1" onblur="_checarDuplicataTerreno()">
           <button id="btn-relocalizar" type="button"
             onclick="relocalizarTerreno(editingId)"
             style="white-space:nowrap;padding:6px 10px;font-size:12px;background:var(--accent);color:#fff;border:none;border-radius:6px;cursor:pointer;flex-shrink:0">
@@ -2144,7 +2152,7 @@ summary.geosampa-group-label {
       </div>
       <div class="field">
         <label>Apelido / Nome do terreno <span style="font-weight:400;color:var(--muted);">(opcional)</span></label>
-        <input type="text" id="f-apelido" placeholder="Ex: Lote da esquina, Terreno do Zé... — útil quando há mais de um terreno na mesma rua">
+        <input type="text" id="f-apelido" autocomplete="off" placeholder="Ex: Lote da esquina, Terreno do Zé... — útil quando há mais de um terreno na mesma rua">
       </div>
       <div class="field" id="field-vincular-pasta" style="display:none;">
         <label style="display:flex;align-items:center;gap:6px;font-weight:400;cursor:pointer;">
@@ -2158,7 +2166,7 @@ summary.geosampa-group-label {
         <div id="vincular-pasta-hint" style="display:none;font-size:11px;color:var(--muted);margin-top:4px;">Ao salvar, você escolhe a pasta certa numa lista — nenhuma pasta nova será criada.</div>
       </div>
       <div class="field-row">
-        <div class="field"><label>Bairro</label><input type="text" id="f-bairro"></div>
+        <div class="field"><label>Bairro</label><input type="text" id="f-bairro" autocomplete="off"></div>
         <div class="field"><label>Área</label><input type="text" id="f-area" placeholder="1.500 m²"></div>
       </div>
       <div class="field-row">
@@ -2383,6 +2391,30 @@ const firebaseConfig = {
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.firestore();
+// Redes corporativas/proxies/antivírus costumam bloquear o canal padrão (WebChannel) do Firestore
+// ("Could not reach Cloud Firestore backend") — o app fica em modo offline e NADA é gravado.
+// Detecção automática de long polling contorna isso na maioria dos casos.
+try{ db.settings({ experimentalForceLongPolling:true, experimentalAutoDetectLongPolling:false, merge:true }); }catch(e){ console.warn('[firestore] settings', e); }
+
+// Faixa de aviso fixa quando o app está sem conexão com o banco (alterações não estão sendo salvas)
+(function(){
+  let timer=null, banner=null;
+  const mostra = on=>{
+    if(on && !banner){
+      banner = document.createElement('div');
+      banner.style.cssText='position:fixed;top:0;left:0;right:0;z-index:200000;background:#dc2626;color:#fff;text-align:center;font:600 13px system-ui,sans-serif;padding:7px 10px;';
+      banner.textContent='⚠️ Sem conexão com o banco de dados (Firestore) — o que você cadastrar agora NÃO está sendo salvo. Verifique a internet/VPN/firewall e recarregue.';
+      (document.body||document.documentElement).appendChild(banner);
+    } else if(!on && banner){ banner.remove(); banner=null; }
+  };
+  try{
+    db.collection('_ping').doc('status').onSnapshot({includeMetadataChanges:true}, snap=>{
+      clearTimeout(timer);
+      if(snap.metadata.fromCache){ timer=setTimeout(()=>mostra(true), 8000); }
+      else mostra(false);
+    }, ()=>{ clearTimeout(timer); timer=setTimeout(()=>mostra(true), 3000); });
+  }catch(e){ console.warn('[firestore] ping', e); }
+})();
 
 // ── API_BASE ─────────────────────────────────────────────────────────────────
 // Todas as chamadas fetch(API_BASE+'/api/...') passam por essa variável na frente.
@@ -6126,7 +6158,7 @@ function _indispCalcula(){
   const lots = [..._indispLotes.values()];
   if(!lots.length){ _indispMarcar=[]; return; }
   // ajustes manuais da equipe: 'inc' = tratar como CD, 'exc' = não é CD
-  lots.forEach(l=>{ let m=_indispManual.get(l._k); if(m==null && l.cond) m=_indispManual.get('C:'+l.q+'|'+l.cond); l.isCD = m==='inc' ? true : m==='exc' ? false : l.isCD0; l._cc = (m==='cc'); });
+  lots.forEach(l=>{ let m=_indispManual.get(l._k); if(m==null && l.cond) m=_indispManual.get('C:'+l.q+'|'+l.cond); l.isCD = m==='inc' ? true : m==='exc' ? false : l.isCD0; l._cc = (m==='cc'); l._man = (m==='inc'); });
 
   // grade espacial (células de 60 m) p/ achar vizinhos sem comparar todos contra todos
   const CELL=60, grid=new Map();
@@ -6255,7 +6287,7 @@ function _indispDesenha(){
     const r0 = l.rings[0][0];
     if(r0[0]<S||r0[0]>N||r0[1]<W||r0[1]>E) return;
     // CDs: lista da cidade (zoom<18) ou mapa do GeoSampa (zoom≥18); aqui só os lotes pequenos (≤1.000 m²) e os CDs desenhados à mão
-    if(tipo==='cd' && !l.manualId && (z>=18 || usaTodos)) return;
+    if(tipo==='cd' && !l.manualId && !l._man && (z>=18 || usaTodos)) return;
     const cor = tipo==='cd' ? '#475569' : '#b45309';
     l.rings.forEach(rg=>{
       _vecIndispLayer.addLayer(L.polygon(rg, { renderer:_indispCanvas, interactive:false, color:cor, weight:1, fillColor:cor, fillOpacity:0.5, smoothFactor:2 }));
@@ -6459,7 +6491,7 @@ async function _indispClickHandler(e, viaDbl){
   const ref = db.collection('indisp_manual').doc(_indispManDocId(key));
   const salva = (acao, msg)=>{
     if(acao===null){ _indispManual.delete(key); ref.delete().catch(()=>{}); }
-    else { _indispManual.set(key, acao); ref.set({ key, sql:l.sql, acao, por:(window.usuarioAtual&&usuarioAtual.nome)||'', at:new Date().toISOString() }).catch(err=>showToast('Erro ao salvar: '+err.message)); }
+    else { _indispManual.set(key, acao); _confirmaGravacao(ref.set({ key, sql:l.sql, acao, por:(window.usuarioAtual&&usuarioAtual.nome)||'', at:new Date().toISOString() }), 'marcação do lote').catch(()=>{}); }
     _indispVersao++; _indispRender(); showToast(msg);
   };
   if(l.isCD){
@@ -6516,8 +6548,8 @@ function _indispFimDesenho(salvar){
   const pts = d.pts.filter((p,i)=>i===0 || !p.equals(d.pts[i-1]));
   if(pts.length<3){ showToast('Poucos pontos — desenho cancelado'); return; }
   const ref = db.collection('indisp_poly').doc();
-  ref.set({ pts: pts.map(p=>({lat:+p.lat.toFixed(7), lng:+p.lng.toFixed(7)})), por:(window.usuarioAtual&&usuarioAtual.nome)||'', at:new Date().toISOString() })
-    .then(()=>showToast('CD desenhado e salvo'))
+  _confirmaGravacao(ref.set({ pts: pts.map(p=>({lat:+p.lat.toFixed(7), lng:+p.lng.toFixed(7)})), por:(window.usuarioAtual&&usuarioAtual.nome)||'', at:new Date().toISOString() }), 'CD desenhado')
+    .then(()=>showToast('✅ CD desenhado e salvo no servidor'))
     .catch(err=>showToast('Erro ao salvar: '+err.message));
   _indispAddManualPoly(ref.id, pts.map(p=>({lat:p.lat,lng:p.lng}))); _indispRender();
 }
@@ -10939,18 +10971,7 @@ function _normSqlDup(s){
 // o endereço digitado seja diferente, ex: terreno vencido/descartado há tempo
 // e recadastrado com outro texto de endereço). A checagem por lote tem
 // prioridade (evidência mais forte de que é o mesmo terreno).
-function _checarDuplicataTerreno(){
-  const cont = document.getElementById('duplicata-alerta');
-  if(!cont) return;
-  // Editando um terreno já existente: antes a checagem era pulada de vez
-  // (fazia sentido comparar só terreno NOVO contra os existentes). Agora
-  // também roda aqui — pra pegar o caso de já existirem 2 cadastros pro
-  // mesmo lote (2 bolinhas no mapa) e oferecer mesclar os dois, mantendo o
-  // histórico só no sobrevivente (pedido da Kamila, 29/09).
-
-  // (1) Sobreposição de lote — compara os SQLs já adicionados no formulário
-  // contra o array `lotes` de todos os terrenos já cadastrados (exceto o
-  // próprio, quando editando).
+function _acharDuplicataTerreno(){
   const sqlsForm = getLotesFromForm().map(l=>_normSqlDup(l.sql)).filter(Boolean);
   let dup = null, sqlsSobrepostos = [];
   if(sqlsForm.length){
@@ -10979,6 +11000,23 @@ function _checarDuplicataTerreno(){
       motivoDup = 'endereco';
     }
   }
+  return { dup, sqlsSobrepostos, motivoDup };
+}
+
+function _checarDuplicataTerreno(){
+  const cont = document.getElementById('duplicata-alerta');
+  if(!cont) return;
+  // Editando um terreno já existente: antes a checagem era pulada de vez
+  // (fazia sentido comparar só terreno NOVO contra os existentes). Agora
+  // também roda aqui — pra pegar o caso de já existirem 2 cadastros pro
+  // mesmo lote (2 bolinhas no mapa) e oferecer mesclar os dois, mantendo o
+  // histórico só no sobrevivente (pedido da Kamila, 29/09).
+
+  // (1) Sobreposição de lote — compara os SQLs já adicionados no formulário
+  // contra o array `lotes` de todos os terrenos já cadastrados (exceto o
+  // próprio, quando editando).
+  const _r = _acharDuplicataTerreno();
+  const dup = _r.dup, sqlsSobrepostos = _r.sqlsSobrepostos, motivoDup = _r.motivoDup;
 
   if(!dup){ cont.innerHTML=''; return; }
 
@@ -11071,6 +11109,7 @@ function _cadastrarMantendoHistorico(id){
   const dup = terrenos.find(x=>x.id===id);
   if(!dup) return;
   _duplicataHistoricoParaCopiar = {
+    dupCompleto: dup, // cadastro antigo inteiro — saveTerreno herda dele o que o novo não tiver (polígono, setor/quadra, lotes...)
     idAnterior: dup.id, // usado em saveTerreno() pra arquivar o cadastro antigo na Lixeira assim que o novo for salvo — sem isso ficavam 2 marcadores no mapa pro mesmo terreno.
     ataAnterior: Array.isArray(dup.ata) ? JSON.parse(JSON.stringify(dup.ata)) : [],
     corretorHistAnterior: Array.isArray(dup.corretor_hist) ? JSON.parse(JSON.stringify(dup.corretor_hist)) : [],
@@ -11128,8 +11167,19 @@ async function _mesclarCadastroDuplicado(idOutro, idAtual){
   sobrevivente.ata = ataMerge;
   sobrevivente.corretor_hist = corretorHistMerge;
 
+  // Polígono: nunca se perde. Se o sobrevivente não tem desenho e o outro tem, herda o do outro.
+  const _temPoly = o => !!((Array.isArray(o.polygons)&&o.polygons.length) || (o.polygon && (!Array.isArray(o.polygon)||o.polygon.length)));
+  const extra = {};
+  if(!_temPoly(sobrevivente) && _temPoly(perdedor)){
+    ['polygons','polygon','lat','lng','area','sqls','sql','setor','quadra'].forEach(k=>{
+      if(perdedor[k]!=null && perdedor[k]!=='' && (sobrevivente[k]==null || sobrevivente[k]==='' || k==='polygons' || k==='polygon')){
+        sobrevivente[k] = perdedor[k]; extra[k] = perdedor[k];
+      }
+    });
+  }
+
   try{
-    await dbUpdateTerreno(sobrevivente.id, { ata: ataMerge, corretor_hist: corretorHistMerge });
+    await dbUpdateTerreno(sobrevivente.id, { ata: ataMerge, corretor_hist: corretorHistMerge, ...extra });
     await db.collection('terrenos').doc(perdedor.id).update({
       _excluido: true,
       _excluido_em: new Date().toISOString(),
@@ -11221,6 +11271,20 @@ async function corrigirExclusividadeCorretorTodos(){
   renderDashboard();
 }
 
+// Confirmação de gravação no Firestore: o Firestore "aceita" a gravação na memória na hora
+// (o polígono aparece no mapa) mas só confirma quando o SERVIDOR responde. Se a internet cair
+// ou o servidor recusar, a pessoa vê o dado na tela e ele some ao recarregar. Esta função avisa
+// (a) quando a gravação foi confirmada e (b) se passar de 8 s sem confirmação.
+window._gravPendentes = window._gravPendentes || 0;
+function _confirmaGravacao(promise, rotulo){
+  window._gravPendentes++;
+  let confirmado = false;
+  const aviso = setTimeout(()=>{ if(!confirmado) showToast(`⚠️ "${rotulo}" ainda NÃO foi confirmado pelo servidor (conexão lenta ou fora do ar?). Não feche a página.`, 15000); }, 8000);
+  return promise.then(r=>{ confirmado = true; clearTimeout(aviso); window._gravPendentes--; return r; },
+                     e=>{ confirmado = true; clearTimeout(aviso); window._gravPendentes--; showToast(`❌ NÃO foi salvo: ${rotulo} — ${e && e.message || e}`, 15000); throw e; });
+}
+window.addEventListener('beforeunload', ev=>{ if(window._gravPendentes>0){ ev.preventDefault(); ev.returnValue=''; } });
+
 async function saveTerreno(){
   // Capturado ANTES de closeModal() (que zera editingId) — usado depois pra
   // saber se este save criou um terreno novo, e então já calcular os
@@ -11235,6 +11299,20 @@ async function saveTerreno(){
   if(document.getElementById('f-status').value === '8.Descartado' && !motivoDescarte){
     alert('Preencha o motivo do descarte.');
     return;
+  }
+
+  // Terreno NOVO que já existe no mapa (mesmo lote ou endereço parecido): em vez de criar um 2º
+  // marcador, oferece manter 1 só — o cadastro antigo vai pra Lixeira e o histórico dele vem junto.
+  if(_isNovoTerreno && !_duplicataHistoricoParaCopiar){
+    const _rd = _acharDuplicataTerreno();
+    if(_rd.dup){
+      const _d = _rd.dup;
+      if(confirm(`Este terreno já está cadastrado:\n• ${_d.endereco||'(sem endereço)'} — ${STATUS_LABELS[_d.status]||_d.status||''}${_d.corretor?' · corretor '+_d.corretor:''}\n\nOK = manter 1 MARCADOR SÓ: o cadastro antigo vai pra Lixeira e o histórico dele (corretores, acompanhamento) passa para este.\nCancelar = outras opções.`)){
+        _cadastrarMantendoHistorico(_d.id);
+      } else if(!confirm('Cadastrar mesmo assim como um terreno SEPARADO? (ficarão 2 marcadores no mapa)\n\nOK = cadastrar separado · Cancelar = voltar ao formulário')){
+        return;
+      }
+    }
   }
 
   // Rede de segurança contra documento grande demais pro Firestore (ver nota
@@ -11299,8 +11377,10 @@ async function saveTerreno(){
   let _ataFinal = Array.isArray(_existing.ata) ? [..._existing.ata] : [];
   let _corretorHistFinal = corretor_hist;
   let _idAntigoParaArquivar = null; // id do cadastro duplicado a mover pra Lixeira após salvar o novo (evita 2 marcadores no mapa)
+  let _dupInherit = null;
   if(_isNovoTerreno && _duplicataHistoricoParaCopiar){
     const dh = _duplicataHistoricoParaCopiar;
+    _dupInherit = dh.dupCompleto || null;
     _idAntigoParaArquivar = dh.idAnterior || null;
     _ataFinal = [...dh.ataAnterior, {
       data: _hoje,
@@ -11341,10 +11421,22 @@ async function saveTerreno(){
     todos:     JSON.parse(JSON.stringify(_modalTodos)),
     recebimento_imgs: JSON.parse(JSON.stringify(_recebimentoImgs)),
     ata: _ataFinal,
+    cadastrado_em: _existing.cadastrado_em || (_isNovoTerreno ? new Date().toISOString() : (_existing.cadastrado_em||null)),
     lat, lng,
     polygons: pendingPolygons.length ? JSON.stringify(pendingPolygons) : null,
     polygon: null,
   };
+
+  // Recadastro mantendo histórico: o novo cadastro herda do antigo tudo que não preencheu
+  // (polígono, lat/lng, setor/quadra, lotes, anexos...) — senão o desenho e os dados se perdiam na Lixeira.
+  if(_dupInherit){
+    const _vazio = v => v==null || v==='' || (Array.isArray(v)&&!v.length) || (typeof v==='object' && !Array.isArray(v) && !Object.keys(v).length);
+    ['polygons','lat','lng','setor','quadra','lotes','lotes_areas','lotes_enderecos','lotes_precos','fup',
+     'zoneamento','bairro','area','apelido','recebimento_imgs','todos','obs','responsavel'].forEach(k=>{
+      if(_vazio(obj[k]) && !_vazio(_dupInherit[k])) obj[k] = _dupInherit[k];
+    });
+    if(!obj.polygons && _dupInherit.polygon) obj.polygons = _dupInherit.polygon;
+  }
 
   // Atualiza local e fecha modal imediatamente
   if(editingId){
@@ -11359,7 +11451,7 @@ async function saveTerreno(){
 
   // Persiste no Firestore
   const _objSanitizado = sanitize(obj);
-  db.collection('terrenos').doc(obj.id).set(_objSanitizado)
+  _confirmaGravacao(db.collection('terrenos').doc(obj.id).set(_objSanitizado), 'terreno '+(obj.endereco||''))
     .then(async ()=>{
       // "Cadastrar novamente mantendo histórico": o cadastro novo já salvou
       // com sucesso acima — agora arquiva o antigo na Lixeira, senão os 2
@@ -13881,7 +13973,10 @@ function renderLixeira(){
     return;
   }
   const ordenados = [..._terrenosLixeira].sort((a,b)=> new Date(b._excluido_em||0) - new Date(a._excluido_em||0));
-  body.innerHTML = ordenados.map(t=>{
+  const _btnRecup = `<div style="padding:8px 10px;margin-bottom:8px;background:#ecfdf5;border:1px solid #a7f3d0;border-radius:8px;font-size:11px;color:#065f46;display:flex;align-items:center;gap:10px;">
+    <span style="flex:1;">Perdeu polígono, histórico ou dados depois de mesclar/recadastrar? Este botão devolve aos terrenos ativos o que ficou só na Lixeira.</span>
+    <button class="popup-btn" style="background:#059669;color:#fff;border-color:#059669;white-space:nowrap;" onclick="_recuperarDadosLixeira()">🔧 Recuperar dados</button></div>`;
+  body.innerHTML = _btnRecup + ordenados.map(t=>{
     const dias = _diasRestantesLixeira(t);
     const end = (typeof _labelEndereco==='function') ? _labelEndereco(t) : (t.endereco||t.apelido||'(sem endereço)');
     const meta = [
@@ -13901,6 +13996,75 @@ function renderLixeira(){
       </div>
     </div>`;
   }).join('');
+}
+
+// Recupera dados que ficaram só no cadastro da Lixeira depois de "Mesclar" / "Recadastrar mantendo histórico"
+// (polígono, lat/lng, setor/quadra, lotes, histórico/ata, anexos, tarefas). Não restaura o marcador duplicado:
+// copia para o terreno ATIVO equivalente só o que ele não tem.
+function _recuperarDadosLixeira(){
+  const _vazio = v => v==null || v==='' || (Array.isArray(v)&&!v.length) || (typeof v==='object' && !Array.isArray(v) && !Object.keys(v).length);
+  const _temPoly = o => !_vazio(o.polygons) || !_vazio(o.polygon);
+  const campos = ['lat','lng','setor','quadra','lotes','lotes_areas','lotes_enderecos','lotes_precos','fup','recebimento_imgs','todos','responsavel','apelido','zoneamento','bairro','obs'];
+  const ativos = terrenos.filter(t=>!t._excluido);
+  const plano = new Map(); // id ativo → { alvo, upd, fontes[] }
+  _terrenosLixeira.forEach(l=>{
+    // acha o ativo equivalente: 1º pelo nome citado no motivo, 2º pelo mesmo endereço, 3º pelo mesmo setor+quadra+lote
+    let alvo = null;
+    const m = (l._excluido_motivo||'').match(/"([^"]+)"/);
+    if(m) alvo = ativos.find(t=>norm(t.endereco)===norm(m[1]));
+    if(!alvo) alvo = ativos.find(t=>t.id!==l.id && norm(t.endereco)===norm(l.endereco));
+    // 3º: mesma rua + número (ignora bairro/vírgulas: "Rua X, 470, Itaim" = "Rua X, 470")
+    const _core = e => { const p=String(e||'').split(',').map(s=>s.trim()); return norm(/^\d/.test(p[1]||'') ? p[0]+' '+p[1] : p[0]).replace(/^(rua|r\.|av\.|avenida|al\.|alameda)\s*/,''); };
+    if(!alvo && _core(l.endereco)) alvo = ativos.find(t=>t.id!==l.id && _core(t.endereco)===_core(l.endereco));
+    if(!alvo && l.setor && l.quadra) alvo = ativos.find(t=>t.id!==l.id && t.setor===l.setor && t.quadra===l.quadra && (t.lotes||[]).some(x=>(l.lotes||[]).includes(x)));
+    if(!alvo) return;
+    const p = plano.get(alvo.id) || { alvo, upd:{}, fontes:[], ataNova:[] };
+    // polígono (só se o ativo não tem nenhum)
+    if(!_temPoly(alvo) && !p.upd.polygons && _temPoly(l)){
+      p.upd.polygons = !_vazio(l.polygons) ? l.polygons : (typeof l.polygon==='string' ? l.polygon : JSON.stringify(l.polygon));
+      p.upd.polygon = null;
+    }
+    campos.forEach(k=>{ if(_vazio(alvo[k]) && _vazio(p.upd[k]) && !_vazio(l[k])) p.upd[k] = l[k]; });
+    // histórico (ata): acrescenta entradas que o ativo não tem
+    const chaves = new Set([...(alvo.ata||[]), ...p.ataNova].map(e=>(e.data||'')+'|'+(e.texto||'')));
+    (Array.isArray(l.ata)?l.ata:[]).forEach(e=>{ const k=(e.data||'')+'|'+(e.texto||''); if(!chaves.has(k)){ chaves.add(k); p.ataNova.push(e); } });
+    // histórico de corretores
+    const hk = new Set((alvo.corretor_hist||[]).map(h=>h.corretor+'|'+(h.desde||'')));
+    const hn = (Array.isArray(l.corretor_hist)?l.corretor_hist:[]).filter(h=>!hk.has(h.corretor+'|'+(h.desde||'')));
+    if(hn.length) p.upd.corretor_hist = [...(p.upd.corretor_hist||alvo.corretor_hist||[]), ...hn];
+    p.fontes.push(l.endereco||l.id);
+    plano.set(alvo.id, p);
+  });
+  const itens = [];
+  plano.forEach(p=>{
+    if(p.ataNova.length) p.upd.ata = [...(p.alvo.ata||[]), ...p.ataNova].sort((a,b)=>(a.data||'').localeCompare(b.data||''));
+    if(Object.keys(p.upd).length) itens.push(p);
+  });
+  // 2ª via: terrenos ativos sem histórico (ata) mas com o texto antigo em "Observações" (campo obs, que vai no Excel
+  // semanal) → reconstrói as entradas do histórico a partir das linhas "dd/mm: texto".
+  const _ataDeObs = t=>{
+    const out=[]; const rec = t.data ? new Date(t.data+'T00:00:00') : null;
+    String(t.obs||'').split(/\n|\s\/\/\s/).forEach(l=>{
+      const m = l.trim().match(/^(\d{1,2})\/(\d{1,2})(?:\/(\d{2,4}))?\s*[:\-–]\s*(.+)$/s); if(!m) return;
+      const d=+m[1], mo=+m[2]; let y = m[3] ? (+m[3]<100 ? 2000+ +m[3] : +m[3]) : null;
+      if(!y){ y = rec ? rec.getFullYear() : new Date().getFullYear(); if(rec && new Date(y,mo-1,d) < rec) y++; }
+      out.push({ data: `${y}-${String(mo).padStart(2,'0')}-${String(d).padStart(2,'0')}`, texto: m[4].trim(), criadoPor:'', origem:'obs-recuperado' });
+    });
+    return out;
+  };
+  const viaObs = ativos.filter(t=>(!Array.isArray(t.ata)||!t.ata.length) && !(plano.get(t.id)&&plano.get(t.id).upd.ata) && _ataDeObs(t).length);
+  if(!itens.length && !viaObs.length){ alert('Nada para recuperar: os terrenos ativos já têm tudo que está na Lixeira.'); return; }
+  if(!itens.length){
+    if(!confirm(`Nenhum dado a recuperar da Lixeira.\n\nMas ${viaObs.length} terreno(s) ativo(s) estão sem histórico de acompanhamento e têm o texto antigo em "Observações". Reconstruir o histórico a partir desse texto?\n\n${viaObs.slice(0,12).map(t=>'• '+t.endereco).join('\n')}${viaObs.length>12?'\n…':''}`)) return;
+  }
+  viaObs.forEach(t=>{ const p = plano.get(t.id) || { alvo:t, upd:{}, fontes:[], ataNova:[] }; p.ataNova = _ataDeObs(t); p.upd.ata = p.ataNova.sort((a,b)=>a.data.localeCompare(b.data)); plano.set(t.id,p); if(!itens.includes(p)) itens.push(p); });
+  const resumo = itens.slice(0,15).map(p=>'• '+p.alvo.endereco+' → '+[
+    p.upd.polygons?'polígono':'', p.ataNova.length?(p.ataNova.length+' entrada(s) de histórico'):'',
+    (p.upd.setor||p.upd.quadra)?'setor/quadra':'', p.upd.responsavel?'responsável':'', p.upd.lotes?'lotes':'', p.upd.todos?'tarefas':'', p.upd.recebimento_imgs?'anexos':'' ].filter(Boolean).join(', ')).join('\n');
+  if(!confirm(`Recuperar dados em ${itens.length} terreno(s)?\n\n${resumo}${itens.length>15?'\n…':''}\n\nNada é apagado; só são preenchidos campos vazios.`)) return;
+  let ok=0, erro=0;
+  Promise.all(itens.map(p=> dbUpdateTerreno(p.alvo.id, sanitize(p.upd)).then(()=>{ Object.assign(p.alvo, p.upd); ok++; }).catch(e=>{ console.error('recuperar', p.alvo.id, e); erro++; })))
+    .then(()=>{ try{ refreshLayers(); }catch(_){} renderList(); showToast(`🔧 Recuperado em ${ok} terreno(s)${erro?` · ${erro} erro(s)`:''}`, 6000); });
 }
 
 function _restaurarDaLixeira(id){
@@ -14546,6 +14710,10 @@ function getDashData(){
 }
 
 function renderDashboard(){
+  // O texto da busca vem sempre do próprio campo (evita ficar "preso" numa busca antiga
+  // que não aparece mais na tela e faz os KPIs contarem só um pedaço dos terrenos).
+  const _inpBusca = document.getElementById('dash-search');
+  if(_inpBusca) _dashSearch = _inpBusca.value || '';
   const data=getDashData();
   // KPIs — sempre contam o total REAL de cada status (só respeitam a busca
   // por endereço, nunca o próprio filtro de status). Se contassem em cima do
@@ -14569,7 +14737,8 @@ function renderDashboard(){
       <div class="kpi-value ${clsMap[s]||''}">${byStatus[s]||0}</div>
     </div>`).join('')+
     `<div class="kpi-card" data-filter-status="" onclick="setDashFilter('status','',this)"><div class="kpi-label">Total</div><div class="kpi-value">${kpiData.length}</div></div>`;
-  document.querySelectorAll('.kpi-card[data-filter-status]').forEach(el=>{
+  // sincroniza TAMBÉM os chips "Status:" (antes o chip "Todos" ficava marcado mesmo com o filtro padrão = Negociando)
+  document.querySelectorAll('[data-filter-status]').forEach(el=>{
     const v=el.dataset.filterStatus;
     el.classList.toggle('active', v===''? _dashStatusFilter.length===0 : _dashStatusFilter.includes(v));
   });
@@ -15389,7 +15558,18 @@ function renderAtaSection(){
         </td>
       </tr>`;
     }).join('');
-    _visualHtml = `<table style="width:100%;border-collapse:collapse;font-family:var(--sans);">
+    // Layout FIXO (larguras iguais em qualquer filtro de status). Antes a largura de cada coluna dependia do
+    // conteúdo das linhas visíveis — em "Todos" o texto da Última Ata ficava espremido e os espaços, enormes.
+    _visualHtml = `<style>
+      #dash-ata-list table.ata-lista-fixa{table-layout:fixed;}
+      #dash-ata-list table.ata-lista-fixa td, #dash-ata-list table.ata-lista-fixa th{overflow:hidden;text-overflow:ellipsis;}
+      #dash-ata-list table.ata-lista-fixa td:nth-child(2), #dash-ata-list table.ata-lista-fixa td:nth-child(10){white-space:normal;word-break:break-word;}
+    </style>
+    <table class="ata-lista-fixa" style="width:100%;border-collapse:collapse;font-family:var(--sans);">
+      <colgroup>
+        <col style="width:4px"><col style="width:19%"><col style="width:8%"><col style="width:84px"><col style="width:76px">
+        <col style="width:52px"><col style="width:84px"><col style="width:10%"><col style="width:84px"><col><col style="width:130px">
+      </colgroup>
       <thead>
       <tr style="background:#f8fafc;">
         <th style="padding:0;width:3px;"></th>
@@ -21229,11 +21409,17 @@ function exportExcel(){
   const rows=terrenos.map(t=>{
     const _pgvKey=(String(t.setor||'').trim().padStart(3,'0'))+(String(t.quadra||'').trim().padStart(3,'0'));
     const _pgvOficial=(typeof PGV_TABLE!=='undefined' && t.setor && t.quadra) ? PGV_TABLE[_pgvKey] : null;
+    const _fd = d=>{ const m=String(d||'').match(/^(\d{4})-(\d{2})-(\d{2})/); return m?`${m[3]}/${m[2]}/${m[1]}`:(d||''); };
+    const _idm = String(t.id||'').match(/^(?:new|xls)_(\d{12,14})/);
+    const _cad = t.cadastrado_em ? _fd(t.cadastrado_em) : (_idm ? _fd(new Date(Number(_idm[1])).toISOString()) : '');
+    const _ata = (Array.isArray(t.ata)?[...t.ata]:[]).sort((a,b)=>String(b.data||'').localeCompare(String(a.data||'')))
+      .map(e=>`${_fd(e.data)}${e.criadoPor?' ('+e.criadoPor+')':''}: ${String(e.texto||'').trim()}`).join('\n');
+    const _respNome = (EQUIPE.find(m=>m.handle===t.responsavel)||{}).nome || t.responsavel || '';
     return {
-      'Endereço':t.endereco,'Bairro':t.bairro||'','Corretor':t.corretor||'',
+      'Endereço':t.endereco,'Bairro':t.bairro||'','Responsável':_respNome,'Corretor':t.corretor||'',
       'Área':t.area||'','Zoneamento':t.zoneamento||'','Setor':t.setor||'','Quadra':t.quadra||'',
       'PGV Oficial (R$/m²)':_pgvOficial||'',
-      'Status':t.status||'','Data':t.data||'','Observações':t.obs||'',
+      'Status':t.status||'','Data de cadastro':_cad,'Data':t.data||'','Ata (Histórico de Acompanhamento)':_ata,'Observações':t.obs||'',
       'Polígono':(t.polygons&&t.polygons.length)?'Sim':'Não',
       'Latitude':t.lat||'','Longitude':t.lng||'',
     };
