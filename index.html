@@ -256,7 +256,7 @@ async function importExcel(input){
   --bg:#E4E3DE;--surface:#FFF;--border:#D4C8B4;--text:#141414;--muted:#8A7F70;
   --accent:#00B0BA;--accent-light:#D6F2F3;
   --bege:#C7B299;
-  --sans:'Syne',sans-serif;--mono:'DM Mono',monospace;
+  --sans:'Syne',sans-serif;--mono:Consolas,'Cascadia Mono','Segoe UI',Arial,sans-serif;-webkit-font-smoothing:antialiased;
   --radius:8px;--radius-lg:14px;
 }
 *{box-sizing:border-box;margin:0;padding:0;}
@@ -592,7 +592,8 @@ header h1{font-size:15px;font-weight:600;letter-spacing:.04em;text-transform:upp
 .itbi-setup-box{background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px 14px;font-size:12px;color:#92400e;}
 .itbi-setup-box b{display:block;margin-bottom:6px;font-size:13px;color:#78350f;}
 #itbi-map-panel{position:fixed;right:16px;bottom:80px;z-index:3000;width:420px;max-width:calc(100vw - 32px);background:#fff;border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.18);border:1px solid var(--border);display:none;}
-#itbi-map-panel.open{display:block;}
+#itbi-map-panel.open{display:flex;flex-direction:column;resize:both;overflow:hidden;min-width:320px;min-height:180px;max-width:95vw;max-height:92vh;}
+#itbi-map-panel.open .itbi-body, #itbi-map-panel.open .itbi-panel-body{flex:1 1 auto;min-height:0;max-height:none !important;overflow:auto;}
 #itbi-map-panel .itbi-panel-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px 8px;border-bottom:1px solid var(--border);cursor:grab;user-select:none;}
 #itbi-map-panel .itbi-panel-header h3{font-size:13px;font-weight:700;color:var(--navy,#1a3c4d);margin:0;}
 #itbi-map-panel .itbi-body{padding:12px 16px;max-height:60vh;overflow-y:auto;}
@@ -1989,6 +1990,7 @@ summary.geosampa-group-label {
           style="font-size:12px;padding:4px 10px;border:1px solid var(--border);border-radius:20px;background:var(--surface);color:var(--text);font-family:var(--sans);cursor:pointer;outline:none;">
           <option value="">🧑‍💼 Corretor — Todos</option>
         </select>
+        <button class="dash-chip" onclick="limparFiltrosDash()" title="Volta Status, Endereço, Responsável e Corretor para 'Todos'" style="color:#dc2626;border-color:#fca5a5;">✕ Limpar filtros</button>
         <div style="width:1px;background:var(--border);align-self:stretch;margin:0 4px;"></div>
         <span style="font-size:11px;color:var(--muted);font-family:var(--sans);font-weight:600;align-self:center;">Agrupar:</span>
         <button class="dash-chip active" data-group-btn="bairro" onclick="setAtaGroup('bairro',this)">📍 Bairro</button>
@@ -3189,36 +3191,62 @@ function _itbiRenderCondo(rows, sql, prefix){
   // Tabela resumo por unidade (mais recente de cada) — clique numa linha pra
   // ver só a(s) transação(ões) daquela unidade específica (showItbiExactForSql),
   // sem precisar sair da visão geral do condomínio.
-  html += `<div style="margin-top:10px;margin-bottom:4px;font-size:11px;font-weight:700;color:var(--navy,#1a3c4d)">
-    Por unidade (última transação de cada) <span style="font-weight:400;color:var(--muted);">— clique numa linha pra ver só aquela unidade</span>
+  // Cada unidade com a transação mais recente; ordenação escolhida na caixinha abaixo
+  // (padrão: da transação mais recente para a mais antiga).
+  _itbiCondoUnits = unidades.map(unit=>{
+    const unitRows = byUnit[unit].slice().sort((a,b)=>(b.data_transacao||'').localeCompare(a.data_transacao||''));
+    return { unit, unitRows, last: unitRows[0] };
+  });
+  html += `<div style="margin-top:10px;margin-bottom:4px;font-size:11px;font-weight:700;color:var(--navy,#1a3c4d);display:flex;flex-wrap:wrap;align-items:center;gap:8px;">
+    <span>Por unidade (última transação de cada) <span style="font-weight:400;color:var(--muted);">— clique numa linha pra ver só aquela unidade</span></span>
+    <span style="margin-left:auto;font-weight:600;">Ordenar:
+      <select id="itbi-condo-ordem" onchange="_itbiCondoOrdenar(this.value)" style="font-size:11px;padding:2px 4px;border:1px solid var(--border);border-radius:6px;">
+        <option value="recente">Transação mais recente → mais antiga</option>
+        <option value="antiga">Transação mais antiga → mais recente</option>
+        <option value="valor">Maior valor → menor</option>
+        <option value="sql">SQL / Unidade</option>
+      </select>
+    </span>
   </div>
   <table class="itbi-table">
     <thead><tr>
-      <th>SQL / Unidade</th><th>Endereço</th><th>Última transação</th>
-      <th class="val">Últ. valor</th><th class="val">Área terreno</th><th class="val">R$/m² terreno</th><th>Matrícula</th><th>Tx</th>
-    </tr></thead><tbody>`;
+      <th>SQL</th><th>Apto / Unid.</th><th>Endereço</th><th>Última transação</th>
+      <th class="val">Últ. valor</th><th class="val">Área terreno</th><th class="val">R$/m² terreno</th><th class="val">Área constr.</th><th class="val">R$/m² constr.</th><th>Matrícula</th><th>Tx</th>
+    </tr></thead><tbody id="itbi-condo-tbody">${_itbiCondoLinhas('recente')}</tbody></table>`;
+  if(unidades.length > 50) html += `<div style="font-size:11px;color:var(--muted);margin-top:6px">Mostrando 50 de ${unidades.length} unidades</div>`;
+  return html;
+}
 
-  unidades.slice(0, 50).forEach(unit=>{
-    const unitRows = byUnit[unit].sort((a,b)=>(b.data_transacao||'').localeCompare(a.data_transacao||''));
-    const last = unitRows[0];
+let _itbiCondoUnits = [];
+function _itbiCondoLinhas(modo){
+  const arr = _itbiCondoUnits.slice();
+  const dt = u => u.last.data_transacao || '';
+  if(modo==='recente') arr.sort((a,b)=>dt(b).localeCompare(dt(a)));
+  else if(modo==='antiga') arr.sort((a,b)=>(dt(a)||'9').localeCompare(dt(b)||'9'));
+  else if(modo==='valor') arr.sort((a,b)=>(parseFloat(b.last.valor_declarado)||0)-(parseFloat(a.last.valor_declarado)||0));
+  else arr.sort((a,b)=>String(a.unit).localeCompare(String(b.unit)));
+  return arr.slice(0, 50).map(({unit, unitRows, last})=>{
     const comp = last.numero ? `${last.numero}` : '';
     const unitEsc = String(unit).replace(/'/g,"\\'");
-    html += `<tr style="cursor:pointer" onclick="showItbiExactForSql('${unitEsc}')" title="Ver só as transações de ${unit}">
+    return `<tr style="cursor:pointer" onclick="showItbiExactForSql('${unitEsc}')" title="Ver só as transações de ${unit}">
       <td style="font-weight:600;white-space:nowrap">${unit}</td>
+      <td style="font-weight:700;white-space:nowrap;color:var(--navy,#1a3c4d)" title="Complemento declarado no ITBI">${last.complemento?escHtml(last.complemento):'<span style="color:var(--muted);font-weight:400" title="Reprocesse o banco ITBI para trazer o número da unidade">—</span>'}</td>
       <td style="font-size:10px;color:var(--muted);max-width:100px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap"
           title="${last.endereco||''} ${comp}">${comp||last.endereco||'—'}</td>
       <td style="white-space:nowrap">${_fmtDate(last.data_transacao)}</td>
       <td class="val">${_fmtBRL(last.valor_declarado)}</td>
       <td class="val">${(parseFloat(last.area_terreno)>0)?_fmtM2(parseFloat(last.area_terreno)):'—'}</td>
       <td class="val">${(parseFloat(last.area_terreno)>0 && parseFloat(last.valor_declarado)>0)?_fmtBRL(parseFloat(last.valor_declarado)/parseFloat(last.area_terreno)):'—'}</td>
+      <td class="val">${(parseFloat(last.area_construida)>0)?_fmtM2(parseFloat(last.area_construida)):'—'}</td>
+      <td class="val">${(parseFloat(last.area_construida)>0 && parseFloat(last.valor_declarado)>0)?_fmtBRL(parseFloat(last.valor_declarado)/parseFloat(last.area_construida)):'—'}</td>
       <td style="white-space:nowrap;font-size:11px" title="${escHtml(last.cartorio||'')}">${last.matricula?escHtml(last.matricula):'—'}</td>
       <td class="val muted">${unitRows.length}</td>
     </tr>`;
-  });
-
-  html += '</tbody></table>';
-  if(unidades.length > 50) html += `<div style="font-size:11px;color:var(--muted);margin-top:6px">Mostrando 50 de ${unidades.length} unidades</div>`;
-  return html;
+  }).join('');
+}
+function _itbiCondoOrdenar(modo){
+  const tb = document.getElementById('itbi-condo-tbody');
+  if(tb) tb.innerHTML = _itbiCondoLinhas(modo);
 }
 
 function _itbiAbrirSetup(){
@@ -3312,6 +3340,12 @@ async function _itbiProcessarLocal(){
 }
 
 // Drag do painel ITBI flutuante
+// ancora o painel por left/top na 1ª passagem do mouse — assim a alça de redimensionar (canto inferior direito) cresce para onde se arrasta
+document.addEventListener('mouseover', e=>{
+  const p=document.getElementById('itbi-map-panel');
+  if(!p || !p.classList.contains('open') || p.style.left || !p.contains(e.target)) return;
+  const r=p.getBoundingClientRect(); p.style.right='auto'; p.style.bottom='auto'; p.style.left=r.left+'px'; p.style.top=r.top+'px'; p.style.width=r.width+'px';
+});
 function _itbiPanelDrag(e){
   const panel = document.getElementById('itbi-map-panel');
   if(!panel || e.button !== 0) return;
@@ -8937,7 +8971,7 @@ async function _resetGeoLancamentos(){
 // cache no localStorage do navegador pra não repetir a busca a cada sessão.
 const _concMercLayers  = {};   // { [ano]: L.layerGroup() }
 const _concMercVisible = {};   // { [ano]: bool — layer está no mapa }
-const GEO_MERC_CACHE_KEY = 'landbank_geo_merc_cache_v2';  // endereço completo → [lat,lng]|null
+const GEO_MERC_CACHE_KEY = 'landbank_geo_merc_cache_v3';  // endereço completo → [lat,lng]|null
 
 function _geoCacheGet(key){
   try{ return JSON.parse(localStorage.getItem(key) || '{}'); }
@@ -9113,14 +9147,17 @@ function _concMercPopup(it, ano){
   const tktTxt  = it.ticket!=null   ? 'R$ '+Math.round(it.ticket).toLocaleString('pt-BR') : '—';
   const vsoTxt  = it.vso!=null      ? Math.round(it.vso)+'%' : '—';
   const unidTxt = it.unidades!=null ? it.unidades : '—';
-  return `<div style="font-family:system-ui,sans-serif;min-width:200px;max-width:230px;padding:2px 0">
+  // R$/m² médio: valor da pesquisa; se faltar, aproxima por ticket ÷ área privativa
+  const pm2 = (it.preco_m2>0) ? it.preco_m2 : ((it.ticket>0 && it.area_privativa>0) ? it.ticket/it.area_privativa : null);
+  const pm2Txt = pm2!=null ? 'R$ '+Math.round(pm2).toLocaleString('pt-BR') : '—';
+  const cell=(l,v)=>`<div><div style="color:#9ca3af;font-size:9px;text-transform:uppercase;font-weight:600;">${l}</div><div style="font-weight:700;color:#111;">${v}</div></div>`;
+  const incBox = it.incorporadora ? `<div style="display:inline-block;margin:2px 0 6px;padding:3px 8px;border-radius:6px;font-size:12px;font-weight:700;background:${isYuny?'#fff7ed':'#e6f7f8'};color:${isYuny?'#c2410c':'#00747b'};border:1px solid ${isYuny?'#fdba74':'#99dde1'};">🏢 ${it.incorporadora}</div>` : '';
+  return `<div style="font-family:system-ui,sans-serif;min-width:200px;max-width:240px;padding:2px 0">
       <div style="font-weight:700;font-size:13px;color:#111;margin-bottom:2px;">${it.nome||'Sem nome'}${isYuny?' 🟠':''}</div>
-      <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">${it.incorporadora||''}${it.bairro?' · '+it.bairro:''}${it.regiao?' ('+it.regiao+')':''}<br><span style="font-size:10px;color:#9ca3af;">Lançamento: ${it._mes||ano}</span></div>
+      ${incBox}
+      <div style="font-size:11px;color:#6b7280;margin-bottom:8px;">${it.bairro?it.bairro:''}${it.regiao?' ('+it.regiao+')':''}<br><span style="font-size:10px;color:#9ca3af;">Lançamento: ${it._mes||ano}</span></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;font-size:11px;background:#f9fafb;border-radius:6px;padding:8px;">
-        <div><div style="color:#9ca3af;font-size:9px;text-transform:uppercase;font-weight:600;">VGV</div><div style="font-weight:700;color:#111;">${vgvTxt}</div></div>
-        <div><div style="color:#9ca3af;font-size:9px;text-transform:uppercase;font-weight:600;">Ticket</div><div style="font-weight:700;color:#111;">${tktTxt}</div></div>
-        <div><div style="color:#9ca3af;font-size:9px;text-transform:uppercase;font-weight:600;">Unidades</div><div style="font-weight:700;color:#111;">${unidTxt}</div></div>
-        <div><div style="color:#9ca3af;font-size:9px;text-transform:uppercase;font-weight:600;">VSO</div><div style="font-weight:700;color:#111;">${vsoTxt}</div></div>
+        ${cell('VGV',vgvTxt)}${cell('Ticket',tktTxt)}${cell('Unidades',unidTxt)}${cell('VSO',vsoTxt)}${cell('R$/m² médio',pm2Txt)}
       </div>
       <button onclick="concMercQuadro(${_concMercReg(it)})" style="margin-top:8px;width:100%;padding:6px;border-radius:6px;border:none;background:#00B0B9;color:#fff;font-size:11px;font-weight:600;cursor:pointer;">📋 Abrir quadro completo</button>
       <button onclick="switchTab('merc')" style="margin-top:4px;width:100%;padding:4px;border-radius:6px;border:1px solid #00B0B9;background:#fff;color:#00B0B9;font-size:10px;font-weight:600;cursor:pointer;">Ver na aba Mercado →</button>
@@ -9145,7 +9182,9 @@ async function concMercQuadro(i){
   const basico=[
     ['Lançamento', _concEsc(it._mes||'')],
     ['VGV', it.vgv_mm!=null?'R$ '+it.vgv_mm.toFixed(1).replace('.',',')+' MM':''],
+    ['Incorporadora', it.incorporadora?'<b style="color:#00747b;font-size:13px">'+_concEsc(it.incorporadora)+'</b>':''],
     ['Ticket médio', it.ticket!=null?'R$ '+Math.round(it.ticket).toLocaleString('pt-BR'):''],
+    ['R$/m² médio', (it.preco_m2>0)?'R$ '+Math.round(it.preco_m2).toLocaleString('pt-BR'):((it.ticket>0&&it.area_privativa>0)?'R$ '+Math.round(it.ticket/it.area_privativa).toLocaleString('pt-BR')+' (aprox.)':'')],
     ['Unidades', it.unidades!=null?_concFmtN(it.unidades):''],
     ['VSO', it.vso!=null?Math.round(it.vso)+'%':''],
     ['Endereço', _concEsc(it.endereco||'')],
@@ -9349,9 +9388,11 @@ function addLayer(t){
       // Modo Medir ativo: clique no lote não deve abrir o popup do terreno
       // nem selecionar o card — só conta como ponto de medição (o clique já
       // borbulha pro map, que tem seu próprio listener _medirClick).
-      poly.on('popupopen',()=>{ if(_medirMode) poly.closePopup(); });
+      poly.on('popupopen',()=>{ if(_medirMode || window._indispMarcarMode) poly.closePopup(); });
       poly.on('click',(e)=>{
         if(_medirMode) return;
+        // Modo "Marcar lote manualmente" (Sem potencial): o clique sobre um terreno cadastrado também marca o lote
+        if(window._indispMarcarMode){ L.DomEvent.stop(e); _indispClickHandler(e,false); return; }
         // Modo Altura Máxima (COMAR) ativo: o Leaflet abre o popup do terreno
         // internamente e para a propagação do clique antes dele chegar no
         // listener do mapa (map.on('click', _alturaComarClick)) — por isso
@@ -9375,8 +9416,8 @@ function addLayer(t){
         fillColor:c, fillOpacity:1, zIndexOffset:200
       }).addTo(map);
       dot.bindPopup(popupHtml(t));
-      dot.on('popupopen',()=>{ if(_medirMode) dot.closePopup(); });
-      dot.on('click',(e)=>{ if(_medirMode) return; if(_itbiCliqueSobreTerreno(e)) return; selectCard(t.id); });
+      dot.on('popupopen',()=>{ if(_medirMode || window._indispMarcarMode) dot.closePopup(); });
+      dot.on('click',(e)=>{ if(_medirMode) return; if(window._indispMarcarMode){ L.DomEvent.stop(e); _indispClickHandler(e,false); return; } if(_itbiCliqueSobreTerreno(e)) return; selectCard(t.id); });
       rendered.push(dot);
     }
     layers[t.id] = rendered.length===1 ? rendered[0] : rendered;
@@ -11667,8 +11708,15 @@ async function _salvarDescarteNaPasta(t){
     await _salvarPdfNaPastaTerreno(t, nomeArquivo, html);
     showToast('📁 Registro de descarte salvo na pasta do terreno.');
   }catch(e){
-    console.warn('[salvarDescarte]', e);
-    showToast('⚠️ Descarte salvo no app, mas não copiado para a pasta de rede: '+e.message, 7000);
+    console.warn('[salvarDescarte] PDF falhou, tentando HTML:', e);
+    // Sem puppeteer/Chrome neste computador: grava o mesmo registro como .html
+    try{
+      await _salvarArquivoNaPastaTerreno(t, nomeArquivo.replace(/\.pdf$/i,'.html'), html);
+      showToast('📁 Registro de descarte salvo na pasta do terreno (em HTML).');
+    }catch(e2){
+      console.warn('[salvarDescarte]', e2);
+      showToast('⚠️ Descarte salvo no app, mas não copiado para a pasta de rede: '+e2.message, 7000);
+    }
   }
 }
 
@@ -14625,6 +14673,15 @@ function setAtaCorretor(value){
   renderAtaSection();
 }
 
+// Botão "✕ Limpar filtros": volta tudo para "Todos" (status, endereço, responsável, corretor)
+function limparFiltrosDash(){
+  _dashStatusFilter=[]; _dashSearch=''; _ataRespFilter=''; _ataCorretorFilter=''; _ataListEnderecoFiltro='';
+  const s=document.getElementById('dash-search'); if(s) s.value='';
+  const r=document.getElementById('ata-resp-filter'); if(r) r.value='';
+  const c=document.getElementById('ata-corretor-filter'); if(c) c.value='';
+  renderDashboard();
+}
+
 function setAtaGroup(mode,btn){
   _ataGroupMode=mode;
   document.querySelectorAll('[data-group-btn]').forEach(b=>b.classList.remove('active'));
@@ -14743,6 +14800,7 @@ function renderDashboard(){
     el.classList.toggle('active', v===''? _dashStatusFilter.length===0 : _dashStatusFilter.includes(v));
   });
 
+  try{ renderMovimentoMensal(); }catch(e){ console.warn('[movimento]', e); }
   renderStatusChart(data);
   renderMensalChart(data);
   _populateAtaRespFilter();
@@ -14750,6 +14808,52 @@ function renderDashboard(){
   renderAlertasPanel();
   renderReuniaoPrioridadePanel();
   renderAtaSection();
+}
+
+// ── Mini painel: terrenos cadastrados x descartados por mês ──
+// Cadastro: cadastrado_em → carimbo no id (new_<ms>/xls_<ms>) → Data de recebimento (t.data).
+// Descarte: corretor_descarte (gravado quando o status vira Descartado).
+function _movYM(iso){ const m=String(iso||'').match(/^(\d{4})-(\d{2})/); return m? m[1]+'-'+m[2] : null; }
+function _movDataCadastro(t){
+  if(t.cadastrado_em) return _movYM(t.cadastrado_em);
+  const m = String(t.id||'').match(/^(?:new|xls)_(\d{12,14})/);
+  if(m) return _movYM(new Date(Number(m[1])).toISOString());
+  return _movYM(t.data);
+}
+function _movToggle(ev){ if(ev) ev.stopPropagation(); const p=document.getElementById('kpi-mov-pop'); if(p) p.style.display = p.style.display==='block'?'none':'block'; }
+document.addEventListener('click', e=>{ const p=document.getElementById('kpi-mov-pop'); if(p && p.style.display==='block' && !e.target.closest('#kpi-mov')) p.style.display='none'; });
+// Cartão discreto ao lado do "Total": cadastrados/descartados no mês; clique abre os últimos 12 meses.
+function renderMovimentoMensal(){
+  const kp = document.getElementById('dash-kpis'); if(!kp) return;
+  const lista = (terrenos||[]).filter(t=>!t._excluido);
+  const cad = {}, desc = {};
+  lista.forEach(t=>{
+    const c = _movDataCadastro(t); if(c) cad[c]=(cad[c]||0)+1;
+    if(/descart/i.test(t.status||'')){
+      // data do descarte; se não foi gravada (descartes antigos), estima pela última entrada da ata
+      let d=_movYM(t.corretor_descarte||t.descartado_em);
+      if(!d){ const at=(Array.isArray(t.ata)?t.ata:[]).map(e=>e&&e.data).filter(Boolean).sort().pop(); d=_movYM(at); }
+      if(d) desc[d]=(desc[d]||0)+1;
+    }
+  });
+  const nomes = ['jan','fev','mar','abr','mai','jun','jul','ago','set','out','nov','dez'];
+  const hoje = new Date(); const meses = [];
+  for(let i=0;i<12;i++){ const d=new Date(hoje.getFullYear(), hoje.getMonth()-i, 1); meses.push(d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')); }
+  const lab = m=>nomes[parseInt(m.slice(5),10)-1]+'/'+m.slice(2,4);
+  const c0=cad[meses[0]]||0, d0=desc[meses[0]]||0, c1=cad[meses[1]]||0, d1=desc[meses[1]]||0;
+  const linhas = meses.map(m=>`<tr><td style="padding:2px 10px 2px 0;color:var(--muted)">${lab(m)}</td><td style="padding:2px 10px;text-align:right;color:#0e7c86;font-weight:600">${cad[m]||0}</td><td style="padding:2px 0 2px 10px;text-align:right;color:#dc2626;font-weight:600">${desc[m]||0}</td></tr>`).join('');
+  const el = document.createElement('div');
+  el.id='kpi-mov'; el.className='kpi-card'; el.style.cssText='position:relative;flex:0 0 auto;min-width:150px;padding:8px 12px;';
+  el.onclick = _movToggle;
+  el.innerHTML = `<div class="kpi-label" style="margin-bottom:2px;">${lab(meses[0])} · movimento</div>
+    <div style="font-size:13px;font-family:var(--sans);font-weight:600;"><span style="color:#0e7c86" title="Cadastrados no mês">+${c0}</span> <span style="color:var(--muted);font-weight:400">cad.</span> &nbsp;<span style="color:#dc2626" title="Descartados no mês">−${d0}</span> <span style="color:var(--muted);font-weight:400">desc.</span></div>
+    <div style="font-size:10px;color:var(--muted);margin-top:2px;">mês anterior: +${c1} / −${d1}</div>
+    <div id="kpi-mov-pop" onclick="event.stopPropagation()" style="display:none;position:absolute;top:100%;right:0;margin-top:6px;z-index:50;background:#fff;border:1px solid var(--border);border-radius:10px;box-shadow:0 6px 20px rgba(0,0,0,.15);padding:10px 14px;font-size:11px;font-family:var(--mono);min-width:200px;cursor:default;">
+      <table style="border-collapse:collapse;width:100%"><thead><tr><th style="text-align:left;font-weight:600;padding-bottom:4px">Mês</th><th style="text-align:right;padding:0 10px 4px">Cadastr.</th><th style="text-align:right;padding-bottom:4px">Descart.</th></tr></thead><tbody>${linhas}</tbody></table>
+      <div style="font-size:9px;color:var(--muted);margin-top:6px;">Descarte sem data registrada = estimado pela última entrada da ata. Total carregado: ${lista.length} terrenos.</div>
+    </div>`;
+  const old = document.getElementById('kpi-mov'); if(old) old.remove();
+  kp.appendChild(el);
 }
 
 function renderStatusChart(data){
@@ -18126,6 +18230,7 @@ function _estudoGerarCorteEsquematico(pavtos, altTotal){
 // for um número, deixa o campo como a pessoa digitou (sem travar o app).
 function _estudoNormalizarCampo(el, min, max){
   if(!el) return;
+  _estudoMarcarEditado(el);
   let v = String(el.value||'').trim();
   if(v.startsWith('=')){
     const expr = v.slice(1).trim();
@@ -18547,6 +18652,9 @@ async function _estudoCalcularComparacao(panelIdx){
 function renderEstudoMassaPreview(t, panelIdx){
   const {area, zona, ca: _caZona, gab: _gabZona, caManual, gabManual} = _estudoZonaLookup(t);
   const _est = _estudoGetState(panelIdx);
+  // Cenário salvo no terreno (última versão editada por qualquer pessoa): restaura modo/modalidade e campos.
+  const _ec = t.estudo_campos || null;
+  if(_ec && _ec.estado && !_est._restored){ _est._restored = true; Object.assign(_est, _ec.estado); }
   const _modInfo = _modalidadeAplicar(_est.modalidade, zona, _caZona, area);
   // Quando a modalidade (EHIS/EHMP/EZEIS) tem CA/gabarito específicos no
   // Decreto 63.728/2024 pra essa zona, eles substituem o CA/gabarito padrão
@@ -18710,10 +18818,16 @@ function renderEstudoMassaPreview(t, panelIdx){
   // _estudoNormalizarCampo resolve a fórmula, converte vírgula pra ponto e
   // aplica min/max antes de disparar o recálculo.
   const row = (l,id,editable,val,type,step,min,max,extraOnchange,readOnly) => {
+    // valor salvo no terreno (última versão editada) tem prioridade sobre o padrão
+    if(editable && !readOnly && _ec && _ec.campos){
+      const _kv = id.replace('-'+panelIdx,'');
+      if(_ec.campos[_kv]!=null && _ec.campos[_kv]!=='') val = _ec.campos[_kv];
+    }
     const right = editable
       ? '<input id="'+id+'" type="text" inputmode="decimal" value="'+val+'" '
         + (readOnly ? 'readonly title="Calculado automaticamente — some das duas calculadoras HIS/Outros abaixo" style="width:90px;padding:4px 6px;border:1px solid #e5e7eb;border-radius:6px;font-size:12px;font-family:var(--mono);text-align:right;background:#f3f4f6;color:#6b7280;">'
-        : ('onchange="_estudoNormalizarCampo(this,'+(min!=null?min:'null')+','+(max!=null?max:'null')+');'+(extraOnchange?extraOnchange+';':'')+'calcEstudo(\''+panelIdx+'\','+area+','+ca+','+gab+','+_fatorIncentivo+')" '
+        : ('oninput="_estudoLive(this,\''+panelIdx+'\','+area+','+ca+','+gab+','+_fatorIncentivo+')" '
+          + 'onchange="_estudoNormalizarCampo(this,'+(min!=null?min:'null')+','+(max!=null?max:'null')+');'+(extraOnchange?extraOnchange+';':'')+'calcEstudo(\''+panelIdx+'\','+area+','+ca+','+gab+','+_fatorIncentivo+')" '
           + 'title="Aceita fórmula, ex.: =12*3" '
           + 'style="width:90px;padding:4px 6px;border:1px solid #ddd8fe;border-radius:6px;font-size:12px;font-family:var(--mono);text-align:right;">'))
       : '<span id="'+id+'" style="font-weight:700;color:#1f2937;font-family:var(--mono);font-size:12px;">—</span>';
@@ -18757,7 +18871,27 @@ function renderEstudoMassaPreview(t, panelIdx){
       }).join('') : '<div style="font-size:11px;color:#9ca3af;padding-top:6px;">Nenhuma revisão salva ainda — as revisões guardam uma cópia de todos os campos preenchidos abaixo, pra você comparar cenários depois (ex: Rev 1 em R2V, Rev 2 testando EHIS).</div>') +
     '</div>';
 
-  return '<div style="font-size:13px;">' + _modoSelectHtml + idHtml +
+  // Depois que o HTML entrar na tela: aplica os campos não numéricos salvos (select de uso, caixa de vagas) e recalcula.
+  if(_ec && _ec.campos){
+    setTimeout(()=>{
+      let mudou = false;
+      const sel = document.getElementById('em-uso-'+panelIdx);
+      if(sel && _ec.campos['em-uso']!=null && sel.value!==_ec.campos['em-uso']){ sel.value = _ec.campos['em-uso']; mudou = true; }
+      const chk = document.getElementById('em-vagas-on-'+panelIdx);
+      if(chk && _ec.campos['em-vagas-on']!=null && chk.checked!==!!_ec.campos['em-vagas-on']){ chk.checked = !!_ec.campos['em-vagas-on']; mudou = true; try{ _estudoToggleVagasCampos(panelIdx); }catch(_){} }
+      document.getElementById('em-tr-'+panelIdx)?.dispatchEvent(new Event('change')); // dispara o recálculo com os valores restaurados
+    }, 0);
+  }
+
+  // Quadro-Resumo do cenário vem PRIMEIRO (logo abaixo dos seletores de modo/modalidade) — pedido da Kamila.
+  // Os blocos são localizados por id (em-result-/em-areas-), então a posição na tela não afeta os cálculos.
+  // (o card escuro "Resumo do cenário" — em-resumo — é o Quadro-Resumo que a Kamila quer em primeiro lugar)
+  const _quadroHtml =
+    '<div id="em-resumo-'+panelIdx+'" style="background:#1a3c4d;border-radius:12px;padding:16px;color:#fff;margin:4px 0 12px;">' +
+      '<div style="color:#9ca3af;font-size:12px;">Preencha a Volumetria (Parâmetros Técnicos) pra ver o resumo do cenário.</div>' +
+    '</div>';
+
+  return '<div style="font-size:13px;">' + _modoSelectHtml + _quadroHtml + idHtml +
     secStep('🏛','Parâmetros Urbanísticos do terreno') +
     '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:12px;"><span style="color:#6b7280;">Área do terreno (m²)</span><span style="font-weight:700;font-family:var(--mono);">'+(area?Math.round(area).toLocaleString('pt-BR'):'—')+'</span></div>' +
     '<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:12px;"><span style="color:#6b7280;">Zoneamento</span><span style="font-weight:700;color:#7c3aed;">'+(zona||'—')+'</span></div>' +
@@ -18835,7 +18969,7 @@ function renderEstudoMassaPreview(t, panelIdx){
     secStep('🚗','Vagas / Garagem'+(_est.modalidade==='ehis'?' (opcional em EHIS)':'')) +
     '<div style="background:#faf5ff;border-radius:10px;padding:14px;">' +
       '<label style="display:flex;align-items:center;gap:6px;padding:2px 0 10px;font-size:11px;color:#7c3aed;cursor:pointer;">' +
-        '<input type="checkbox" id="em-vagas-on-'+panelIdx+'" '+(_est.modalidade==='ehis'?'':'checked')+' onchange="_estudoToggleVagasCampos('+panelIdx+');calcEstudo(\''+panelIdx+'\','+area+','+ca+','+gab+','+_fatorIncentivo+')"> ' +
+        '<input type="checkbox" id="em-vagas-on-'+panelIdx+'" '+(_est.modalidade==='ehis'?'':'checked')+' onchange="_estudoMarcarEditado(this);_estudoToggleVagasCampos('+panelIdx+');calcEstudo(\''+panelIdx+'\','+area+','+ca+','+gab+','+_fatorIncentivo+')"> ' +
         'Prever vagas de garagem'+(_est.modalidade==='ehis'?' — opcional, HIS não tem exigência mínima de vagas':'') +
       '</label>' +
       (_est.modalidade==='ehis' ? '<div style="font-size:9px;color:#9ca3af;margin:-6px 0 10px;">Confirmar com jurídico antes de zerar vagas numa proposta formal — algumas zonas/prefeitura podem exigir vaga PNE mesmo sem vaga comum.</div>' : '') +
@@ -18849,9 +18983,9 @@ function renderEstudoMassaPreview(t, panelIdx){
       '</div>' +
     '</div>' +
 
-    secStep('📊','Quadro-Resumo & Resultados Calculados') +
+    secStep('📊','Resultados Calculados & Quadro de Áreas') +
     '<div style="background:#f5f3ff;border-radius:10px;padding:14px;">' +
-      '<div style="font-size:10px;color:#7c3aed;font-weight:600;margin-bottom:10px;">Resultados calculados:</div>' +
+      '<div style="font-size:10px;color:#7c3aed;font-weight:600;margin-bottom:10px;display:flex;justify-content:space-between;gap:8px;"><span>Resultados calculados:</span><span id="em-quadro-ts-'+panelIdx+'" style="font-weight:500;color:#9ca3af;"></span></div>' +
       '<div id="em-result-'+panelIdx+'"><div style="color:#9ca3af;font-size:12px;padding:8px 0;">Preencha área e zoneamento no cadastro do terreno.</div></div>' +
       '<div style="font-size:10px;color:#7c3aed;font-weight:600;margin:14px 0 10px;padding-top:10px;border-top:1px dashed #ddd8fe;">Quadro de Áreas Totais & Detalhamento por Pavimento:</div>' +
       '<div id="em-areas-'+panelIdx+'"></div>' +
@@ -18953,7 +19087,7 @@ function renderEstudoMassaPreview(t, panelIdx){
       (_oucFL ? '<div style="font-size:10px;color:#9ca3af;margin:-2px 0 6px;">Na Faria Lima a outorga é paga em CEPAC, não pelo cálculo padrão abaixo — Fp'+(_oucFp?' preenchido com o valor residencial do subsetor '+_oucFL.subsetor+' (troque pra '+_oucFp[1]+' se for comercial/serviço)':' não encontrado pra este subsetor')+'; use só como referência pra estimar quantos CEPACs seriam necessários.</div>' : '') +
       '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:12px;gap:8px;">' +
         '<span style="color:#6b7280;flex:1;">Tipologia de uso</span>' +
-        '<select id="em-uso-'+panelIdx+'" onchange="calcEstudo(\''+panelIdx+'\','+area+','+ca+','+gab+','+_fatorIncentivo+')" style="width:180px;padding:4px 6px;border:1px solid #ddd8fe;border-radius:6px;font-size:11px;background:#fff;">' +
+        '<select id="em-uso-'+panelIdx+'" onchange="_estudoMarcarEditado(this);calcEstudo(\''+panelIdx+'\','+area+','+ca+','+gab+','+_fatorIncentivo+')" style="width:180px;padding:4px 6px;border:1px solid #ddd8fe;border-radius:6px;font-size:11px;background:#fff;">' +
           '<option value="residencial">Residencial livre</option>' +
           '<option value="hmp70">HMP 50–70 m²</option>' +
           '<option value="hmp50">HMP até 50 m²</option>' +
@@ -18968,10 +19102,6 @@ function renderEstudoMassaPreview(t, panelIdx){
       '<div id="em-outorga-'+panelIdx+'"><div style="color:#9ca3af;font-size:12px;">Aguardando cálculo…</div></div>' +
     '</div>'
     ) +
-
-    '<div id="em-resumo-'+panelIdx+'" style="background:#1a3c4d;border-radius:12px;padding:16px;color:#fff;margin-top:10px;">' +
-      '<div style="color:#9ca3af;font-size:12px;">Preencha a Volumetria (passo 2) pra ver o resumo.</div>' +
-    '</div>' +
 
     sec('🏗️','Diagrama de Implantação (esquemático)') +
     '<div style="font-size:10px;color:#6b7280;margin-bottom:8px;line-height:1.5;">Representação proporcional da mancha construída sobre o polígono cadastrado do terreno — não é um projeto de arquitetura, é uma referência visual de escala (ocupação, altura e, quando aplicável, proporção HIS/Outros usos).</div>' +
@@ -19302,7 +19432,54 @@ function _selecionarPgvRua(panelIdx, el, setor, quadra){
   showToast('✅ PGV definido pela rua: '+nome);
 }
 
+// Recalcula o Quadro-Resumo enquanto a pessoa digita (com pequeno atraso), sem esperar sair do campo —
+// assim o quadro sempre mostra a última versão dos parâmetros. Só dispara com número "limpo"
+// (fórmulas como "=12*3" continuam sendo resolvidas ao sair do campo).
+// ── Persistência do cenário do Estudo de Massa no terreno ────────────────────
+// Toda edição dos parâmetros é gravada em terrenos/<id>.estudo_campos (quem editou + quando), então quem
+// abrir o Estudo depois — qualquer pessoa — vê o Quadro-Resumo da ÚLTIMA versão editada.
+const _EST_CAMPOS_NUM = ['em-doc','em-pd','em-pavtos','em-ua','em-circ','em-varandapct','em-tr','em-mpv','em-apv','em-fcg','em-cab','em-pgv','em-uso','em-fs-manual','em-hispct','em-uahis','em-uaout','em-fp'];
+const _EST_CAMPOS_CHK = ['em-vagas-on'];
+let _estudoEditado = {};
+let _estudoSaveT = {};
+function _estudoMarcarEditado(el){
+  const m = String(el&&el.id||'').match(/-(\d+)$/);
+  if(m) _estudoEditado[m[1]] = true;
+}
+function _estudoSalvarCampos(panelIdx){
+  const panel = document.getElementById('ap'+panelIdx);
+  const t = terrenos.find(x=>x.id===panel?.dataset.tid);
+  if(!t) return;
+  if(!_estudoEditado[panelIdx] && !t.estudo_campos) return; // só grava depois de alguém editar (não grava só por abrir)
+  const campos = {};
+  _EST_CAMPOS_NUM.forEach(k=>{ const el=document.getElementById(k+'-'+panelIdx); if(el && el.value!=null && el.value!=='') campos[k]=el.value; });
+  _EST_CAMPOS_CHK.forEach(k=>{ const el=document.getElementById(k+'-'+panelIdx); if(el) campos[k]=!!el.checked; });
+  const st = _estudoGetState(panelIdx);
+  const estado = { modo:st.modo, modalidade:st.modalidade, semVagaOn:!!st.semVagaOn, fachadaAtivaOn:!!st.fachadaAtivaOn, cotaSolidLocal:!!st.cotaSolidLocal, cotaSolidOuc:!!st.cotaSolidOuc };
+  const igual = t.estudo_campos && JSON.stringify(t.estudo_campos.campos)===JSON.stringify(campos) && JSON.stringify(t.estudo_campos.estado)===JSON.stringify(estado);
+  if(igual) return;
+  clearTimeout(_estudoSaveT[panelIdx]);
+  _estudoSaveT[panelIdx] = setTimeout(()=>{
+    const eu = (typeof getUsuarioAtual==='function') ? getUsuarioAtual() : null;
+    const obj = { campos, estado, por: eu ? (eu.nome||eu.handle) : '', em: new Date().toISOString() };
+    t.estudo_campos = obj;
+    dbUpdateTerreno(t.id, { estudo_campos: obj }).catch(e=>console.warn('[estudo] não salvou o cenário', e));
+    const ts = document.getElementById('em-quadro-ts-'+panelIdx);
+    if(ts) ts.textContent = 'salvo · ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) + (obj.por?' · '+obj.por:'');
+  }, 1200);
+}
+
+function _estudoLive(el, panelIdx, area, ca, gab, fator){
+  _estudoMarcarEditado(el);
+  if(!/^\d+(\.\d+)?$/.test(String(el.value||'').trim())) return;
+  clearTimeout(el._liveT);
+  el._liveT = setTimeout(()=>calcEstudo(panelIdx, area, ca, gab, fator), 250);
+}
+
 function calcEstudo(panelIdx, area, ca, gab, fatorIncentivo){
+  const _tsEl = document.getElementById('em-quadro-ts-'+panelIdx);
+  if(_tsEl) _tsEl.textContent = 'atualizado às ' + new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  try{ _estudoSalvarCampos(panelIdx); }catch(e){ console.warn('[estudo] salvar campos', e); }
   // fatorIncentivo default = 1.2 (Cota de Solidariedade padrão, R2V) —
   // mantém EXATAMENTE o comportamento de sempre quando não informado.
   // EHMP/EHIS podem passar 1.25 (incentivo de até +25%, Lei 17.975/2023).
