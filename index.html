@@ -123,6 +123,7 @@ function delAtaEntry(data, idx){
 async function importExcel(input){
   const file = input.files[0];
   if(!file) return;
+  if(terrenos.length < 450){ input.value=''; alert('Os terrenos ainda não carregaram por completo ('+terrenos.length+' de ~540).\n\nImportar agora criaria cadastros duplicados. Dê Ctrl+F5, espere o contador do topo chegar em ~540 e tente de novo.'); return; }
   input.value = ''; // reset para permitir reimportar o mesmo arquivo
 
   const reader = new FileReader();
@@ -1649,6 +1650,14 @@ summary.geosampa-group-label {
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script>if(window.pdfjsLib) pdfjsLib.GlobalWorkerOptions.workerSrc='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';</script>
 <!-- Tesseract.js OCR — carregado sob demanda em _ocrPdfPage() -->
+
+<!--[if gte mso 9]><xml>
+<mso:CustomDocumentProperties>
+<mso:_dlc_DocId msdt:dt="string">PN5SERDTH7CF-1304619134-393557</mso:_dlc_DocId>
+<mso:_dlc_DocIdItemGuid msdt:dt="string">e5bc782f-c1eb-4469-a154-ddb60ef60b12</mso:_dlc_DocIdItemGuid>
+<mso:_dlc_DocIdUrl msdt:dt="string">https://yuny.sharepoint.com/sites/YUNYGROUP/_layouts/15/DocIdRedir.aspx?ID=PN5SERDTH7CF-1304619134-393557, PN5SERDTH7CF-1304619134-393557</mso:_dlc_DocIdUrl>
+</mso:CustomDocumentProperties>
+</xml><![endif]-->
 </head>
 <body>
 <!-- Trava de senha diária — bloqueia o app inteiro até digitar a senha do dia,
@@ -1734,6 +1743,9 @@ summary.geosampa-group-label {
         <input type="file" id="import-input" accept=".xlsx,.xlsm,.xls" style="display:none" onchange="importExcel(this)">
         <button class="btn-export" onclick="corrigirExclusividadeCorretorTodos()" title="Recalcula a exclusividade de corretor (1 ano a partir da Data de Recebimento) de todos os terrenos, corrigindo registros desatualizados">🔧 Corrigir exclusividade</button>
         <button class="btn-export" id="btn-lixeira" onclick="abrirLixeira()" title="Terrenos excluídos ficam aqui por 30 dias antes de sumir de vez — dá pra restaurar.">🗑️ Lixeira<span id="lixeira-badge" style="display:none;"></span></button>
+        <button class="btn-export" onclick="diagnosticoPoligonos()" title="Mostra quantos terrenos estão sem polígono desenhado">🔍 Diagnóstico de polígonos</button>
+        <button class="btn-export" onclick="recuperarPoligonos()" title="Refaz o polígono dos terrenos que o perderam, usando o lote cadastral do GeoSampa no ponto (prévia + confirmação)">♻️ Recuperar polígonos</button>
+        <button class="btn-export" onclick="restaurarAtasBackup()" title="Devolve ata, setor/quadra e coordenadas perdidos, a partir do backup Excel de 16/10/2026 (prévia + confirmação)">♻️ Restaurar atas (backup 16/10)</button>
       </div>
     </div>
     <div class="stats-bar" id="stats-bar"></div>
@@ -1794,6 +1806,7 @@ summary.geosampa-group-label {
               <summary class="geosampa-group-label">🏘️ Cadastral <span class="geosampa-subgroup-arrow">▾</span></summary>
               <div class="geosampa-subgroup-list">
                 <button class="geosampa-btn" id="btn-geo-lotes" onclick="toggleGeoLayer('lotes')" title="Contorno de cada lote cadastrado no GeoSampa (aproxime o zoom) — clique num lote pra ver Setor/Quadra/Lote">🏘 Lotes</button>
+                <button class="geosampa-btn" id="btn-geo-quadra" onclick="toggleQuadraLayer()" title="Contorno de cada quadra fiscal com o número do Setor e da Quadra (aproxime o zoom, nível 16 ou mais)">🧱 Setor / Quadra</button>
                 <button class="geosampa-btn" id="btn-geo-zona" onclick="toggleGeoLayer('zona')" title="Zoneamento oficial (LPUOS) de cada lote — colore por zona (ZC, ZM, ZEU etc.) e mostra os parâmetros construtivos ao clicar">🏙 Zoneamento</button>
                 <button class="geosampa-btn" id="btn-geo-ouc" onclick="toggleOucLayer()" title="Perímetros de Operações Urbanas Consorciadas e Áreas de Intervenção Urbana (setor/subsetor quando disponível)">🏛 Operações Urbanas</button>
               </div>
@@ -1876,7 +1889,17 @@ summary.geosampa-group-label {
             <button class="geosampa-btn" id="btn-geo-comar" onclick="toggleComarLayer()" title="Zonas de proteção de aeródromo/heliponto (COMAR/PBZPA/PBZPH) — restrição de gabarito publicada pelo DECEA. Cobre Congonhas, Guarulhos, Campo de Marte e helipontos privados da capital.">🚧 Zonas de Proteção</button>
             <button class="geosampa-btn" id="btn-geo-comar-pontos" onclick="toggleComarPontosLayer()" title="Um marcador por aeródromo/heliponto (nome + código OACI), na posição central da sua zona de proteção — pra localizar rápido sem precisar ativar a camada de zonas inteira.">📍 Aeródromos &amp; Helipontos</button>
             <button class="geosampa-btn" id="btn-geo-altura" onclick="toggleAlturaComarMode()" title="Clique num ponto do mapa para estimar a altura máxima de construção permitida pelas zonas de proteção de aeródromo/heliponto do DECEA (estimativa, não substitui análise oficial)">📐 Altura Permitida</button>
+          </div>
+        </details>
+        <details class="geosampa-subgroup">
+          <summary class="geosampa-btn" title="Relevo e topografia — sombreamento de elevação, curvas de nível, declividade e pontos de apoio terrestre (GeoSampa)">⛰️ Topografia <span class="geosampa-subgroup-arrow">▾</span></summary>
+          <div class="geosampa-subgroup-list">
             <button class="geosampa-btn" id="btn-geo-topografia" onclick="toggleTopografiaLayer()" title="Relevo do terreno (sombreamento de elevação) — é essa mesma altitude (via Open-Meteo) que a calculadora de Altura Permitida usa pra descontar do gabarito e achar a altura de construção liberada em cada ponto.">🗻 Topografia (relevo)</button>
+            <button class="geosampa-btn" id="btn-geo-topo-curva_mestra" onclick="toggleTopoWms('curva_mestra')" title="GeoSampa — Topografia: curva de nível mestra">📈 Curva Mestra</button>
+            <button class="geosampa-btn" id="btn-geo-topo-curva_intermediaria" onclick="toggleTopoWms('curva_intermediaria')" title="GeoSampa — Topografia: curva de nível intermediária">〰️ Curva Intermediária</button>
+            <button class="geosampa-btn" id="btn-geo-topo-declividade" onclick="toggleTopoWms('declividade')" title="GeoSampa — Topografia: declividade do terreno (mapa de inclinação)">⛰️ Declividade</button>
+            <button class="geosampa-btn" id="btn-geo-topo-apoio_terrestre_2020" onclick="toggleTopoWms('apoio_terrestre_2020')" title="GeoSampa — Topografia: pontos de apoio terrestre (2020)">📍 Apoio Terrestre 2020</button>
+            <button class="geosampa-btn" id="btn-geo-topo-apoio_terrestre_2017" onclick="toggleTopoWms('apoio_terrestre_2017')" title="GeoSampa — Topografia: pontos de apoio terrestre (2017)">📍 Apoio Terrestre 2017</button>
           </div>
         </details>
         <details class="geosampa-subgroup">
@@ -2243,6 +2266,7 @@ summary.geosampa-group-label {
           <span></span><span></span><span></span>
         </div>
         </div>
+        <div id="f-cd-bloco" style="margin:4px 0 8px;"></div>
         <button type="button" id="btn-salvar-areas" onclick="salvarApenasAreas()"
           style="display:none;font-size:11px;padding:5px 14px;border-radius:6px;border:none;background:var(--accent);color:#fff;cursor:pointer;font-family:var(--sans);font-weight:600;margin-bottom:6px;">💾 Salvar áreas</button>
         <div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:2px;">
@@ -2275,6 +2299,12 @@ summary.geosampa-group-label {
           <button type="button" style="flex:1;margin-top:0;font-size:13px;padding:9px;border-radius:var(--radius);border:1px solid #f9731644;background:#fff7ed;color:#c2410c;cursor:pointer;font-family:var(--sans);font-weight:600;"
             onclick="toggleSelectLotes(true)" title="Clique nos lotes do GeoSampa para refazer o polígono">🏘️ Refazer com lotes</button>
         </div>
+      </div>
+
+      <!-- Declividade do perímetro (antes dos Parâmetros Urbanísticos) -->
+      <div class="field" id="modal-declividade-section" style="padding-bottom:4px;">
+        <button type="button" onclick="declividadeDoModal()" title="Calcula a declividade de cada trecho do perímetro do terreno (cotas interpoladas das curvas de nível do GeoSampa) e compara com o limite de 30%"
+          style="width:100%;padding:9px;border-radius:8px;border:1.5px solid #00B0B9;background:#fff;color:#00838a;font-weight:700;font-size:13px;cursor:pointer;font-family:var(--sans);">📐 Declividade do perímetro</button>
       </div>
 
       <!-- Parâmetros Urbanísticos no modal -->
@@ -2564,6 +2594,8 @@ function _diagnosticoTamanhoPorCampo(obj){
 // qualquer um deles, não só do salvamento principal (saveTerreno).
 function dbUpdateTerreno(id, data){
   const clean = sanitize(data);
+  // carimbo de rastreio (quem/quando gravou por último)
+  try{ clean.modificado_em = new Date().toISOString(); clean.modificado_por = (getUsuarioAtual()||{}).handle || 'desconhecido'; clean.modificado_via = 'update'; }catch(_){}
   return db.collection('terrenos').doc(id).update(clean).catch(e=>{
     if(String(e.message||'').includes('nested entity')){
       console.warn('[diagnóstico array aninhado] dbUpdateTerreno('+id+'), campos:', Object.keys(data).join(', '));
@@ -3465,7 +3497,7 @@ async function _recebAbrirEmailGrande(i){
   // preenchendo o conteúdo depois que o parse do e-mail terminar.
   const winW = Math.min(1100, Math.round(screen.width*0.9));
   const winH = Math.min(900, Math.round(screen.height*0.9));
-  const win = window.open('', '_blank', `width=${winW},height=${winH},noopener`);
+  const win = window.open('', '_blank', `width=${winW},height=${winH}`);
   if(!win){ alert('Permita pop-ups para abrir o e-mail ampliado.'); return; }
   win.document.write('<body style="font-family:sans-serif;padding:40px;color:#888;font-size:14px;">⏳ Abrindo e-mail…</body>');
   showToast('🔍 Abrindo e-mail…');
@@ -5461,7 +5493,8 @@ async function _loadVecLotes(){
           // Modo ITBI: mostra painel de transações
           if(_itbiMode){
             L.DomEvent.stopPropagation(e);
-            showItbiForSql(sql);
+            // passa o nº de porta do lote clicado: em condomínio/quadra, mostra só a mesma edificação
+            showItbiForSql(sql, p.cd_numero_porta||'');
             return;
           }
           // Modo À Venda: busca anúncios pelo endereço do lote
@@ -5475,6 +5508,16 @@ async function _loadVecLotes(){
             if(!_geoActive['lotes'] || drawingActive || _medirMode || _alturaComarMode || _itbiHeatMode) return;
           }
           L.DomEvent.stopPropagation(e);
+          // Lote de condomínio (CD) com "Info lote" ligado: abre a lista de unidades
+          // ("Informações dos lotes do condomínio", igual ao GeoSampa).
+          if(_vecLotesQueryMode){
+            const _cdNum = String(p.cd_condominio||'').replace(/^0+/,'');
+            const _ehCD = _cdNum!=='' || (String(p.cd_lote||'')==='0000' && (p.cd_tipo_quadra||'').toUpperCase()==='CD');
+            if(_ehCD && _cdNum!=='' && p.cd_setor_fiscal && p.cd_quadra_fiscal){
+              _indispAbreCondominio(p.cd_setor_fiscal, p.cd_quadra_fiscal, _cdNum);
+              return;
+            }
+          }
           // Se o clique cair dentro do polígono de um terreno já cadastrado,
           // prioriza abrir o terreno em vez do painel genérico de lote.
           const _terrenoId = _terrenoNoPonto(e.latlng);
@@ -7124,7 +7167,7 @@ const VEC_OUC_MIN = 12;
 // operacao_urbana = perímetro geral (contorno tracejado, contexto);
 // subsetor_ouc = SETOR/SUBSETOR real de Faria Lima/Água Branca/Água Espraiada/Centro
 // (camada confirmada via shapefile baixado direto do GeoSampa — geoportal:subsetor_operacao_urbana)
-const VEC_OUC_LAYERS = ['operacao_urbana','subsetor_ouc','tamanduatei','jurubatuba','leopoldina','pinheiros_perimetro','pinheiros_parametro'];
+const VEC_OUC_LAYERS = ['operacao_urbana','area_influencia_fl','subsetor_ouc','tamanduatei','jurubatuba','leopoldina','pinheiros_perimetro','pinheiros_parametro'];
 let _vecOucLayer = null;
 let _oucMode = false;
 
@@ -7335,13 +7378,32 @@ function _patcultNomeDe(p){
   for(const c of candidatos){ if(p[c]) return String(p[c]); }
   return '';
 }
+const _PATCULT_ROTULOS = {
+  cd_identificador:'Código', nm_bairro:'Bairro', nm_bem:'Bem', nm_denominacao:'Denominação',
+  tx_resolucao_conpresp:'Resolução CONPRESP', tx_resolucao_condephaat:'Resolução CONDEPHAAT',
+  tx_link_resolucao:'Link da resolução', tx_link_despacho_diario_oficial:'Despacho (Diário Oficial)',
+  dt_despacho_diario_oficial:'Data do despacho', sg_fonte_original:'Fonte', dt_carga:'Data da carga',
+  nm_lugar:'Lugar', nm_area_tombada:'Área tombada', nm_endereco:'Endereço', tx_nome:'Nome'
+};
+function _patcultFmtVal(v){
+  const s = String(v).trim();
+  if(/^https?:\/\//i.test(s)){
+    const curto = s.length>46 ? s.slice(0,43)+'…' : s;
+    return `<a href="${escHtml(s)}" target="_blank" rel="noopener" style="color:#0a7c86;font-weight:700;text-decoration:underline;word-break:break-all;">🔗 ${escHtml(curto)}</a>`;
+  }
+  return escHtml(s.replace(/T00:00:00(\.\d+)?Z?$/,'').replace(/^(\d{4})-(\d{2})-(\d{2})$/,'$3/$2/$1'));
+}
 function _patcultPopupHtml(label, nome, p){
-  const rows = Object.entries(p).filter(([,v])=>v!==null && v!=='' && typeof v!=='object')
-    .map(([k,v])=>`<tr><td style="color:#666;padding:2px 8px 2px 0;font-size:11px;font-family:monospace">${k}</td><td style="font-weight:600;font-size:11px">${escHtml(String(v))}</td></tr>`).join('');
+  const _lbl = k => _PATCULT_ROTULOS[k] || k.replace(/^(cd|nm|tx|dt|sg|ds|nr|vl)_/,'').replace(/_/g,' ').replace(/^./,c=>c.toUpperCase());
+  const ocultar = new Set(['geom','geometry','objectid','gid','shape_area','shape_len']);
+  const rows = Object.entries(p).filter(([k,v])=>!ocultar.has(k.toLowerCase()) && v!==null && v!=='' && typeof v!=='object')
+    .map(([k,v])=>`<tr><td style="color:#64748b;padding:5px 10px 5px 0;font-size:11px;vertical-align:top;white-space:nowrap;border-bottom:1px solid #eef2f5;">${escHtml(_lbl(k))}</td><td style="font-weight:600;font-size:11.5px;color:#0f172a;padding:5px 0;border-bottom:1px solid #eef2f5;">${_patcultFmtVal(v)}</td></tr>`).join('');
   const _link = p.tx_link_despacho_diario_oficial
-    ? `<div style="margin-top:6px;font-size:11px;">📄 Despacho: <a href="${escHtml(p.tx_link_despacho_diario_oficial)}" target="_blank" rel="noopener">Diário Oficial${p.dt_despacho_diario_oficial?' ('+escHtml(String(p.dt_despacho_diario_oficial).replace('Z',''))+')':''}</a></div>` : '';
-  return `<b style="font-size:13px">🏛️ ${escHtml(label)}</b><br><span style="color:#666">${escHtml(nome)}</span>`+_link+
-    (rows ? `<details style="margin-top:6px"><summary style="cursor:pointer;font-size:11px;color:#555;">Ver dados completos</summary><table style="margin-top:4px">${rows}</table></details>` : '');
+    ? `<div style="margin-top:8px;font-size:11.5px;">📄 <a href="${escHtml(p.tx_link_despacho_diario_oficial)}" target="_blank" rel="noopener" style="color:#0a7c86;font-weight:700;text-decoration:underline;">Despacho no Diário Oficial${p.dt_despacho_diario_oficial?' ('+escHtml(String(p.dt_despacho_diario_oficial).replace(/T.*$/,'').replace(/^(\d{4})-(\d{2})-(\d{2})$/,'$3/$2/$1'))+')':''}</a></div>` : '';
+  return `<div style="min-width:260px;max-width:340px;">`+
+    `<div style="background:#1a3c4d;color:#fff;margin:-1px -1px 8px;padding:8px 12px;border-radius:8px 8px 0 0;"><b style="font-size:13px;">🏛️ ${escHtml(label)}</b>`+
+    (nome && nome!==label ? `<div style="font-size:11px;opacity:.85;margin-top:2px;">${escHtml(nome)}</div>` : '')+`</div>`+
+    (rows ? `<table style="border-collapse:collapse;width:100%;">${rows}</table>` : '')+_link+`</div>`;
 }
 
 // ─── Contaminação (Área Contaminada Reabilitada SVMA + Área Suspeita SIGAC) ──
@@ -7711,6 +7773,242 @@ function toggleTopografiaLayer(){
   }
 }
 
+// ─── Topografia GeoSampa (curvas de nível, declividade, apoio terrestre) ────
+// Camadas WMS só de visualização (nada é gravado). Ligar/desligar por botão.
+const _topoWmsLayers = {};
+function toggleTopoWms(nome){
+  const btn = document.getElementById('btn-geo-topo-'+nome);
+  if(!_topoWmsLayers[nome]){
+    _topoWmsLayers[nome] = L.tileLayer.wms(GEO_WMS, {
+      layers:'geoportal:'+nome, format:'image/png', transparent:true,
+      opacity: nome==='declividade' ? 0.6 : 0.9, maxZoom:22, attribution:'© GeoSampa / PMSP'
+    });
+  }
+  const lyr = _topoWmsLayers[nome];
+  if(map.hasLayer(lyr)){ map.removeLayer(lyr); if(btn) btn.classList.remove('active'); }
+  else { lyr.addTo(map); if(btn) btn.classList.add('active'); }
+}
+
+// ─── Declividade do perímetro do terreno (NOVO — só leitura, não grava nada) ───
+// Para cada trecho (V1→V2, V2→V3…) do polígono do terreno: comprimento, cota nas
+// duas pontas (interpolada das curvas de nível do GeoSampa) e declividade (%).
+// Compara com o limite de 30%. É ESTIMATIVA: a cota vem de interpolação entre
+// curvas de nível — não substitui levantamento planialtimétrico.
+const _DECLIV_LIMITE = 30;
+let _declivLayer = null;
+function _declivLimpar(){ if(_declivLayer){ map.removeLayer(_declivLayer); _declivLayer=null; } }
+function _declivRings(t){
+  let p=t.polygons; if(typeof p==='string'){ try{p=JSON.parse(p)}catch(e){p=null} }
+  let rings = (p&&p.length) ? p : (t.polygon ? (typeof t.polygon==='string' ? [JSON.parse(t.polygon)] : [t.polygon]) : []);
+  return rings.map(r=>{ r=r.map(c=>[+c[0],+c[1]]); if(r.length>1 && r[0][0]===r[r.length-1][0] && r[0][1]===r[r.length-1][1]) r=r.slice(0,-1); return r; }).filter(r=>r.length>=3);
+}
+function _declivElevProp(props){
+  // procura a propriedade numérica que representa a cota (altitudes de SP: ~700–1.100 m)
+  const pref = ['nr_cota','cota','nu_cota','vl_cota','elevacao','altitude','nr_elevacao','nr_altitude','alt','z'];
+  for(const k of Object.keys(props)){ if(pref.includes(k.toLowerCase())){ const v=parseFloat(props[k]); if(isFinite(v) && v>300 && v<1500) return v; } }
+  for(const k of Object.keys(props)){ if(k.startsWith('_')) continue; const v=parseFloat(props[k]); if(isFinite(v) && v>300 && v<1500 && /cota|elev|alt/i.test(k)) return v; }
+  for(const k of Object.keys(props)){ if(k.startsWith('_')) continue; const v=parseFloat(props[k]); if(isFinite(v) && v>=500 && v<=1300 && String(props[k]).trim()!=='') return v; }
+  return null;
+}
+async function _declivBuscarCurvas(rings){
+  const lats=rings.flat().map(c=>c[0]), lngs=rings.flat().map(c=>c[1]), m=0.0008; // ~90 m de margem
+  const q=`minLat=${Math.min(...lats)-m}&minLng=${Math.min(...lngs)-m}&maxLat=${Math.max(...lats)+m}&maxLng=${Math.max(...lngs)+m}`;
+  const r = await fetch(`${API_BASE}/api/geosampa-curvas?${q}`);
+  if(!r.ok) throw new Error('HTTP '+r.status+' (reinicie o servidor para carregar o endpoint novo)');
+  const gj = await r.json();
+  const isLL = _detectLonLat((gj.features||[]).filter(f=>f.geometry));
+  const linhas=[]; let semCota=0, chaves=null;
+  (gj.features||[]).forEach(f=>{
+    if(!f.geometry) return;
+    if(!chaves) chaves=Object.keys(f.properties||{});
+    const h=_declivElevProp(f.properties||{}); if(h==null){ semCota++; return; }
+    const g=f.geometry, partes = g.type==='LineString' ? [g.coordinates] : g.type==='MultiLineString' ? g.coordinates : [];
+    partes.forEach(pt=>linhas.push({h, pts:pt.map(c=> isLL ? [c[1],c[0]] : [c[0],c[1]])}));
+  });
+  return { linhas, semCota, chaves, total:(gj.features||[]).length };
+}
+function _declivElevacao(lat,lng,linhas){
+  const R=6371000, k=Math.cos(lat*Math.PI/180);
+  const xy=(la,lo)=>[(lo-lng)*Math.PI/180*R*k,(la-lat)*Math.PI/180*R];
+  const melhorPorCota=new Map();
+  linhas.forEach(L=>{
+    let d=Infinity;
+    for(let i=0;i<L.pts.length-1;i++){
+      const [ax,ay]=xy(L.pts[i][0],L.pts[i][1]), [bx,by]=xy(L.pts[i+1][0],L.pts[i+1][1]);
+      const dx=bx-ax, dy=by-ay, l2=dx*dx+dy*dy; let t=l2>0?((-ax)*dx+(-ay)*dy)/l2:0; t=Math.max(0,Math.min(1,t));
+      const dd=Math.hypot(ax+t*dx, ay+t*dy); if(dd<d) d=dd;
+    }
+    if(!melhorPorCota.has(L.h) || d<melhorPorCota.get(L.h)) melhorPorCota.set(L.h,d);
+  });
+  const arr=[...melhorPorCota.entries()].sort((a,b)=>a[1]-b[1]);
+  if(!arr.length) return null;
+  if(arr.length===1 || arr[0][1]<0.01) return arr[0][0];
+  const [h1,d1]=arr[0], [h2,d2]=arr[1];
+  return h1 + (h2-h1)*d1/(d1+d2);
+}
+function _declivDist(a,b){ return _haversineM(a[1],a[0],b[1],b[0]); }
+// Desenho esquemático do perímetro (norte para cima): trechos coloridos pela declividade,
+// vértices V1…Vn e rótulos T#/% — os trechos curtos só ganham rótulo se estiverem acima do limite.
+function _declivSvg(resultado, W, H, view){
+  W=W||760; H=H||440; view=view||{z:1,px:0,py:0};
+  const todos = resultado.flatMap(r=>r.ring);
+  const lat0=todos.reduce((s,c)=>s+c[0],0)/todos.length, lng0=todos.reduce((s,c)=>s+c[1],0)/todos.length;
+  const R=6371000, k=Math.cos(lat0*Math.PI/180);
+  const toM=c=>[(c[1]-lng0)*Math.PI/180*R*k, (c[0]-lat0)*Math.PI/180*R];
+  const pts=todos.map(toM);
+  const minX=Math.min(...pts.map(p=>p[0])), maxX=Math.max(...pts.map(p=>p[0])), minY=Math.min(...pts.map(p=>p[1])), maxY=Math.max(...pts.map(p=>p[1]));
+  const pad=70, esc=Math.min((W-2*pad)/Math.max(maxX-minX,1),(H-2*pad)/Math.max(maxY-minY,1));
+  const X0=m=>pad+((W-2*pad)-(maxX-minX)*esc)/2+(m[0]-minX)*esc, Y0=m=>H-pad-((H-2*pad)-(maxY-minY)*esc)/2-(m[1]-minY)*esc;
+  const X=m=>(X0(m)-W/2)*view.z+W/2+view.px, Y=m=>(Y0(m)-H/2)*view.z+H/2+view.py;
+  const cx=X([ (minX+maxX)/2, 0 ]), cy=Y([0,(minY+maxY)/2]);
+  let out=`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 ${W} ${H}" width="100%" style="max-height:${W>800?'78vh':'340px'};background:#fafaf7;cursor:${W>800?'grab':'zoom-in'};border:1px solid #e5e7eb;border-radius:8px;font-family:sans-serif;">`;
+  resultado.forEach(r=>{
+    const P=r.ring.map(c=>{const m=toM(c);return [X(m),Y(m)];});
+    out+=`<polygon points="${P.map(p=>p.join(',')).join(' ')}" fill="#f1efe7" stroke="none"/>`;
+    r.trechos.forEach((tr,i)=>{
+      const a=P[i], b=P[(i+1)%P.length];
+      const ok=tr.pct!=null && tr.pct<=_DECLIV_LIMITE, cor=tr.pct==null?'#6b7280':(ok?'#16a34a':'#dc2626');
+      out+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${cor}" stroke-width="${ok||tr.pct==null?2.5:4.5}" stroke-linecap="round"/>`;
+    });
+    r.trechos.forEach((tr,i)=>{
+      const a=P[i], b=P[(i+1)%P.length];
+      const lenPx=Math.hypot(b[0]-a[0],b[1]-a[1]);
+      const acima=tr.pct!=null && tr.pct>_DECLIV_LIMITE;
+      if(lenPx<34 && !acima) return;
+      const mx=(a[0]+b[0])/2, my=(a[1]+b[1])/2; let dx=mx-cx, dy=my-cy; const dl=Math.hypot(dx,dy)||1;
+      const tx=mx+dx/dl*20, ty=my+dy/dl*20, cor=tr.pct==null?'#6b7280':(acima?'#dc2626':'#374151');
+      out+=`<text x="${tx}" y="${ty}" text-anchor="middle" font-size="${acima?12:10.5}" font-weight="${acima?700:400}" fill="${cor}">T${tr.n}${tr.pct!=null?' · '+tr.pct.toFixed(0)+'%':''}</text>`;
+    });
+    P.forEach((p,i)=>{
+      out+=`<circle cx="${p[0]}" cy="${p[1]}" r="3.5" fill="#1d4ed8" stroke="#fff" stroke-width="1"/>`;
+      let dx=p[0]-cx, dy=p[1]-cy; const dl=Math.hypot(dx,dy)||1;
+      out+=`<text x="${p[0]+dx/dl*13}" y="${p[1]+dy/dl*13+3.5}" text-anchor="middle" font-size="11" font-weight="700" fill="#111">V${i+1}</text>`;
+    });
+  });
+  out+=`<g transform="translate(${W-34},34)"><circle r="16" fill="#fff" stroke="#9ca3af"/><path d="M0,-12 L5,6 L0,2 L-5,6 Z" fill="#374151"/><text y="-17" text-anchor="middle" font-size="10" font-weight="700" fill="#374151">N</text></g>`;
+  out+=`<g font-size="11"><rect x="10" y="${H-26}" width="12" height="4" fill="#16a34a"/><text x="27" y="${H-21}">até ${_DECLIV_LIMITE}%</text><rect x="95" y="${H-26}" width="12" height="4" fill="#dc2626"/><text x="112" y="${H-21}">acima de ${_DECLIV_LIMITE}%</text></g>`;
+  return out+'</svg>';
+}
+let _declivUltimo = null;
+function _declivZoomAbrir(){
+  if(!_declivUltimo) return;
+  const antigo=document.getElementById('declividade-zoom'); if(antigo) antigo.remove();
+  const W=1200,H=720; const v={z:1,px:0,py:0};
+  const bg=document.createElement('div'); bg.id='declividade-zoom';
+  bg.style.cssText='position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.6);display:flex;align-items:center;justify-content:center;';
+  bg.innerHTML='<div style="background:#fff;border-radius:10px;width:min(1240px,96vw);padding:10px;position:relative;"><div style="display:flex;gap:6px;justify-content:space-between;align-items:center;margin-bottom:6px;font:12px sans-serif;"><span>🔍 Roda do mouse = zoom · arrastar = mover · duplo clique = reiniciar</span><span><button class="btn-export" data-a="mais" style="width:auto;display:inline-block;padding:3px 10px;">＋</button> <button class="btn-export" data-a="menos" style="width:auto;display:inline-block;padding:3px 10px;">－</button> <button class="btn-export" data-a="reset" style="width:auto;display:inline-block;padding:3px 10px;">Reiniciar</button> <button class="btn-export" data-a="fechar" style="width:auto;display:inline-block;padding:3px 10px;">Fechar</button></span></div><div id="declividade-zoom-svg" style="touch-action:none;"></div></div>';
+  document.body.appendChild(bg);
+  const box=bg.querySelector('#declividade-zoom-svg');
+  const draw=()=>{ box.innerHTML=_declivSvg(_declivUltimo,W,H,v); };
+  const ptr=(ev)=>{ const r=box.getBoundingClientRect(); return [(ev.clientX-r.left)*W/r.width,(ev.clientY-r.top)*H/r.height]; };
+  const zoomEm=(f,mx,my)=>{ const nz=Math.max(0.6,Math.min(60,v.z*f)); if(nz===v.z) return;
+    v.px=mx-W/2-((mx-W/2-v.px)/v.z)*nz; v.py=my-H/2-((my-H/2-v.py)/v.z)*nz; v.z=nz; draw(); };
+  box.addEventListener('wheel',ev=>{ ev.preventDefault(); const [mx,my]=ptr(ev); zoomEm(ev.deltaY<0?1.25:0.8,mx,my); },{passive:false});
+  let arr=null;
+  box.addEventListener('pointerdown',ev=>{ arr={x:ev.clientX,y:ev.clientY,px:v.px,py:v.py}; box.setPointerCapture(ev.pointerId); });
+  box.addEventListener('pointermove',ev=>{ if(!arr) return; const r=box.getBoundingClientRect(); v.px=arr.px+(ev.clientX-arr.x)*W/r.width; v.py=arr.py+(ev.clientY-arr.y)*H/r.height; draw(); });
+  box.addEventListener('pointerup',()=>{ arr=null; });
+  box.addEventListener('dblclick',()=>{ v.z=1; v.px=0; v.py=0; draw(); });
+  bg.addEventListener('click',ev=>{ const a=ev.target.getAttribute&&ev.target.getAttribute('data-a'); if(ev.target===bg||a==='fechar'){ bg.remove(); return; }
+    if(a==='mais') zoomEm(1.4,W/2,H/2); else if(a==='menos') zoomEm(1/1.4,W/2,H/2); else if(a==='reset'){ v.z=1;v.px=0;v.py=0;draw(); } });
+  draw();
+}
+function _declivImprimir(){
+  const m=document.getElementById('declividade-modal'); if(!m) return;
+  const w=window.open('','_blank'); if(!w){ alert('Libere pop-ups para imprimir/salvar em PDF.'); return; }
+  w.document.write('<html><head><title>Declividade do perímetro</title><style>body{font:12px sans-serif;margin:18px}table{width:100%;border-collapse:collapse}th,td{padding:2px 6px;border-bottom:1px solid #eee}button{display:none}h3{margin:0 0 8px}</style></head><body>'+m.querySelector('.decliv-print').innerHTML+'</body></html>');
+  w.document.close(); setTimeout(()=>w.print(),400);
+}
+function declividadeDoModal(){
+  if(editingId){ const t=terrenos.find(x=>String(x.id)===String(editingId)); if(t){ declividadePerimetro(t); return; } }
+  // terreno ainda não salvo: usa o polígono em desenho no modal
+  if(typeof pendingPolygons!=='undefined' && pendingPolygons.length){
+    const end = (document.getElementById('f-endereco')||document.querySelector('#modal-bg input'))?.value || 'Terreno em cadastro';
+    declividadePerimetro({ endereco:end, polygons:JSON.stringify(pendingPolygons) });
+  } else alert('Este terreno ainda não tem polígono desenhado — desenhe ou carregue o polígono primeiro.');
+}
+async function declividadePerimetro(id){
+  const t = (id && typeof id==='object') ? id : terrenos.find(x=>String(x.id)===String(id));
+  if(!t){ alert('Terreno não encontrado.'); return; }
+  const rings=_declivRings(t);
+  if(!rings.length){ alert('Este terreno não tem polígono desenhado — a declividade do perímetro precisa do polígono.'); return; }
+  showToast('📐 Buscando curvas de nível no GeoSampa…');
+  let cv;
+  try{ cv = await _declivBuscarCurvas(rings); }catch(e){ alert('Não consegui buscar as curvas de nível: '+e.message); return; }
+  if(!cv.linhas.length){
+    alert('O GeoSampa não devolveu curvas de nível utilizáveis nesta área.\n\nFeições recebidas: '+cv.total+' | sem cota legível: '+cv.semCota+'\nCampos da camada: '+((cv.chaves||[]).join(', ')||'—')+'\n\nMe envie essa mensagem para eu ajustar a leitura da cota.');
+    return;
+  }
+  const resultado = rings.map(ring=>{
+    const cotas = ring.map(c=>_declivElevacao(c[0],c[1],cv.linhas));
+    const trechos = ring.map((a,i)=>{
+      const j=(i+1)%ring.length, b=ring[j];
+      const L=_haversineM(a[1],a[0],b[1],b[0]);
+      const h1=cotas[i], h2=cotas[j];
+      const dh = (h1!=null&&h2!=null) ? h2-h1 : null;
+      const pct = (dh!=null && L>0) ? Math.abs(dh)/L*100 : null;
+      return { n:i+1, de:'V'+(i+1), para:'V'+(j+1), L, h1, h2, dh, pct, a, b };
+    });
+    return { ring, cotas, trechos };
+  });
+  _declivUltimo = resultado;
+  _declivLimpar();
+  _declivLayer = L.layerGroup().addTo(map);
+  resultado.forEach(r=>{
+    r.trechos.forEach(tr=>{
+      const ok = tr.pct!=null && tr.pct<=_DECLIV_LIMITE;
+      const cor = tr.pct==null ? '#6b7280' : (ok ? '#16a34a' : '#dc2626');
+      L.polyline([tr.a,tr.b],{color:cor,weight:6,opacity:.9}).bindTooltip(`T${tr.n}: ${tr.pct!=null?tr.pct.toFixed(1)+'%':'s/ dado'} — ${tr.L.toFixed(1)} m`,{sticky:true}).addTo(_declivLayer);
+      const mid=[(tr.a[0]+tr.b[0])/2,(tr.a[1]+tr.b[1])/2];
+      L.marker(mid,{icon:L.divIcon({className:'',html:`<div style="background:#fff;border:1.5px solid ${cor};color:${cor};border-radius:10px;padding:0 5px;font:700 11px sans-serif;white-space:nowrap;">T${tr.n} ${tr.pct!=null?tr.pct.toFixed(0)+'%':'—'}</div>`,iconSize:[0,0]}),interactive:false}).addTo(_declivLayer);
+    });
+    r.ring.forEach((c,i)=>L.circleMarker(c,{radius:4,color:'#fff',weight:1.5,fillColor:'#1d4ed8',fillOpacity:1}).bindTooltip('V'+(i+1)+(r.cotas[i]!=null?' · cota '+r.cotas[i].toFixed(1)+' m':''),{permanent:false}).addTo(_declivLayer));
+  });
+  try{ map.fitBounds(L.latLngBounds(rings.flat()).pad(0.4)); }catch(e){}
+  // painel com a tabela
+  const antigo=document.getElementById('declividade-modal'); if(antigo) antigo.remove();
+  const todos = resultado.flatMap(r=>r.trechos);
+  const acima = todos.filter(x=>x.pct!=null && x.pct>_DECLIV_LIMITE);
+  const max = todos.reduce((m,x)=> (x.pct!=null && (m==null||x.pct>m.pct)) ? x : m, null);
+  const semDado = todos.filter(x=>x.pct==null).length;
+  const linhasHtml = todos.map(x=>{
+    const ok = x.pct!=null && x.pct<=_DECLIV_LIMITE;
+    const cor = x.pct==null ? '#6b7280' : (ok ? '#16a34a' : '#dc2626');
+    return `<tr><td>T${x.n}</td><td>${x.de} → ${x.para}</td><td style="text-align:right">${x.L.toFixed(1)}</td><td style="text-align:right">${x.h1!=null?x.h1.toFixed(1):'—'}</td><td style="text-align:right">${x.h2!=null?x.h2.toFixed(1):'—'}</td><td style="text-align:right">${x.dh!=null?(x.dh>0?'+':'')+x.dh.toFixed(2):'—'}</td><td style="text-align:right;font-weight:700;color:${cor}">${x.pct!=null?x.pct.toFixed(1)+'%':'—'}</td><td style="color:${cor};font-weight:700">${x.pct==null?'sem dado':(ok?'✓ dentro de '+_DECLIV_LIMITE+'%':'✗ acima de '+_DECLIV_LIMITE+'%')}${x.L<1?' <span style="color:#b45309;font-weight:400" title="Trecho muito curto: a declividade calculada é pouco confiável">⚠️ &lt;1 m</span>':''}</td></tr>`;
+  }).join('');
+  const d=document.createElement('div'); d.id='declividade-modal';
+  d.style.cssText='position:fixed;right:16px;bottom:16px;z-index:99998;background:#fff;border-radius:10px;box-shadow:0 8px 30px rgba(0,0,0,.3);width:min(760px,94vw);max-height:70vh;display:flex;flex-direction:column;font:12px sans-serif;';
+  d.innerHTML=`<div style="padding:10px 14px;border-bottom:1px solid #e5e7eb;display:flex;justify-content:space-between;align-items:center;"><b>📐 Declividade do perímetro — ${String(t.endereco||'').replace(/</g,'&lt;')}</b><span><button class="btn-export" style="width:auto;display:inline-block;padding:3px 10px;margin-right:6px;" onclick="_declivImprimir()">🖨️ Imprimir / PDF</button><button class="btn-export" style="width:auto;display:inline-block;padding:3px 10px;" onclick="_declivLimpar();this.closest('#declividade-modal').remove()">Fechar e limpar mapa</button></span></div>
+  <div style="padding:8px 14px;background:${acima.length?'#fef2f2':'#f0fdf4'};color:${acima.length?'#991b1b':'#166534'};font-weight:700;">${acima.length?`⚠️ ${acima.length} de ${todos.length} trecho(s) acima de ${_DECLIV_LIMITE}% — maior: T${max.n} (${max.pct.toFixed(1)}%)`:(max?`✓ Todos os trechos dentro de ${_DECLIV_LIMITE}% — maior: T${max.n} (${max.pct.toFixed(1)}%)`:'Sem dados de cota suficientes')}${semDado?` · ${semDado} trecho(s) sem dado`:''}</div>
+  <div class="decliv-print" style="overflow:auto;padding:0 14px;"><h3 style="display:none">Declividade do perímetro — ${String(t.endereco||'').replace(/</g,'&lt;')}</h3><div style="margin:10px 0 4px;" title="Clique para ampliar (zoom e arrastar)" onclick="_declivZoomAbrir()">${_declivSvg(resultado)}</div><div style="font-size:10px;color:#6b7280;margin-bottom:4px;">🔍 Clique no desenho para ampliar — roda do mouse = zoom, arrastar = mover.</div><table style="width:100%;border-collapse:collapse;margin:8px 0;"><thead><tr style="text-align:left;border-bottom:2px solid #e5e7eb;"><th>Trecho</th><th>Vértices</th><th style="text-align:right">Compr. (m)</th><th style="text-align:right">Cota ini. (m)</th><th style="text-align:right">Cota fim (m)</th><th style="text-align:right">Desnível (m)</th><th style="text-align:right">Declividade</th><th>Situação</th></tr></thead><tbody>${linhasHtml}</tbody></table></div>
+  <div style="padding:8px 14px;border-top:1px solid #e5e7eb;color:#6b7280;font-size:11px;line-height:1.4;">Estimativa: cota de cada vértice interpolada entre as curvas de nível do GeoSampa (${cv.linhas.length} segmentos lidos). Declividade = |desnível| ÷ comprimento do trecho. Não substitui levantamento planialtimétrico — confirmar antes de decidir custo de obra.</div>`;
+  document.body.appendChild(d);
+  // janela móvel: arrastar pela barra do título
+  const barra=d.firstElementChild; barra.style.cursor='move'; barra.style.userSelect='none'; barra.title='Arraste para mover a janela';
+  let mv=null;
+  barra.addEventListener('pointerdown',ev=>{ if(ev.target.closest('button')) return; const r=d.getBoundingClientRect();
+    d.style.left=r.left+'px'; d.style.top=r.top+'px'; d.style.right='auto'; d.style.bottom='auto';
+    mv={x:ev.clientX,y:ev.clientY,l:r.left,t:r.top}; barra.setPointerCapture(ev.pointerId); });
+  barra.addEventListener('pointermove',ev=>{ if(!mv) return;
+    const nl=Math.max(-d.offsetWidth+80,Math.min(window.innerWidth-80,mv.l+ev.clientX-mv.x)), nt=Math.max(0,Math.min(window.innerHeight-40,mv.t+ev.clientY-mv.y));
+    d.style.left=nl+'px'; d.style.top=nt+'px'; });
+  barra.addEventListener('pointerup',()=>{ mv=null; });
+}
+// Botão no popup do terreno (sem alterar o popup original: é acrescentado ao abrir)
+map.on('popupopen', function(e){
+  try{
+    const src = e.popup && e.popup._source; if(!src) return;
+    const id = Object.keys(layers).find(k=>{ const l=layers[k]; return (Array.isArray(l)?l:[l]).includes(src); });
+    if(!id) return;
+    const cont = e.popup.getElement() && e.popup.getElement().querySelector('.leaflet-popup-content'); if(!cont) return;
+    if(cont.querySelector('.btn-declividade')) return;
+    const b=document.createElement('button'); b.className='btn-declividade'; b.textContent='📐 Declividade do perímetro';
+    b.style.cssText='margin-top:6px;width:100%;padding:6px;border:1px solid #00B0B9;background:#fff;color:#00838a;border-radius:6px;font-weight:700;cursor:pointer;';
+    b.onclick=()=>declividadePerimetro(id);
+    cont.appendChild(b);
+  }catch(err){ console.warn('[declividade] popup', err); }
+});
+
 // ─── Cálculo de Altura Máxima Permitida (COMAR) ────────────────────────────
 // Estima, num ponto qualquer, a altura máxima de construção permitida pelas
 // zonas de proteção de aeródromo/heliponto do DECEA, a partir de:
@@ -8022,6 +8320,29 @@ function _comarSBSPAnalitico(lon, lat){
 // Função principal: dado um ponto (lon,lat), retorna o gabarito de topo de
 // cada plano DECEA aplicável, o mais restritivo (menor gabarito) entre eles,
 // a cota do terreno (elevação) e a altura máxima permitida estimada.
+let _comarRotasSP = null;
+async function _comarRotaPzpreahSP(lon, lat){
+  if(!_comarRotasSP){
+    const r = await fetch('/dados_geo/pzpreah_sp_rotas.json');
+    if(!r.ok) return null;
+    _comarRotasSP = await r.json();
+  }
+  const k = Math.cos(lat*Math.PI/180)*111320, m = 110574;
+  let melhor = null;
+  (_comarRotasSP.segmentos||[]).forEach(s=>{
+    const ax=(s.a[0]-lon)*k, ay=(s.a[1]-lat)*m, bx=(s.b[0]-lon)*k, by=(s.b[1]-lat)*m;
+    const dx=bx-ax, dy=by-ay, l2=dx*dx+dy*dy;
+    let t = l2>0 ? (-ax*dx-ay*dy)/l2 : 0; t=Math.max(0,Math.min(1,t));
+    const d = Math.hypot(ax+t*dx, ay+t*dy);
+    if(d <= s.largura/2 && (!melhor || s.gabarito < melhor.s.gabarito)) melhor = {s, d, da:Math.hypot(ax,ay), db:Math.hypot(bx,by)};
+  });
+  if(!melhor) return null;
+  const s = melhor.s, fixo = melhor.da <= melhor.db ? s.de : s.para;
+  return { planoId:'pzpreah-sp', aerodromo:`Rota ${fixo}`, oaci:'', tipo:'PZPREAH',
+           superficie:`${s.rota} — ${s.de} → ${s.para} (faixa ${s.largura} m)`,
+           gabarito:s.gabarito, metodo:'faixa da rota especial (Ficha Informativa DECEA)' };
+}
+
 async function _comarCalcularAltura(lon, lat){
   await _loadComarAlturaDados();
   const BUFFER_DEG = 0.01;       // ~1.1km de folga só pro pré-filtro de bbox
@@ -8101,8 +8422,26 @@ async function _comarCalcularAltura(lon, lat){
     for(let i=resultados.length-1; i>=0; i--){ if(resultados[i].oaci==='SBSP') resultados.splice(i,1); }
     resultados.push(sbspAnalitico);
   }
-  let cota = null;
+  // PZPREAH — rotas especiais de SP (Ficha Informativa DECEA, Terminal São Paulo).
   try{
+    const rota = await _comarRotaPzpreahSP(lon, lat);
+    if(rota){
+      for(let i=resultados.length-1; i>=0; i--){ if(resultados[i].tipo==='PZPREAH' && resultados[i].oaci==='SBGL') resultados.splice(i,1); }
+      resultados.push(rota);
+    }
+  }catch(e){ console.warn('[comar-altura] rotas PZPREAH SP indisponíveis', e); }
+  let cota = null, fonteCota = null;
+  // 1ª opção: curvas de nível oficiais do GeoSampa (interpolação). Falha → Open-Meteo.
+  try{
+    if(typeof _declivBuscarCurvas==='function'){
+      const cv = await Promise.race([_declivBuscarCurvas([[lat,lon]]), new Promise((_,rej)=>setTimeout(()=>rej(new Error('timeout')),8000))]);
+      if(cv && cv.linhas && cv.linhas.length){
+        const h = _declivElevacao(lat, lon, cv.linhas);
+        if(h!=null && isFinite(h)){ cota = h; fonteCota = 'GeoSampa'; }
+      }
+    }
+  }catch(e){ console.warn('[comar-altura] curvas GeoSampa indisponíveis, usando Open-Meteo', e); }
+  if(cota==null) try{
     // Timeout curto (8s) — sem isso, quando a Open-Meteo está lenta/fora do
     // ar, o fetch fica pendurado até o timeout padrão do navegador (bem mais
     // longo), e como _comarCalcularFormacao chama isso uma vez por vértice
@@ -8113,12 +8452,12 @@ async function _comarCalcularAltura(lon, lat){
     const to = setTimeout(()=>ac.abort(), 8000);
     const r = await fetch(`https://api.open-meteo.com/v1/elevation?latitude=${lat}&longitude=${lon}`, {signal:ac.signal});
     clearTimeout(to);
-    if(r.ok){ const j = await r.json(); cota = (j && j.elevation && j.elevation[0]!=null) ? j.elevation[0] : null; }
+    if(r.ok){ const j = await r.json(); cota = (j && j.elevation && j.elevation[0]!=null) ? j.elevation[0] : null; if(cota!=null) fonteCota='Open-Meteo'; }
   }catch(e){ console.warn('[comar-altura] erro ao buscar elevação', e); }
   resultados.sort((a,b)=>a.gabarito-b.gabarito);
   const maisRestritivo = resultados[0] || null;
   const alturaMax = (maisRestritivo && cota!=null) ? (maisRestritivo.gabarito - cota) : null;
-  return { lon, lat, cota, resultados, maisRestritivo, alturaMax };
+  return { lon, lat, cota, fonteCota, resultados, maisRestritivo, alturaMax };
 }
 
 function toggleAlturaComarMode(){
@@ -8147,6 +8486,7 @@ function cancelAlturaComarMode(){
   panel && (panel.style.display='none');
   map.getContainer().style.cursor = '';
   map.off('click', _alturaComarClick);
+  _comarLimparZona();
   if(_alturaComarMarker){ map.removeLayer(_alturaComarMarker); _alturaComarMarker = null; }
 }
 let _alturaComarMarker = null;
@@ -8167,6 +8507,7 @@ async function _alturaComarRodar(lat, lng, endereco){
   const body = document.getElementById('altura-comar-body');
   if(!body) return;
   _alturaComarSetMarker(lat, lng);
+  _comarLimparZona();
   body.innerHTML = '<div style="font-size:12px;color:var(--muted);">Calculando…</div>';
   try{
     const res = await _comarCalcularAltura(lng, lat);
@@ -8216,8 +8557,91 @@ async function buscarEnderecoAlturaComar(){
     body.innerHTML = '<div style="font-size:12px;color:#dc2626;">Erro ao buscar endereço. Tente novamente.</div>';
   }
 }
+// ─── Desenho da zona de influência ao clicar no card da zona (COMAR) ──────
+let _comarZonaLayer = null;
+let _comarUltimoRes = null;
+function _comarLimparZona(){
+  if(_comarZonaLayer){ map.removeLayer(_comarZonaLayer); _comarZonaLayer = null; }
+}
+function _comarCorSuperficie(nome){
+  const n = (nome||'').toLowerCase();
+  if(n.includes('cônica')||n.includes('conica')) return '#f59e0b';
+  if(n.includes('horizontal interna')) return '#2563eb';
+  if(n.includes('horizontal')) return '#60a5fa';
+  if(n.includes('aproxima')) return '#16a34a';
+  if(n.includes('transi')) return '#a855f7';
+  if(n.includes('decol')) return '#ef4444';
+  return '#00B0B9';
+}
+// Offset local (m) → [lat,lon] em relação a um ponto de origem
+function _comarXY2LL(lat0, lon0, x, y){
+  const R=6371000;
+  return [ lat0 + (y/R)*180/Math.PI, lon0 + (x/(R*Math.cos(lat0*Math.PI/180)))*180/Math.PI ];
+}
+// "Estádio" (cápsula) de raio r em torno do segmento A–B
+function _comarEstadio(A, B, r){
+  const R=6371000, lat0=A.lat*Math.PI/180;
+  const bx=(B.lon-A.lon)*Math.PI/180*R*Math.cos(lat0), by=(B.lat-A.lat)*Math.PI/180*R;
+  const ang=Math.atan2(by,bx), pts=[];
+  for(let i=0;i<=36;i++){ const a=ang+Math.PI/2+i*Math.PI/36; pts.push([Math.cos(a)*r, Math.sin(a)*r]); }
+  const p1=pts.map(([x,y])=>[x,y]);
+  const p2=[]; for(let i=0;i<=36;i++){ const a=ang-Math.PI/2+i*Math.PI/36; p2.push([bx+Math.cos(a)*r, by+Math.sin(a)*r]); }
+  return p1.concat(p2).map(([x,y])=>_comarXY2LL(A.lat,A.lon,x,y));
+}
+function _comarMostrarZona(i){
+  const res = _comarUltimoRes; if(!res) return;
+  const r = res.resultados[i]; if(!r) return;
+  _comarLimparZona();
+  const grp = L.layerGroup(); const todos = [];
+  const add = (layer, pts)=>{ grp.addLayer(layer); if(pts) pts.forEach(p=>todos.push(p)); };
+  const legenda = [];
+  const ponto = [res.lat, res.lon];
+  todos.push(ponto);
+  if(r.oaci==='SBSP' && !r.planoId){
+    const e=_SBSP_CABECEIRAS;
+    const pares=[['17R','35L'],['17L','35R']];
+    pares.forEach(([a,b])=>{
+      const A=e[a], B=e[b], p=_ICA1140_ENVELOPE[A.codigo];
+      const hE=_comarEstadio(A,B,p.raioHE), cN=_comarEstadio(A,B,p.raioHI+p.alturaCon/p.gradCon), hI=_comarEstadio(A,B,p.raioHI);
+      add(L.polygon(hE,{color:'#60a5fa',weight:1.5,fillOpacity:.06,dashArray:'6 4'}).bindTooltip(`Horizontal Externa ${a}/${b} — ${(_SBSP_ELEV_AERODROMO+p.alturaHE).toFixed(0)} m`,{sticky:true}), hE);
+      add(L.polygon(cN,{color:'#f59e0b',weight:1.5,fillOpacity:.10}).bindTooltip(`Cônica ${a}/${b} — ${(_SBSP_ELEV_AERODROMO+p.alturaHI).toFixed(0)} a ${(_SBSP_ELEV_AERODROMO+p.alturaHI+p.alturaCon).toFixed(0)} m`,{sticky:true}), cN);
+      add(L.polygon(hI,{color:'#2563eb',weight:1.5,fillOpacity:.14}).bindTooltip(`Horizontal Interna ${a}/${b} — ${(_SBSP_ELEV_AERODROMO+p.alturaHI).toFixed(0)} m`,{sticky:true}), hI);
+    });
+    ['17R','35L','17L','35R'].forEach(k=>{
+      const c=e[k], ap = c.tipoOperacao==='CATI' ? _ICA1140_APROX.CATI4 : _ICA1140_APROX.NP2;
+      const len = ap.len1 + (ap.grad2 ? (ap.alturaCap-ap.grad1*ap.len1)/ap.grad2 : 0);
+      const brg=((c.trueBrgPouso+180)%360)*Math.PI/180, ux=Math.sin(brg), uy=Math.cos(brg);
+      const q=(d,w)=>_comarXY2LL(c.lat,c.lon, ux*d + uy*w, uy*d - ux*w);
+      const d0=60, w0=ap.largura0/2+ap.abertura*d0, w1=ap.largura0/2+ap.abertura*len;
+      const poly=[q(d0,-w0),q(d0,w0),q(len+60,w1),q(len+60,-w1)];
+      add(L.polygon(poly,{color:'#16a34a',weight:1.5,fillOpacity:.25}).bindTooltip(`Aproximação ${k} — cabeceira ${c.elev} m`,{sticky:true}), poly);
+      add(L.circleMarker([c.lat,c.lon],{radius:5,color:'#fff',weight:2,fillColor:'#dc2626',fillOpacity:1}).bindTooltip(`Cabeceira ${k} · elev. ${c.elev} m`), [[c.lat,c.lon]]);
+    });
+    legenda.push(['#2563eb','Horizontal Interna'],['#f59e0b','Cônica'],['#60a5fa','Horizontal Externa'],['#16a34a','Aproximação'],['#dc2626','Cabeceiras']);
+  } else {
+    const g = _comarAlturaIndex && _comarAlturaIndex.get(r.planoId);
+    if(!g){ showToast('Sem geometria disponível para esta zona'); return; }
+    const contem = new Set(_superficiesQueContemPonto(g, res.lon, res.lat).map(x=>x.surf));
+    g.surfaces.forEach(s=>{
+      const ll=(s.coords||[]).map(([lo,la])=>[la,lo]); if(ll.length<3) return;
+      const cor=_comarCorSuperficie(s.name), ativa=contem.has(s);
+      add(L.polygon(ll,{color:cor,weight:ativa?2.5:1,fillColor:cor,fillOpacity:ativa?.28:.06,dashArray:ativa?null:'4 4'}).bindTooltip(`${s.name||'Superfície'}${ativa?' (contém o ponto)':''}`,{sticky:true}), ll);
+    });
+    g.altPoints.forEach(p=>{
+      add(L.circleMarker([p.lat,p.lon],{radius:4,color:'#fff',weight:1.5,fillColor:'#dc2626',fillOpacity:1}).bindTooltip(`${p.alt} m`,{permanent:false}), [[p.lat,p.lon]]);
+    });
+    legenda.push(['#dc2626','Pontos de altitude (m)'],['#f59e0b','Cônica'],['#2563eb','Horizontal'],['#16a34a','Aproximação/seções']);
+  }
+  add(L.circleMarker(ponto,{radius:7,color:'#fff',weight:2,fillColor:'#00B0B9',fillOpacity:1}).bindTooltip('Terreno / ponto analisado'));
+  grp.addTo(map); _comarZonaLayer = grp;
+  try{ map.fitBounds(L.latLngBounds(todos).pad(0.1)); }catch(e){}
+  const lg = document.getElementById('comar-zona-legenda');
+  if(lg) lg.innerHTML = `<b>${r.aerodromo||''} — ${r.superficie||''}</b><br>` + legenda.map(([c,t])=>`<span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${c};margin-right:4px;"></span>${t}`).join(' &nbsp; ') + ` &nbsp; <a href="#" onclick="_comarLimparZona();document.getElementById('comar-zona-legenda').innerHTML='';return false;">limpar</a>`;
+}
+
 function _renderAlturaComarResultado(res){
   const { cota, resultados, lat, lon } = res;
+  _comarUltimoRes = res;
   let html = `<div style="font-size:11px;color:var(--muted);margin-bottom:8px;">📍 ${lat.toFixed(5)}, ${lon.toFixed(5)}</div>`;
   if(!resultados.length){
     html += `<div style="font-size:12px;color:#16a34a;font-weight:600;">✅ Nenhuma zona de proteção do DECEA identificada neste ponto.</div>`;
@@ -8237,7 +8661,8 @@ function _renderAlturaComarResultado(res){
   const alturaMax = (principal && cota!=null) ? (principal.gabarito - cota) : null;
   html += `<div style="font-size:11px;color:var(--muted);">Cota do terreno (elevação): <b>${cota!=null? cota.toFixed(1)+' m':'—'}</b></div>`;
   html += `<div style="margin:10px 0 6px;font-size:11px;font-weight:700;color:var(--navy,#1a3c4d);">Zonas aplicáveis (${resultados.length}):</div>`;
-  resultados.forEach(r=>{
+  html += `<div style="font-size:10px;color:var(--muted);margin-bottom:6px;">👆 Clique numa zona para desenhar a influência (superfícies, pontos de altitude e cones) no mapa.</div><div id="comar-zona-legenda" style="font-size:10px;line-height:1.6;margin-bottom:6px;"></div>`;
+  resultados.forEach((r,ri)=>{
     const alt = (cota!=null) ? (r.gabarito - cota) : null;
     const ehCM = _comarEhCampoDeMarte(r);
     const ehPrincipal = principal && r===principal;
@@ -8251,7 +8676,7 @@ function _renderAlturaComarResultado(res){
       : ehCM
         ? 'background:#f8fafc;border:1px dashed var(--border);opacity:.7;'
         : 'background:#f8fafc;border:1px solid var(--border);';
-    html += `<div style="padding:8px;margin-bottom:6px;border-radius:6px;${estilo}">
+    html += `<div onclick="_comarMostrarZona(${ri})" title="Clique para ver o desenho da influência no mapa" style="cursor:pointer;padding:8px;margin-bottom:6px;border-radius:6px;${estilo}">
       <div style="font-size:11px;font-weight:700;">${ehPrincipal?'⭐ ':''}${r.aerodromo||'—'} ${r.oaci?'('+r.oaci+')':''}</div>
       <div style="font-size:10px;color:var(--muted);">${_comarLabel(r.tipo)} — ${r.superficie}</div>
       <div style="font-size:10px;color:var(--muted);">Método: ${r.metodo}</div>
@@ -8583,7 +9008,7 @@ async function _gerarRelatorioComar(){
     <div class="obs-grid">
       <div class="obs-card"><b>📐 Fórmula</b>Altura máxima permitida (m) = Gabarito de topo da superfície de proteção (m, acima do nível do mar) − Cota do terreno (m, acima do nível do mar).</div>
       <div class="obs-card"><b>🛰️ Fonte — zonas de proteção</b>Planos básicos oficiais do DECEA (PBZPA/PBZPH/PZPANA/PZPREAH), publicados como KMZ no Portal AGA (aga.decea.mil.br), convertidos em pontos de altitude e seções geométricas.</div>
-      <div class="obs-card"><b>🗺️ Fonte — cota do terreno</b>Modelo de elevação digital de código aberto (Open-Meteo Elevation API, open-meteo.com) — a mesma fonte usada na camada "Topografia" do mapa.</div>
+      <div class="obs-card"><b>🗺️ Fonte — cota do terreno</b>Curvas de nível oficiais do GeoSampa (Prefeitura de SP), com interpolação entre as duas curvas mais próximas; se indisponíveis, modelo de elevação de código aberto (Open-Meteo, ~90 m) como reserva.</div>
       <div class="obs-card"><b>🎯 Como o gabarito é obtido</b>Por ordem de precisão: 1) interpolação geométrica dentro de uma seção nomeada do plano oficial; 2) ponto de altitude publicado ancorado diretamente na superfície aplicável; 3) interpolação (IDW) entre pontos de altitude próximos, quando não há seção nomeada no local exato.</div>
       <div class="obs-card"><b>✈️ Campo de Marte (SBMT)</b>O número principal de "Altura Máxima Permitida" não usa o Campo de Marte como zona restritiva — quando ele aparece na tabela e seria mais restritivo que a zona considerada, uma linha extra mostra qual seria o limite se ele fosse levado em conta.</div>
     </div>
@@ -8640,6 +9065,7 @@ const AIU_PINHEIROS_PARAMS = {
   'P5a':{classificacao:'Preservação',   ca:0.5, gab:28,   cotaParte:null, fatorRes:1.0, fatorNaoRes:1.0},
 };
 function _oucColor(layerKey, props){
+  if(layerKey === 'area_influencia_fl') return '#16a34a';
   if(layerKey === 'tamanduatei') return '#005f63';
   if(layerKey === 'jurubatuba')  return '#1a3c4d';
   if(layerKey === 'leopoldina')  return '#a8dfe1';
@@ -8655,6 +9081,7 @@ function _oucColor(layerKey, props){
   return '#fde68a'; // operacao_urbana genérica — contorno de contexto
 }
 function _oucGranularidade(layerKey, props){
+  if(layerKey === 'area_influencia_fl') return 'Área de influência de transporte — gabarito sem limite; Coluna A do CEPAC majorada em 30% (art. 13, §6º, Lei 18.175/2024)';
   if(layerKey === 'subsetor_ouc'){
     const setor = props?.nm_setor_operacao_urbana, sub = props?.nm_subsetor_operacao_urbana;
     const partes = [];
@@ -8674,6 +9101,7 @@ function _oucGranularidade(layerKey, props){
   return 'Perímetro geral';
 }
 function _oucNome(layerKey, props){
+  if(layerKey === 'area_influencia_fl') return 'OUC Faria Lima — Áreas de influência';
   if(layerKey === 'pinheiros_parametro' || layerKey === 'pinheiros_perimetro') return 'AIU Arco Pinheiros'+(props?.nm_aiu?(' — '+props.nm_aiu):'');
   return props?.nm_operacao_urbana || props?.nm_perimetro || props?.nm_aiu || props?.sg_operacao_urbana || '—';
 }
@@ -8689,11 +9117,70 @@ function _oucLink(props){
 // a pedido da Kamila, pra identificar de cara qual operação urbana e, quando
 // aplicável, qual setor/subsetor está olhando.
 function _oucLabelText(layerKey, nome, gran){
+  if(layerKey === 'area_influencia_fl') return 'Área de influência';
   if(layerKey === 'subsetor_ouc'){
     return (gran && !gran.includes('não classificado')) ? `${nome} — ${gran}` : nome;
   }
   if(layerKey === 'pinheiros_parametro' || layerKey === 'pinheiros_perimetro') return gran;
   return nome;
+}
+
+// ── Camada "Setor / Quadra" ─────────────────────────────────────────────────
+// Desenha o contorno de cada quadra fiscal (união dos lotes do GeoSampa) com o rótulo "S 076 · Q 025".
+// Camada só de leitura: não captura cliques (os popups dos lotes e dos terrenos continuam funcionando).
+let _quadraMode = false, _quadraLayer = null, _quadraReq = 0;
+const QUADRA_MIN_ZOOM = 16;
+function toggleQuadraLayer(){
+  _quadraMode = !_quadraMode;
+  const btn = document.getElementById('btn-geo-quadra');
+  if(_quadraMode){
+    if(btn) btn.classList.add('active');
+    if(map.getZoom() >= QUADRA_MIN_ZOOM) _loadQuadraLayer();
+    else showToast('🔍 Aproxime o zoom (nível '+QUADRA_MIN_ZOOM+' ou mais) para ver Setor/Quadra');
+  } else {
+    if(btn) btn.classList.remove('active');
+    _quadraReq++;
+    if(_quadraLayer) _quadraLayer.clearLayers();
+  }
+}
+async function _loadQuadraLayer(){
+  if(!_quadraMode) return;
+  if(!_quadraLayer) _quadraLayer = L.layerGroup().addTo(map);
+  if(map.getZoom() < QUADRA_MIN_ZOOM){ _quadraLayer.clearLayers(); return; }
+  const meu = ++_quadraReq;
+  const b = map.getBounds();
+  let feats = [];
+  try{
+    const r = await fetch(`${API_BASE}/api/geosampa-bbox?minLat=${b.getSouth()}&minLng=${b.getWest()}&maxLat=${b.getNorth()}&maxLng=${b.getEast()}&max=400`);
+    if(!r.ok) return;
+    feats = ((await r.json()).features||[]).filter(f=>f.geometry);
+  }catch(e){ console.warn('[quadra]', e); return; }
+  if(meu !== _quadraReq || !_quadraMode) return; // chegou resposta velha
+  const isLL = _detectLonLat(feats);
+  const fixa = c => Array.isArray(c[0]) ? c.map(fixa) : (isLL ? [c[0],c[1]] : [c[1],c[0]]);
+  const grupos = {};
+  feats.forEach(f=>{
+    const pr = f.properties||{};
+    if(!pr.cd_setor_fiscal || !pr.cd_quadra_fiscal) return;
+    const g = f.geometry;
+    if(g.type!=='Polygon' && g.type!=='MultiPolygon') return;
+    const k = pr.cd_setor_fiscal+'|'+pr.cd_quadra_fiscal;
+    (grupos[k] = grupos[k] || []).push({type:'Feature', properties:{}, geometry:{type:g.type, coordinates:fixa(g.coordinates)}});
+  });
+  _quadraLayer.clearLayers();
+  Object.entries(grupos).forEach(([k,lista])=>{
+    const [setor, quadra] = k.split('|');
+    let forma = null;
+    try{
+      forma = lista[0];
+      for(let i=1;i<lista.length;i++){ const u = turf.union(forma, lista[i]); if(u) forma = u; }
+    }catch(e){ try{ forma = turf.convex({type:'FeatureCollection', features:lista}); }catch(_){ forma = null; } }
+    if(!forma) return;
+    L.geoJSON(forma, { interactive:false, style:{ color:'#7c3aed', weight:2.5, dashArray:'7 4', fill:false } }).addTo(_quadraLayer);
+    let pt; try{ pt = turf.pointOnFeature(forma).geometry.coordinates; }catch(_){ try{ pt = turf.centroid(forma).geometry.coordinates; }catch(__){ return; } }
+    L.marker([pt[1], pt[0]], { interactive:false, keyboard:false, icon: L.divIcon({ className:'', iconSize:null,
+      html:`<div style="transform:translate(-50%,-50%);white-space:nowrap;background:#7c3aed;color:#fff;font:700 11px Arial,sans-serif;padding:2px 7px;border-radius:10px;border:1.5px solid #fff;box-shadow:0 1px 4px rgba(0,0,0,.4);">S ${escHtml(setor)} · Q ${escHtml(quadra)}</div>` }) }).addTo(_quadraLayer);
+  });
 }
 
 function toggleOucLayer(){
@@ -8737,7 +9224,7 @@ async function _loadVecOUC(){
         const link = _oucLink(p);
         const latlngsArr = _geomToLatLngs(f.geometry, isLonLat);
         latlngsArr.forEach(latlngs=>{
-          const poly = L.polygon(latlngs, { color: cor, weight: 2, fillColor: cor, fillOpacity: 0.12, dashArray: layerKey==='operacao_urbana' ? '6,4' : null });
+          const poly = L.polygon(latlngs, { color: cor, weight: 2, fillColor: cor, fillOpacity: 0.12, dashArray: layerKey==='operacao_urbana' ? '6,4' : null }); if(layerKey==='area_influencia_fl') poly.setStyle({ fillOpacity:0.22, weight:1.5 });
           poly.bindPopup(
             `<b>${nome}</b><br>` +
             `<span style="color:#666">${gran}</span><br>` +
@@ -8746,7 +9233,7 @@ async function _loadVecOUC(){
           );
           // Rótulo fixo (permanent:true) no centroide do polígono — mostra
           // nome + setor/subsetor direto no mapa, sem precisar clicar.
-          poly.bindTooltip(_oucLabelText(layerKey, nome, gran), {
+          if(layerKey!=='area_influencia_fl') poly.bindTooltip(_oucLabelText(layerKey, nome, gran), {
             permanent:true, direction:'center', className:'geo-ouc-label', interactive:false
           });
           _vecOucLayer.addLayer(poly);
@@ -8759,7 +9246,7 @@ async function _loadVecOUC(){
 // Debounce: carrega vetorial 400ms após parar de mover
 function _scheduleVecLoad(){
   clearTimeout(_vecMoveTimer);
-  _vecMoveTimer = setTimeout(()=>{ _loadVecLotes(); _loadVecIndisp(); _loadVecItbiHeat(); _loadVecPgvRua(); _loadVecOUC(); _loadVecPatrimonio(); _loadVecPatcult(); _loadVecAmbiental(); _loadVecInfraViaria(); _loadVecContaminacao(); }, 400);
+  _vecMoveTimer = setTimeout(()=>{ _loadQuadraLayer(); _loadVecLotes(); _loadVecIndisp(); _loadVecItbiHeat(); _loadVecPgvRua(); _loadVecOUC(); _loadVecPatrimonio(); _loadVecPatcult(); _loadVecAmbiental(); _loadVecInfraViaria(); _loadVecContaminacao(); }, 400);
 }
 map.on('moveend', _scheduleVecLoad);
 map.on('zoomend', _scheduleVecLoad);
@@ -9752,11 +10239,13 @@ function finishDraw(){
 }
 
 function removePolygon(idx){
+  window._polyLimpoManual = true; // pessoa apagou de propósito → o salvar não restaura
   pendingPolygons.splice(idx, 1);
   renderPolyList();
 }
 
 function clearPolygon(){
+  window._polyLimpoManual = true;
   pendingPolygons = [];
   renderPolyList();
 }
@@ -9913,6 +10402,7 @@ function setModalViewMode(isView){
 
 function openModal(id, viewMode=false){
   editingId = id||null;
+  window._polyLimpoManual = false;
   pendingPolygons = [];
   const t = id ? terrenos.find(x=>x.id===id) : null;
   document.getElementById('modal-title').innerHTML = t ? _labelEndereco(t, true) : 'Novo Terreno';
@@ -9949,6 +10439,7 @@ function openModal(id, viewMode=false){
   if(_fEl('f-setor'))  _fEl('f-setor').value  = t?.setor||'';
   if(_fEl('f-quadra')) _fEl('f-quadra').value = t?.quadra||'';
   setLotesInForm(t?.lotes||[], t?.lotes_areas||{}, t?.lotes_enderecos||{}, t?.lotes_iptu||{});
+  try{ _cdUnidadesForm = JSON.parse(JSON.stringify(t?.cd_unidades||{})); _cdRenderForm(); }catch(_){ _cdUnidadesForm = {}; }
   // Zoneamento ainda vazio ao reabrir um terreno já cadastrado — acontece
   // com terrenos criados antes dessa busca automática existir, ou quando a
   // 1ª tentativa (ao montar o polígono/digitar o SQL) falhou silenciosamente
@@ -10190,6 +10681,7 @@ function closeModal(){
   if(drawingActive) cancelDraw();
   if(_selectingLotes){ finishSelectLotes(); }
   editingId = null;
+  _cdUnidadesForm = {};
   pendingPolygons = [];
   pendingLotes = [];
   _clearLotesHighlight();
@@ -10884,6 +11376,104 @@ function _convexHull(pts) {
   return lower.concat(upper);
 }
 
+// ── Condomínio (CD): guarda no cadastro do terreno TODAS as unidades com o código de contribuinte (SQL) ──
+// Campo novo e opcional `cd_unidades` (não altera lotes/polígono). Vem do GeoSampa ("Informações dos lotes do condomínio").
+let _cdUnidadesForm = {};
+function _cdChave(st, qd, cd){ return 'S'+String(st).padStart(3,'0')+'_Q'+String(qd).padStart(3,'0')+'_C'+String(cd).replace(/^0+/,'').padStart(2,'0'); }
+function _cdRenderForm(){
+  const box = document.getElementById('f-cd-bloco'); if(!box) return;
+  const e = v => escHtml(String(v==null?'':v));
+  const blocos = Object.entries(_cdUnidadesForm).map(([k,c])=>{
+    const us = c.unidades||[];
+    const quando = c.buscado_em ? new Date(c.buscado_em).toLocaleDateString('pt-BR') : '';
+    return `<details style="border:1px solid #fcd34d;background:#fffbeb;border-radius:8px;padding:6px 10px;margin-bottom:6px;">
+      <summary style="cursor:pointer;font-size:12px;font-weight:700;color:#92400e;">🏢 Condomínio CD ${e(String(c.cond).padStart(2,'0'))} — setor ${e(c.setor)} · quadra ${e(c.quadra)} — ${us.length} unidade${us.length===1?'':'s'}${quando?` <span style="font-weight:400;color:#a16207;">(buscado em ${quando})</span>`:''}</summary>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0;">
+        <button type="button" onclick="_cdCopiarContribuintes('${k}')" style="font-size:11px;padding:3px 9px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;">📋 Copiar contribuintes</button>
+        <button type="button" onclick="_cdAtualizar('${k}')" style="font-size:11px;padding:3px 9px;border:1px solid #d1d5db;border-radius:5px;background:#fff;cursor:pointer;">↻ Atualizar do GeoSampa</button>
+        <span style="font-size:10px;color:#a16207;align-self:center;">Fica gravado ao clicar em Salvar.</span>
+      </div>
+      <div style="max-height:260px;overflow:auto;"><table style="border-collapse:collapse;width:100%;font-size:11px;">
+        <thead><tr style="background:#f3f4f6;position:sticky;top:0;">${['Lote','Díg.','Código Contribuinte (SQL)','Logradouro','Nº','Complemento','Uso','Área cons.','CIB','Sit.'].map(h=>`<th style="padding:3px 5px;border:1px solid #e5e7eb;text-align:left;">${h}</th>`).join('')}</tr></thead>
+        <tbody>${us.map(u=>`<tr>${[u.lote,u.digito,u.contrib,u.logr,u.num,u.compl,u.uso,u.area,u.cib,u.sit].map(v=>`<td style="padding:3px 5px;border:1px solid #e5e7eb;">${e(v)}</td>`).join('')}</tr>`).join('')}</tbody>
+      </table></div></details>`;
+  }).join('');
+  box.innerHTML = blocos + `<button type="button" onclick="_cdBuscarUnidadesForm()" title="Busca no GeoSampa todas as unidades (e códigos de contribuinte) do condomínio deste terreno"
+    style="font-size:12px;padding:5px 14px;border-radius:6px;border:1px solid #f59e0b66;background:#fffbeb;color:#92400e;cursor:pointer;font-family:var(--sans);">🏢 Buscar unidades do condomínio (GeoSampa)</button>`;
+}
+async function _cdFetch(st, qd, cd){
+  const S=String(st).padStart(3,'0'), Q=String(qd).padStart(3,'0'), C=String(cd).replace(/^0+/,'').padStart(2,'0');
+  const r = await fetch(`${API_BASE}/api/geosampa-cd-unidades?setor=${S}&quadra=${Q}&cond=${C}`);
+  if(!r.ok) throw new Error('GeoSampa não respondeu (HTTP '+r.status+')');
+  const j = await r.json();
+  const us = (j.unidades||[]).map(u=>({ lote:u.lote, digito:u.digito, codlog:u.codlog, contrib:u.contrib, logr:u.logr||'', num:u.num||'', compl:u.compl||'', uso:u.uso||'', area:u.area||'', cib:u.cib||'', sit:u.sit||'' }));
+  if(!us.length) throw new Error('O GeoSampa não devolveu unidades para este condomínio.');
+  return { setor:S, quadra:Q, cond:C, n:us.length, buscado_em:new Date().toISOString(), unidades:us };
+}
+function _cdCandidatosDeFeatures(feats){
+  const out = {};
+  (feats||[]).forEach(f=>{
+    const p = (f && f.properties) || {};
+    const cond = String(p.cd_condominio||'').replace(/^0+/,'');
+    if(!cond || !p.cd_setor_fiscal || !p.cd_quadra_fiscal) return;
+    out[_cdChave(p.cd_setor_fiscal,p.cd_quadra_fiscal,cond)] = { st:p.cd_setor_fiscal, qd:p.cd_quadra_fiscal, cd:cond };
+  });
+  return Object.values(out);
+}
+// Chamado automaticamente depois de selecionar lotes: se algum for de condomínio, já traz as unidades.
+async function _cdAutoDeFeatures(feats){
+  const cands = _cdCandidatosDeFeatures(feats).filter(c=>!_cdUnidadesForm[_cdChave(c.st,c.qd,c.cd)]);
+  for(const c of cands){
+    try{
+      const d = await _cdFetch(c.st, c.qd, c.cd);
+      _cdUnidadesForm[_cdChave(c.st,c.qd,c.cd)] = d;
+      _cdRenderForm();
+      showToast(`🏢 Condomínio CD ${d.cond}: ${d.n} unidades com código de contribuinte — clique em Salvar para gravar no cadastro.`, 7000);
+    }catch(e){ console.warn('[cd-auto]', e); showToast('🏢 Não consegui trazer as unidades do condomínio: '+e.message, 6000); }
+  }
+}
+async function _cdBuscarUnidadesForm(){
+  let cands = _cdCandidatosDeFeatures(pendingLotes);
+  if(!cands.length){
+    // pelo centro do polígono do terreno
+    try{
+      const poly = (pendingPolygons && pendingPolygons[0]) || null;
+      if(poly && poly.length>=3){
+        const c = polygonCentroid(poly);
+        const lat = Array.isArray(c) ? c[0] : c.lat, lng = Array.isArray(c) ? c[1] : c.lng;
+        const r = await fetch(`${API_BASE}/api/geosampa-lote-ponto?lat=${lat}&lng=${lng}`);
+        if(r.ok){ const gj = await r.json(); cands = _cdCandidatosDeFeatures(gj.features||[]); }
+      }
+    }catch(e){ console.warn('[cd-ponto]', e); }
+  }
+  if(!cands.length){
+    const st = (document.getElementById('f-setor')||{}).value||'', qd = (document.getElementById('f-quadra')||{}).value||'';
+    if(!st || !qd){ alert('Preencha Setor e Quadra (ou desenhe o polígono / selecione os lotes) para buscar o condomínio.'); return; }
+    const cd = prompt(`Número do condomínio (CD) na quadra ${st}.${qd} — ex.: 18`, '');
+    if(!cd) return;
+    cands = [{ st, qd, cd }];
+  }
+  showToast('🏢 Buscando unidades no GeoSampa…');
+  for(const c of cands){
+    try{
+      const d = await _cdFetch(c.st, c.qd, c.cd);
+      _cdUnidadesForm[_cdChave(c.st,c.qd,c.cd)] = d;
+      showToast(`🏢 Condomínio CD ${d.cond}: ${d.n} unidades — clique em Salvar para gravar.`, 7000);
+    }catch(e){ alert('Condomínio CD '+c.cd+': '+e.message); }
+  }
+  _cdRenderForm();
+}
+async function _cdAtualizar(k){
+  const c = _cdUnidadesForm[k]; if(!c) return;
+  try{ _cdUnidadesForm[k] = await _cdFetch(c.setor, c.quadra, c.cond); _cdRenderForm(); showToast('🏢 Unidades atualizadas — clique em Salvar para gravar.'); }
+  catch(e){ alert(e.message); }
+}
+function _cdCopiarContribuintes(k){
+  const c = _cdUnidadesForm[k]; if(!c) return;
+  const txt = (c.unidades||[]).map(u=>u.contrib).join('\n');
+  (navigator.clipboard ? navigator.clipboard.writeText(txt) : Promise.reject()).then(()=>showToast('📋 '+c.unidades.length+' códigos de contribuinte copiados.')).catch(()=>{ prompt('Copie os códigos (Ctrl+C):', txt); });
+}
+
 function getLotesFromForm(){
   return [...document.querySelectorAll('#f-lotes-list > div')]
     .map(row=>({
@@ -11119,10 +11709,9 @@ function _checarDuplicataTerreno(){
   // novo", oferece mesclar os dois cadastros num só (o objetivo é sumir com
   // a 2ª bolinha no mapa, não criar uma 3ª). Cadastrando um terreno NOVO:
   // mantém o fluxo de sempre.
-  const botoesHtml = editingId
-    ? `<button type="button" onclick="_mesclarCadastroDuplicado('${dup.id}','${editingId}')" style="padding:5px 10px;font-size:11px;border-radius:6px;border:none;background:#92400e;color:#fff;cursor:pointer;font-weight:600;">🔗 Mesclar (1 marcador só, mantém histórico)</button>`
-    : `<button type="button" onclick="_verCadastroDuplicado('${dup.id}')" style="padding:5px 10px;font-size:11px;border-radius:6px;border:1px solid #92400e44;background:#fff;color:#92400e;cursor:pointer;font-weight:600;">🔍 Ver cadastro atual</button>
-       <button type="button" onclick="_cadastrarMantendoHistorico('${dup.id}')" style="padding:5px 10px;font-size:11px;border-radius:6px;border:none;background:#92400e;color:#fff;cursor:pointer;font-weight:600;">➕ Cadastrar novamente (mantendo histórico)</button>`;
+  // (26/10/2026) Sem "Mesclar" nem "Cadastrar mantendo histórico": eles moviam/apagavam cadastros
+  // sozinhos e causaram perda de polígonos. Agora só abre o outro cadastro; a pessoa resolve na mão.
+  const botoesHtml = `<button type="button" onclick="_verCadastroDuplicado('${dup.id}')" style="padding:5px 10px;font-size:11px;border-radius:6px;border:1px solid #92400e44;background:#fff;color:#92400e;cursor:pointer;font-weight:600;">🔍 Abrir o outro cadastro</button>`;
 
   cont.innerHTML = `
     <div style="padding:10px 12px;background:#fffbeb;border:1px solid #fde68a;border-radius:8px;font-size:12px;color:#92400e;line-height:1.5;">
@@ -11219,8 +11808,23 @@ async function _mesclarCadastroDuplicado(idOutro, idAtual){
     });
   }
 
+  // (26/10/2026) Também herda do cadastro que vai pra Lixeira o que o sobrevivente não tem
+  // (responsável, lotes, tarefas, anexos...) — antes só ata/corretor/polígono vinham junto.
+  const _vzM = v => v==null || v==='' || (Array.isArray(v)&&!v.length) || (typeof v==='object' && !Array.isArray(v) && !Object.keys(v).length);
+  ['responsavel','setor','quadra','lat','lng','area','zoneamento','bairro','apelido','lotes','lotes_areas','lotes_enderecos','lotes_precos','fup','recebimento_imgs','todos','obs'].forEach(k=>{
+    if(_vzM(sobrevivente[k]) && !_vzM(perdedor[k])){ sobrevivente[k] = perdedor[k]; extra[k] = perdedor[k]; }
+  });
+  // Polígono vai pro Firestore como TEXTO JSON (array dentro de array não é aceito e era gravado fora do formato).
+  const _extraDb = { ...extra };
+  if(_extraDb.polygons != null){
+    _extraDb.polygons = typeof _extraDb.polygons==='string' ? _extraDb.polygons : JSON.stringify(_extraDb.polygons);
+    _extraDb.polygon = null;
+  } else if(_extraDb.polygon != null){
+    _extraDb.polygons = JSON.stringify(Array.isArray(_extraDb.polygon) && Array.isArray(_extraDb.polygon[0]) && !Array.isArray(_extraDb.polygon[0][0]) ? [_extraDb.polygon] : _extraDb.polygon);
+    _extraDb.polygon = null;
+  }
   try{
-    await dbUpdateTerreno(sobrevivente.id, { ata: ataMerge, corretor_hist: corretorHistMerge, ...extra });
+    await dbUpdateTerreno(sobrevivente.id, { ata: ataMerge, corretor_hist: corretorHistMerge, ..._extraDb });
     await db.collection('terrenos').doc(perdedor.id).update({
       _excluido: true,
       _excluido_em: new Date().toISOString(),
@@ -11348,8 +11952,9 @@ async function saveTerreno(){
     const _rd = _acharDuplicataTerreno();
     if(_rd.dup){
       const _d = _rd.dup;
-      if(confirm(`Este terreno já está cadastrado:\n• ${_d.endereco||'(sem endereço)'} — ${STATUS_LABELS[_d.status]||_d.status||''}${_d.corretor?' · corretor '+_d.corretor:''}\n\nOK = manter 1 MARCADOR SÓ: o cadastro antigo vai pra Lixeira e o histórico dele (corretores, acompanhamento) passa para este.\nCancelar = outras opções.`)){
-        _cadastrarMantendoHistorico(_d.id);
+      if(confirm(`Este terreno já está cadastrado:\n• ${_d.endereco||'(sem endereço)'} — ${STATUS_LABELS[_d.status]||_d.status||''}${_d.corretor?' · corretor '+_d.corretor:''}\n\nOK = abrir o cadastro existente (este novo NÃO será salvo)\nCancelar = outras opções.`)){
+        _verCadastroDuplicado(_d.id);
+        return;
       } else if(!confirm('Cadastrar mesmo assim como um terreno SEPARADO? (ficarão 2 marcadores no mapa)\n\nOK = cadastrar separado · Cancelar = voltar ao formulário')){
         return;
       }
@@ -11455,6 +12060,7 @@ async function saveTerreno(){
     lotes:     _lotesForm.map(x=>x.sql),
     lotes_areas: _lotesAreas,
     lotes_enderecos: _lotesEnderecos,
+    ...(Object.keys(_cdUnidadesForm).length ? { cd_unidades: _cdUnidadesForm } : {}),
     status:    _novoStatus,
     data:      _dataForm,
     obs:       document.getElementById('f-obs')?.value.trim()||'',
@@ -11478,6 +12084,33 @@ async function saveTerreno(){
     });
     if(!obj.polygons && _dupInherit.polygon) obj.polygons = _dupInherit.polygon;
   }
+
+  // ── PROTEÇÃO ANTI-PERDA (26/10/2026) ───────────────────────────────────────
+  // O Salvar grava o documento INTEIRO. Se o formulário abrir/estiver com dados
+  // incompletos, polígono/setor/quadra/coordenadas/ata sumiam do banco. Aqui, ao EDITAR
+  // um terreno que já tinha esses dados, o que estiver vazio é preenchido com o que já
+  // existia (a menos que a pessoa tenha apagado o polígono de propósito).
+  if(editingId && _existing && _existing.id){
+    const _vz = v => v==null || v==='' || (Array.isArray(v)&&!v.length) || (typeof v==='object' && !Array.isArray(v) && !Object.keys(v).length);
+    const _prot = [];
+    let _pEx = _existing.polygons; if(typeof _pEx==='string'){ try{ _pEx=JSON.parse(_pEx); }catch(e){ _pEx=null; } }
+    if(_vz(obj.polygons) && !window._polyLimpoManual){
+      if(!_vz(_pEx)){ obj.polygons = JSON.stringify(_pEx); _prot.push('polígono'); }
+      else if(!_vz(_existing.polygon)){ obj.polygons = typeof _existing.polygon==='string' ? _existing.polygon : JSON.stringify([_existing.polygon]); _prot.push('polígono'); }
+    }
+    ['setor','quadra','lat','lng','ata','area','zoneamento'].forEach(k=>{
+      if(_vz(obj[k]) && !_vz(_existing[k])){ obj[k] = _existing[k]; _prot.push(k); }
+    });
+    if(_vz(obj.responsavel) && !_vz(_existing.responsavel)){
+      if(!confirm('Este terreno tinha responsável "'+_existing.responsavel+'" e você está salvando SEM responsável.\n\nOK = manter "'+_existing.responsavel+'" · Cancelar = salvar sem responsável')) { /* quer limpar de propósito */ }
+      else { obj.responsavel = _existing.responsavel; _prot.push('responsável'); }
+    }
+    if(_prot.length){ console.warn('[anti-perda] campos preservados no salvar:', _prot.join(', '), '—', obj.endereco); showToast('🛡️ Mantive o que já existia: '+[...new Set(_prot)].join(', '), 7000); }
+  }
+  // Carimbo: quem/quando gravou por último (pra rastrear se algo sumir de novo)
+  obj.modificado_em = new Date().toISOString();
+  obj.modificado_por = (getUsuarioAtual()||{}).handle || 'desconhecido';
+  obj.modificado_via = 'modal-salvar';
 
   // Atualiza local e fecha modal imediatamente
   if(editingId){
@@ -12180,6 +12813,8 @@ function finishSelectLotes(){
   const bar = document.getElementById('sel-bar');
   if(bar) bar.style.display = 'none';
   renderLotesBadge();
+  const _cdSel = [...pendingLotes];
+  setTimeout(()=>{ try{ _cdAutoDeFeatures(_cdSel); }catch(_){} }, 800);
   if(adicionarAoExistente){
     // Modo "➕ Adicionar lote ao polígono": não mexe na lista de lotes aqui —
     // _criarPoligonoDeFeatures(...,{manterExistente:true}) já refaz a lista
@@ -12226,6 +12861,7 @@ async function _gerarPoligonoDosSQLs(btn){
     return;
   }
   _criarPoligonoDeFeatures(feats);
+  try{ _cdAutoDeFeatures(feats); }catch(_){}
 }
 
 // Normaliza a geometria de um feature GeoSampa pra [lon,lat] (padrão GeoJSON),
@@ -12851,6 +13487,17 @@ async function gerarFicha(tOverride, opts){
   // Área Pública (CAP), Arruamento (ARR), Passagem (PS), Planta de Decreto
   // (DUP/DIS) e Planta Expropriatória — mesmo mecanismo de consulta pontual
   // via /api/geosampa-ponto já usado pras demais.
+  // Áreas de proteção do patrimônio (envoltórias CONPRESP/CONDEPHAAT/IPHAN, bairro ambiental,
+  // lugar paisagístico, acervo tombado) — as mesmas camadas do mapa, que antes não entravam na Ficha.
+  const _patLayers = [
+    ['patrimonio_cultural_area_envoltoria_CONPRESP','Área Envoltória CONPRESP'],
+    ['patrimonio_cultural_area_envoltoria_CONDEPHAAT','Área Envoltória CONDEPHAAT'],
+    ['patrimonio_cultural_area_envoltoria_IPHAN','Área Envoltória IPHAN'],
+    ['patrimonio_cultural_lugar_paisagistico_ambiental','Lugar de Interesse Paisagístico'],
+    ['patrimonio_cultural_bairro_ambiental','Bairro Ambiental'],
+    ['patrimonio_cultural_acervo_tombado','Acervo Tombado'],
+  ];
+  const patExtraPromise = pt ? Promise.allSettled(_patLayers.map(([l])=>_comTimeout(_fetchJson(makeUrl(l))))) : Promise.resolve([]);
   const geoRace = pt ? Promise.allSettled([
     _comTimeout(_fetchJson(makeUrl('lote_cidadao'))),
     _comTimeout(_fetchJson(makeUrl('patrimonio_cultural_bem_tombado'))),
@@ -12910,6 +13557,26 @@ async function gerarFicha(tOverride, opts){
     const nomeF = p.nm_logradouro||p.nm_logradouro_completo||'';
     if(codlogF!=='000000' && nomeF && !nomesPorCodlog.has(codlogF)) nomesPorCodlog.set(codlogF, nomeF);
   });
+  const patExtra = []; let patExtraFalhou = 0;
+  (await patExtraPromise).forEach((r,i)=>{
+    if(r.status==='fulfilled'){ (r.value?.features||[]).forEach(f=>patExtra.push({rotulo:_patLayers[i][1], p:f.properties||{}})); }
+    else patExtraFalhou++;
+  });
+  const _patDetalhe = (p)=>{
+    const linhas=[]; let link=null;
+    Object.keys(p).forEach(k=>{
+      const v=p[k]; if(v==null || String(v).trim()==='') return;
+      if(/link/i.test(k)){ link=link||v; return; }
+      if(/^(nm_|tx_|dc_)/i.test(k) && linhas.length<5) linhas.push(`<div style="font-size:12px;color:var(--muted)">${k.replace(/^(nm|tx|dc)_/i,'').replace(/_/g,' ')}: <strong style="color:inherit">${String(v).replace(/</g,'&lt;')}</strong></div>`);
+    });
+    return linhas.join('')+(link?`<a class="ficha-link" href="${link}" target="_blank">📄 Ver resolução</a>`:'');
+  };
+  const patExtraHtml = patExtra.map(x=>`
+      <div style="background:#fff7ed;border:1px solid #fed7aa;border-radius:8px;padding:12px;margin-bottom:8px">
+        <div style="font-weight:600;font-size:13px;margin-bottom:4px">⚠️ ${x.rotulo}</div>
+        ${_patDetalhe(x.p)}
+        <div style="font-size:11px;color:var(--muted);margin-top:4px">Terreno dentro de área de proteção do patrimônio — projeto sujeito a análise do órgão (consultar CONPRESP/CONDEPHAAT/IPHAN).</div>
+      </div>`).join('');
   lote   = loteR.status==='fulfilled' && loteR.value?.features?.[0]?.properties;
   tombs  = tombR.status==='fulfilled' ? (tombR.value?.features||[]) : [];
   zona   = zonaR.status==='fulfilled' && zonaR.value?.features?.[0]?.properties;
@@ -13553,11 +14220,12 @@ async function gerarFicha(tOverride, opts){
         <div style="font-size:12px;color:var(--muted)">Situação: <strong>${t.situacao}</strong> · Nível: ${t.nivel}</div>
         ${t.orgaos.length ? `<div style="font-size:12px;margin-top:4px">${t.orgaos.join(' · ')}</div>` : ''}
         ${t.link ? `<a class="ficha-link" href="${t.link}" target="_blank">📄 Ver resolução</a>` : ''}
-      </div>`).join('') : `
+      </div>`).join('') : (patExtra.length ? '' : `
       <div style="display:flex;align-items:center;gap:8px">
         <span class="ficha-tag ok">✓ Sem tombamento identificado</span>
-        <span style="font-size:11px;color:var(--muted)">(consulta espacial GeoSampa)</span>
-      </div>`}
+        <span style="font-size:11px;color:var(--muted)">(consulta espacial GeoSampa${patExtraFalhou?` — ⚠️ ${patExtraFalhou} camada(s) de área de proteção não responderam`:''})</span>
+      </div>`)}
+    ${patExtraHtml}
     <div style="margin-top:10px;font-size:12px;color:var(--muted)">
       Para certidão oficial com SQL <strong>${sql}</strong>:
       <a class="ficha-link" href="${citUrl}" target="_blank">Acessar CIT — Cadastro de Imóveis Tombados →</a>
@@ -13885,6 +14553,15 @@ async function _autoSalvarPrintQuadraFiscal(t){
     const markerPaneDisplayOrig = markerPane ? markerPane.style.display : null;
     if(markerPane) markerPane.style.display = 'none';
 
+    // Camadas WMS do GeoSampa (Lotes, Zona, Quadro 14 etc.) não mandam cabeçalho CORS: o
+    // leaflet-image falha com elas ("Access-Control-Allow-Origin" / TypeError 'match' no console)
+    // e o print inteiro é abortado. Tira essas camadas só durante a captura e devolve depois;
+    // as etiquetas de SQL/área são desenhadas por cima de qualquer jeito.
+    const _wmsTirados = [];
+    map.eachLayer(l=>{ if(_leafletImageIncompativel(l)) _wmsTirados.push(l); });
+    _wmsTirados.forEach(l=>map.removeLayer(l));
+    window.__restauraWmsQuadra = ()=>{ _wmsTirados.forEach(l=>{ try{ if(!map.hasLayer(l)) map.addLayer(l); }catch(_){} }); window.__restauraWmsQuadra=null; };
+
     const _tentarCapturaQuadra = () => Promise.race([
       new Promise(resolve=>{
         try{
@@ -13924,6 +14601,7 @@ async function _autoSalvarPrintQuadraFiscal(t){
     }
 
     if(markerPane) markerPane.style.display = markerPaneDisplayOrig || '';
+    if(window.__restauraWmsQuadra) window.__restauraWmsQuadra();
 
     if(dataUrl){
       const data = await _salvarImagemNaPastaTerreno(t, 'Demarcacao_Lotes.png', dataUrl, 'Quadra Fiscal');
@@ -13935,6 +14613,7 @@ async function _autoSalvarPrintQuadraFiscal(t){
     console.warn('[quadraFiscal] auto print falhou:', e);
     showToast('⚠️ Erro ao gerar o print da Quadra Fiscal: '+e.message, 8000);
   }finally{
+    if(window.__restauraWmsQuadra) window.__restauraWmsQuadra();
     map.setView(origCenter, origZoom, {animate:false});
     map.on('moveend', _scheduleVecLoad);
     map.on('zoomend', _scheduleVecLoad);
@@ -13989,6 +14668,7 @@ function _diasRestantesLixeira(t){
 function _purgarLixeiraVencida(){
   _terrenosLixeira.forEach(t=>{
     if(_lixeiraJaPurgados.has(t.id)) return;
+    if(/^(Mesclado|Recadastrado)/.test(String(t._excluido_motivo||''))) return; // protegido: só sai se alguém excluir de propósito
     if(_diasRestantesLixeira(t) <= 0){
       _lixeiraJaPurgados.add(t.id);
       db.collection('terrenos').doc(t.id).delete().catch(e=>console.warn('[lixeira] purge automático falhou', t.id, e));
@@ -14005,6 +14685,140 @@ function _atualizarBadgeLixeira(){
   badge.style.display='none';
 }
 
+// ── Recuperação dos 31 polígonos perdidos (backup 16/10/2026) ────────────
+// IDs que tinham polígono no backup Excel de 16/10 e hoje estão sem. Para os
+// que têm lat/lng, busca o lote cadastral no ponto (GeoSampa) e propõe como
+// polígono. Mostra prévia no mapa e SÓ grava no Firestore após confirmação.
+const _IDS_POLI_PERDIDOS = ['160','135','161','122','130','157','18','159','5','162','94','34','58','163','56','143','121','51','87','17','164','104','36','123','66','40','156','125','126','152','124'];
+let _recupLayer = null;
+async function recuperarPoligonos(){
+  if(terrenos.length < 450){ alert('Os terrenos ainda não carregaram por completo ('+terrenos.length+' de ~535).\n\nDê Ctrl+F5, espere o contador do topo chegar em 535 e tente de novo.'); return; }
+  if(_recupLayer){ map.removeLayer(_recupLayer); _recupLayer=null; }
+  const alvos = terrenos.filter(t=>_IDS_POLI_PERDIDOS.includes(String(t.id)));
+  const semPoli = alvos.filter(t=>{
+    let p=t.polygons; if(typeof p==='string'){ try{p=JSON.parse(p)}catch(e){p=null} }
+    return !((p&&p.length)||(t.polygon&&t.polygon.length));
+  });
+  if(!semPoli.length){ alert('Nenhum dos terrenos da lista está sem polígono — nada a recuperar.'); return; }
+  showToast('♻️ Buscando lotes no GeoSampa… ('+semPoli.length+' terrenos)');
+  const propostas=[], falhas=[];
+  for(const t of semPoli){
+    if(t.lat==null || t.lng==null){ falhas.push(t.endereco+' — sem lat/lng (redesenhar à mão)'); continue; }
+    try{
+      let feats = [], viaEndereco=false;
+      // 1) Pelo endereço (rua + número) — mais confiável que a coordenada, que costuma ser aproximada
+      try{
+        const sem = x=>String(x||'').normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase();
+        const partes = String(t.endereco||'').split(',').map(x=>x.trim());
+        const rua = sem(partes[0]).replace(/^(R|RUA|AV|AVENIDA|AL|ALAMEDA|PCA|PRACA|TV|TRAVESSA|EST|ESTRADA|LG|LARGO)\.?\s+/,'').replace(/\([^)]*\)/g,'');
+        const numPart = partes.slice(1).find(x=>/^\d+\b/.test(x));
+        const numero = numPart ? numPart.match(/^\d+/)[0] : null;
+        const tokens = rua.split(/\s+/).filter(w=>w.length>2 && !['DOS','DAS','DEL','DE','DA','DO'].includes(w)).sort((x,y)=>y.length-x.length).slice(0,2);
+        if(numero && tokens.length){
+          const re = await fetch(`${API_BASE}/api/geosampa-endereco?numero=${numero}&tokens=${encodeURIComponent(tokens.join(','))}`);
+          const gje = re.ok ? await re.json() : null;
+          if(gje && gje.features && gje.features.length && !gje._aproximado){ feats = gje.features.filter(f=>f.geometry); viaEndereco = feats.length>0; }
+        }
+      }catch(_){}
+      if(!feats.length)
+      try{ const r = await fetch(`${API_BASE}/api/geosampa-lote-ponto?lat=${t.lat}&lng=${t.lng}`); const gj = r.ok ? await r.json() : null; feats = ((gj&&gj.features)||[]).filter(f=>f.geometry); }catch(_){}
+      if(!feats.length){
+        // fallback: caixinha ao redor do ponto (mesmo recurso usado na camada Lotes)
+        for(const d of [0.00005, 0.00015, 0.0003]){
+          try{
+            const r2 = await fetch(`${API_BASE}/api/geosampa-bbox?minLat=${t.lat-d}&minLng=${t.lng-d}&maxLat=${t.lat+d}&maxLng=${t.lng+d}&max=40`);
+            const gj2 = r2.ok ? await r2.json() : null;
+            feats = ((gj2&&gj2.features)||[]).filter(f=>f.geometry);
+            if(feats.length) break;
+          }catch(_){}
+        }
+      }
+      if(!feats.length){ falhas.push(t.endereco+' — GeoSampa não achou lote no ponto'); continue; }
+      const isLL = _detectLonLat(feats);
+      const ringsDe = f=>{ const g=f.geometry; const polys = g.type==='Polygon' ? [g.coordinates] : g.type==='MultiPolygon' ? g.coordinates : []; return polys.map(pg=>pg[0].map(c=> isLL ? [c[1],c[0]] : [c[0],c[1]])); };
+      const dentro = (ring)=>{ let ins=false; for(let i=0,j=ring.length-1;i<ring.length;j=i++){ const [yi,xi]=ring[i],[yj,xj]=ring[j]; if(((yi>t.lat)!==(yj>t.lat)) && (t.lng < (xj-xi)*(t.lat-yi)/(yj-yi)+xi)) ins=!ins; } return ins; };
+      const dist = (ring)=>{ const cy=ring.reduce((s,c)=>s+c[0],0)/ring.length, cx=ring.reduce((s,c)=>s+c[1],0)/ring.length; return Math.hypot(cy-t.lat,cx-t.lng); };
+      let melhor=null, achouDentro=false;
+      feats.forEach(f=>ringsDe(f).forEach(r=>{
+        if(r.length<3) return;
+        if(dentro(r)){ if(!achouDentro){ melhor=r; achouDentro=true; } }
+        else if(!achouDentro && (!melhor || dist(r)<dist(melhor))) melhor=r;
+      }));
+      if(!melhor){ falhas.push(t.endereco+' — geometria inesperada'); continue; }
+      propostas.push({ t, ring:melhor, aprox:!(achouDentro||viaEndereco), via: viaEndereco?'endereço':'ponto' });
+    }catch(e){ falhas.push(t.endereco+' — erro: '+e.message); }
+  }
+  _recupLayer = L.layerGroup().addTo(map);
+  propostas.forEach(pr=>{
+    L.polygon(pr.ring,{color:'#7c3aed',weight:3,fillOpacity:.25,dashArray:'4 3'}).bindTooltip(pr.t.endereco,{sticky:true}).addTo(_recupLayer);
+  });
+  if(propostas.length){ try{ map.fitBounds(L.latLngBounds(propostas.flatMap(p=>p.ring)).pad(0.1)); }catch(e){} }
+  const msg = `Prévia desenhada em roxo no mapa.\n\nPolígonos propostos: ${propostas.length}\n${propostas.map(p=>'• '+p.t.endereco+' ('+(p.t.status||'')+') ['+p.via+']'+(p.aprox?' — ⚠️ lote mais próximo, conferir':'')).join('\n')}\n\nSem proposta (${falhas.length}):\n${falhas.map(f=>'• '+f).join('\n')}\n\nGravar os ${propostas.length} polígonos propostos no Firestore?`;
+  if(propostas.length && confirm(msg)){
+    let ok=0;
+    for(const pr of propostas){
+      try{ await dbUpdateTerreno(String(pr.t.id), { polygons: JSON.stringify([pr.ring]) }); ok++; }catch(e){ console.error('[recuperar]', pr.t.endereco, e); }
+    }
+    showToast('♻️ '+ok+' polígonos gravados');
+    map.removeLayer(_recupLayer); _recupLayer=null;
+  } else if(!propostas.length){
+    alert('Nenhum polígono pôde ser proposto.\n\n'+falhas.join('\n'));
+  } else {
+    showToast('Cancelado — nada foi gravado (prévia fica no mapa; recarregue para limpar)');
+  }
+}
+// Restaura ata / setor / quadra / lat-lng perdidos nos cadastros antigos, a partir de
+// ata_restaurar.json (gerado do backup Excel de 16/10/2026). Só preenche o que está
+// VAZIO hoje (nunca sobrescreve o que já existe) e só grava após confirmação.
+const _ATA_RESTAURAR_BACKUP = {"160":{"endereco":"Av. Nova Independência, 44, Brooklin","ata":[{"data":"2026-04-28","texto":"Estou estudando com o Ale","criadoPor":""},{"data":"2026-05-07","texto":"estamos aguardando a reunião de NN para mostrar o terreno novamente","criadoPor":""},{"data":"2026-05-12","texto":"gostaram do terreno no Pipe, Ale vai conversar com MCDI","criadoPor":""},{"data":"2026-05-20","texto":"vou verificar com o Ale se já conversou com MCDI","criadoPor":""},{"data":"2026-05-25","texto":"vou verificar hoje na reunião de comitê se o Ale já convercou com","criadoPor":""},{"data":"2026-10-13","texto":"Estamos aguardando a MCDI retornar sobre o fluxo que o Ale mandou.","criadoPor":"kamila"},{"data":"2026-10-16","texto":"Estamos aguardando a MCDI retornar sobre o fluxo que o Ale mandou.","criadoPor":"kamila"}],"setor":"085","quadra":"298"},"135":{"endereco":"Cel. Luis Barroso, 87","ata":[{"data":"2025-12-04","texto":"fiz a conta para MCMV, aguardando pra mostrar pro Ale.","criadoPor":""},{"data":"2025-12-09","texto":"pedimos estudo para a Salinas e enviei proposta para o Ale encaminhar","criadoPor":""},{"data":"2025-12-10","texto":"alem de está com a Salinas, o Ale pediu estudo para a Camila","criadoPor":""},{"data":"2025-12-17","texto":"além de está com a Salinas, o Ale pediu estudo para a Camila","criadoPor":""},{"data":"2026-01-08","texto":"solicitei revisão","criadoPor":""},{"data":"2026-10-13","texto":"estou combinando com a Marta (irmão do Sérgio) para levar a versão da minuta com data para assinatura // o contrato do Lauro está com o Ale para assinar // eu fiz uma revisão da minuta da congregação e enviei para o Ale aprovar","criadoPor":"kamila"},{"data":"2026-10-16","texto":"Encaminhei a minuta para Sergio e familia assinarem hoje, //  o contrato do Lauro está com o Ale para assinar // eu fiz uma revisão da minuta da congregação e enviei para o Ale aprovar","criadoPor":"kamila"}],"setor":"087","quadra":"302"},"161":{"endereco":"Diogo Jacome, 661","ata":[{"data":"2026-04-29","texto":"Ale solicitou estudo para KV","criadoPor":""},{"data":"2026-05-07","texto":"aguardando a KV enviar o estudo, Ale solicitou em 28/04","criadoPor":""},{"data":"2026-05-12","texto":"aguardando a KV enviar o estudo","criadoPor":""},{"data":"2026-05-20","texto":"KV enviou o estudo mas a eficiência ficou ruim, vou verificar com o Ale","criadoPor":""},{"data":"2026-05-25","texto":"Ale comentou que terá reuniao com ppt, vou acompanhar","criadoPor":""},{"data":"2026-10-13","texto":"Estou acompanhando semanalmente com o Ale, se houve alguma alteração.","criadoPor":"kamila"},{"data":"2026-10-16","texto":"Estou acompanhando semanalmente com o Ale, se houve alguma alteração.","criadoPor":"kamila"}],"setor":"041","quadra":"061","lat":-23.59769352846154,"lng":-46.667776640384616},"122":{"endereco":"R. João Cachoeira, 153, Itaim Bibi","ata":[{"data":"2026-09-23","texto":"O maior lote (estacionamento) deu abertura para negociarmos, mas já recusou proposta de 45k o m² no passado. Vamos tentar evoluir com os vizinhos para entender valores e desenharmos a proposta.","criadoPor":"matheus"}],"setor":"016","quadra":"062"},"130":{"endereco":"R. Pirapora, 187, Paraíso","ata":[{"data":"2025-10-02","texto":"Andre (Sr. Manuel) diz que negocia se encontrarmos um novo imovel, encontramos o imóvel viznho a churrascaria para negociar, o imovel vizinho diz que vende se encontrarmos um novo imovel, imovel tbm encontrado por R$5.000.000,00, alem desse novo imovel os ppt querem a mesma parte equivalente","criadoPor":""},{"data":"2026-10-13","texto":"Ale está marcando de se encontrar com o Marcelo, estou acompanhando.","criadoPor":"kamila"},{"data":"2026-10-16","texto":"Estou aguardando o Ale conversar com o Marcelo, em paralelo estou conversando com o Professor e Sandra","criadoPor":"kamila"}],"setor":"036","quadra":"071","lat":-23.581689836470588,"lng":-46.6515028117647},"157":{"endereco":"Rua Jesuíno Arruda, 470, Itaim Bibi","ata":[{"data":"2026-04-08","texto":"Van está levantando e estou acompanhando","criadoPor":""},{"data":"2026-05-07","texto":"estou alinhando com a Van de começarmos as negociações","criadoPor":""},{"data":"2026-05-12","texto":"pedi para a Van negociar sem falar de Yuny","criadoPor":""},{"data":"2026-05-20","texto":"na data de ontem eu pedi para a Van começar as negociações sem falar da Yuny","criadoPor":""},{"data":"2026-08-28","texto":"Estou verificando com a Van se tem algum retorno","criadoPor":""},{"data":"2026-10-13","texto":"Estou aguardando Marcelo e Marcos decidirem se podemos usar a Rocontec para assinarmos as propostas.","criadoPor":"kamila"},{"data":"2026-10-16","texto":"Estou aguardando Marcelo e Marcos decidirem se podemos usar a Rocontec para assinarmos as propostas.","criadoPor":"kamila"}],"setor":"016","quadra":"079"},"137":{"endereco":"R. João Cachoeira (Bodytech), Itaim Bibi","ata":[{"data":"2025-12-04","texto":"contas validadas com o Ale que está tratando com o corretor","criadoPor":""},{"data":"2025-12-09","texto":"Ale está seguindo com as tratativas","criadoPor":""},{"data":"2025-12-10","texto":"Ale pediu estudo para a Camila","criadoPor":""},{"data":"2025-12-17","texto":"Ale pediu estudo para a Camila","criadoPor":""},{"data":"2026-01-08","texto":"quando Ale retornar vou verificar se já está com o estudo","criadoPor":""}]},"18":{"endereco":"R. Pirapora, 32, Paraíso","ata":[{"data":"2025-06-03","texto":"para existir a área precisaríamos pensar nos 3.700m², pagando 55MM em vez dos 60MM para o Sr. Manuel e 20mil/m² +50% permuta em vez de 21 para o Adriano, e posteriomente assinar os demais, fazer com planik ou repassar. Nessas premissas atingimos 15% de margem, com PV=27mil e CC 7,5mil com tax","criadoPor":""}],"setor":"036","quadra":"068","lat":-23.580496149210525,"lng":-46.650795307631576},"159":{"endereco":"R. São Sebastião, Brooklin","ata":[{"data":"2026-04-28","texto":"estamos aguardado a Sandra enviar a Sondagem e planialtimetrico, com isso vamos verificar os custos, estruturar uma condição e nos reunirmos com a patrimônio para evolui","criadoPor":""},{"data":"2026-10-13","texto":"Patrimônio falou que no momento não seguirá com a negociação, pois não estão seguros com o momento do Brasil x eleições, vamos acompanhando.","criadoPor":"kamila"},{"data":"2027-03-23","texto":"fiz as contas para MCMV e na permuta financeira, estou verificando com a Sandra se a PATRIMÔNIO aceitaria algo assim","criadoPor":""}],"setor":"085","quadra":"013","lat":-23.63065477060606,"lng":-46.6926378421212},"5":{"endereco":"R. Tabapuã, 145, Itaim Bibi","ata":[{"data":"2026-10-09","texto":"🔗 Mesclado com o cadastro duplicado \"R. Tabapuã, 145\" — histórico daquele cadastro incorporado aqui; ele foi movido pra Lixeira.","criadoPor":"kamila"}],"setor":"016","quadra":"106"},"139":{"endereco":"Al. Tietê x R. Minerva, Jardins","ata":[{"data":"2025-12-15","texto":"entrei em contato com a Karina para verificar","criadoPor":""},{"data":"2025-12-16","texto":"ela informou que está comprando as outras casas da vila, que não quer vender, mas aceita reunião e pediu pra eu voltar o contato na segunda quinzena de janeiro","criadoPor":""},{"data":"2026-01-08","texto":"estou aguardando para entrar em contato na segunda quinzena de janeiro co","criadoPor":""}]},"151":{"endereco":"Alameda Tietê x Padre João Manoel, Jardins","ata":[{"data":"2026-03-24","texto":"Estou evoluindo com o Renato, e lembrei o Ale que o Fabio Pillegi tbm tinha nos trazido este terreno.","criadoPor":""},{"data":"2026-04-01","texto":"na reunião com a TAEL o Fabio disse que está negociando o terreno com outra incorporadora e que conseguiu uma proposta de R$75mil/m², vou acompanhar com ele.","criadoPor":""},{"data":"2026-04-24","texto":"estou verificando c","criadoPor":""}]},"80":{"endereco":"Av. Chibarás 431, Moema","ata":[{"data":"2025-08-06","texto":"Estou verificando com Edna e Deive se eles tem esse terreno!","criadoPor":""},{"data":"2025-08-12","texto":"Descartado com Edna e Deive por falta e retorno, o Angelo havia me passado há pouco o predio ao lado da Chibaras e como já estamos trabalhando, passei este para ele","criadoPor":""},{"data":"2025-09-03","texto":"verificando com Angelo se teve novidades","criadoPor":""},{"data":"2025-09-12","texto":"cobra","criadoPor":""}]},"81":{"endereco":"Av. Lavandisca, 118, Moema","ata":[{"data":"2025-06-09","texto":"Maypo está agendando com lote da esquina para vermos a condiçao em permuta","criadoPor":""},{"data":"2025-08-06","texto":"agendado para 14/08 com o ppt do mundo do enxoval para entender se há condição em permuta.","criadoPor":""},{"data":"2025-09-12","texto":"nos reunimos novamente com o ppt da esquina, ele gosta da gente mas quer vender somente daqui muitos anos","criadoPor":""}]},"106":{"endereco":"R. do Oratório, Mooca","ata":[{"data":"2025-08-06","texto":"estamos aguardando a revisão do estudo da Salinas para que possamos revisar as contas e agendarmos com o ppt.","criadoPor":""},{"data":"2025-08-13","texto":"agendado com o ppt para sexta, mostrar opçoes e contas","criadoPor":""},{"data":"2025-09-03","texto":"Salinas está revisando o projeto","criadoPor":""},{"data":"2025-09-05","texto":"estamos aguardando a Eli analisar sobre a subestação","criadoPor":""},{"data":"2025-09-12","texto":"cobrando retor","criadoPor":""}]},"55":{"endereco":"R. João Lourenço, Vila Nova Conceição","ata":[{"data":"2025-08-06","texto":"solicitado à Meri os e-mails dos ppts para enviar a carta de intençao","criadoPor":""},{"data":"2025-08-13","texto":"está aguardando a contato que é do comitê que volta de viagem em 14/08","criadoPor":""},{"data":"2025-09-03","texto":"cobrando a Meri para acelerarmos o prédio","criadoPor":""},{"data":"2025-09-05","texto":"combinei com a Meri de que se não tivermos retorno da pessoa que é do comitê, até hoje 05","criadoPor":""}]},"105":{"endereco":"R. Joaquim Floriano, 137 (Joakins), Itaim Bibi","ata":[{"data":"2025-07-15","texto":"Ale ficou de ligar para o Felipe","criadoPor":""},{"data":"2025-08-06","texto":"na reuniao de Pipe essa semana, o Marcelo não curtiu muito a localização","criadoPor":""},{"data":"2025-09-03","texto":"Ale está falando com o Felipe Belo","criadoPor":""}]},"129":{"endereco":"R. Melo Alves, 343, Jardins","ata":[{"data":"2025-09-03","texto":"eu pedi as matrículas para entendermos a situação da vila e temos reuniao em 04/09 com o ppt que tem 1500m²","criadoPor":""},{"data":"2025-09-12","texto":"nos reunimos com o Sr. Guilheme 2 vezes, e ontei levei a proposta. Ele irá conversasr com a prima que é resistente; Van irá abordar o Euclydes que parece ser maleável para negoci","criadoPor":""}]},"145":{"endereco":"R. Osório Duque Estreada, Paraíso","ata":[{"data":"2026-02-10","texto":"verificando com a Mayara se ela conseguiu algo","criadoPor":""},{"data":"2026-02-25","texto":"Mayara falou com os ppts mas não tem interesse","criadoPor":""}]},"117":{"endereco":"Rua Afonso Braz, 618, Vila Nova Conceição","ata":[{"data":"2025-08-13","texto":"Pablo está levantando","criadoPor":""},{"data":"2025-09-03","texto":"Pablo teve retorno que os ppts não querem vender.","criadoPor":""}]},"73":{"endereco":"Rua Chibarás, 505, Moema","ata":[{"data":"2025-06-03","texto":"reuniões sendo realizadas","criadoPor":""},{"data":"2025-08-13","texto":"assinado proposta do 1ºandar","criadoPor":""},{"data":"2025-10-02","texto":"ata de acompanhamento dos apartamento na aba CHIBARÁS","criadoPor":""},{"data":"2025-12-04","texto":"60% do predio apresenta uma forte resistencia para a venda, não está compensando o esforço aplicado.//estamos tentando somente o predio da esquina e irei validar c","criadoPor":""}]},"118":{"endereco":"Rua Jacques Felix, 365 (Kinoshita), Vila Nova Conceição","ata":[{"data":"2025-08-13","texto":"Lot está levantando o prédio","criadoPor":""},{"data":"2025-08-29","texto":"estamos enviando carta de intenção aos ppts","criadoPor":""},{"data":"2025-09-03","texto":"Cartas foram enviadas e estamos aguardando o retorno","criadoPor":""},{"data":"2025-09-12","texto":"sem retorno, vou solicitar os e-mails para a thais para poder encaminhar a carta nesse formato tbm.","criadoPor":""},{"data":"2025-10-03","texto":"Status do Prédio: (apto de 228m² e cob","criadoPor":""}]},"116":{"endereco":"Rua Lourenço de Almeida, 811, Vila Nova Conceição","ata":[{"data":"2025-08-13","texto":"tentando telefones","criadoPor":""},{"data":"2025-08-29","texto":"retorno do lote 3 que não tem interesse na venda","criadoPor":""},{"data":"2026-04-01","texto":"pedi para o Juliano levantar","criadoPor":""},{"data":"2026-04-28","texto":"estou verificando se o Juliano conseguiu algo","criadoPor":""},{"data":"2026-05-04","texto":"cobrei retorno do Juluano até amanhã 05/05","criadoPor":""},{"data":"2026-05-07","texto":"Juliano não me retornou, estou cobrando!","criadoPor":""},{"data":"2026-05-12","texto":"Juliano falou que os","criadoPor":""}]},"111":{"endereco":"Al. Jaú nº 99 (CD03), Jardins","ata":[{"data":"2025-08-13","texto":"Localização x Negociação","criadoPor":""}]},"162":{"endereco":"Al. Jaú x Augusta, Jardins","ata":[{"data":"2026-05-07","texto":"eu respondi o email do Renato para evoluirmos","criadoPor":""},{"data":"2026-05-07","texto":"Renato enviou este terreno e faz sentido, vamos evoluir","criadoPor":""},{"data":"2026-05-12","texto":"aguardando o Renato agendar com os proprietários","criadoPor":""},{"data":"2026-05-20","texto":"Renato está dizendo que os imóveis estão indisponíveis juridicamente e que os ppts estão resolvendo","criadoPor":""},{"data":"2026-05-25","texto":"vou acompanhan","criadoPor":""}],"setor":"010","quadra":"086","lat":-23.55985729809524,"lng":-46.662473747142855},"94":{"endereco":"Al. Lorena, 1579, Jardins","ata":[{"data":"2026-10-13","texto":"🔗 Mesclado com o cadastro duplicado \"Al. Lorena, 1579, Jardins\" — histórico daquele cadastro incorporado aqui; ele foi movido pra Lixeira.","criadoPor":"kamila"}],"setor":"014","quadra":"008"},"34":{"endereco":"Av. Agami, 95, Moema","ata":[{"data":"2026-10-09","texto":"🔗 Mesclado com o cadastro duplicado \"Av. Agami, 95, Moema\" — histórico daquele cadastro incorporado aqui; ele foi movido pra Lixeira.","criadoPor":"kamila"}],"setor":"041","quadra":"265"},"107":{"endereco":"Av. de Pinedo,62, Socorro","ata":[{"data":"2025-08-06","texto":"verificando com o Pablo se conseguiu algo com o Pastores, sobre contatos do vizinho ao lado","criadoPor":""}]},"142":{"endereco":"Av. Júlio Buono, 771, Vl. Guilherme","ata":[{"data":"2026-02-03","texto":"Ale sugeriu de fazer conta com estudo deles, colocar R$4300 de CC e PV R$7800 e assim não passa, para construirmos a R$4300 precisaríamos vender a 9000 e 9500","criadoPor":""},{"data":"2026-02-10","texto":"conta não está passando, descartei com o Angelo","criadoPor":""}]},"58":{"endereco":"Av. Juriti, 441, Moema","ata":[{"data":"2026-10-09","texto":"🔗 Mesclado com o cadastro duplicado \"Av. Juriti, 441, Moema\" — histórico daquele cadastro incorporado aqui; ele foi movido pra Lixeira.","criadoPor":"kamila"}],"setor":"041","quadra":"087"},"82":{"endereco":"Av. Lavandisca, 176, Moema","ata":[{"data":"2025-06-10","texto":"ppts resistentes","criadoPor":""}]},"98":{"endereco":"Avenida Dr Luiz Ignácio de Anhaia Mello,2935, Vila Prudente","ata":[{"data":"2025-06-06","texto":"verificando com o ppt a melhor condição (40% permuta FA + 12x 850.000,00) margem 16%","criadoPor":""},{"data":"2025-08-06","texto":"condições de propotas repassadas ao Renato que verificará com os ppts.","criadoPor":""},{"data":"2025-08-29","texto":"alexandre topou negociar com a gente, vou fazer a proposta","criadoPor":""},{"data":"2025-09-03","texto":"Renato está verificando com os outros 2 pps","criadoPor":""},{"data":"2025-09-12","texto":"enviam","criadoPor":""}]},"113":{"endereco":"Itu x Consolação, Jardins","ata":[{"data":"2025-08-13","texto":"Descartar com o Feola","criadoPor":""}]},"163":{"endereco":"João Dias, 1616","ata":[{"data":"2026-05-26","texto":"fiz reunião com o ppt e quer 14MM, vou verificar com o ale","criadoPor":""}],"setor":"087","quadra":"018"},"56":{"endereco":"Manuel da Nóbrega, 1180","ata":[{"data":"2025-06-03","texto":"Kamila conseguiu contato c/ 1 ppt de imoveis que disse não ter interesse. Continuarei tentando","criadoPor":""},{"data":"2025-08-06","texto":"cobrando o Mauad, se ele não ter folego vou pedir pra outra pessoa.","criadoPor":""},{"data":"2025-08-21","texto":"Mauad e Dudu estão levantado os ppts","criadoPor":""},{"data":"2025-09-03","texto":"Cobrando o Mauad e Dudu sobre levantamento da área","criadoPor":""},{"data":"2025-09-12","texto":"Cobrando o Mau","criadoPor":""}],"setor":"036","quadra":"052"},"143":{"endereco":"Pamplona, 1370","ata":[{"data":"2026-02-05","texto":"Leardi trouxe esse terreno ontem, eu pedi para eles irem pra cima dos ppts","criadoPor":""},{"data":"2026-02-10","texto":"estou verificando com o Luiz para iniciarmos as negociações","criadoPor":""},{"data":"2026-03-05","texto":"estou acompanhando, o Luiz está levantando os proprietários","criadoPor":""},{"data":"2026-03-23","texto":"fizemos reuniao hoje com o Sr Anibbal, ele falou que a Cyrella está oferecend","criadoPor":""}],"setor":"014","quadra":"050"},"121":{"endereco":"Pedroso Alvarenga, 803","ata":[{"data":"2025-08-13","texto":"Retorno: esquina pediu 100MM em 189m² e pça joão cachoeira somam ~850m² que podem vender","criadoPor":""}],"setor":"016","quadra":"078"},"51":{"endereco":"Praça Santo Atanásio, 44","ata":[{"data":"2025-06-03","texto":"fechado condição comercial, solicitar minuta","criadoPor":""},{"data":"2025-08-06","texto":"revisando minuta com o Ricardo e Clementina","criadoPor":""},{"data":"2025-08-11","texto":"cobrando retorno do Ricardo e Clementina","criadoPor":""},{"data":"2025-08-21","texto":"agendado leitura da minuta com o Ricardo para 21/08 e com a Clementina para 22/08.","criadoPor":""},{"data":"2025-09-03","texto":"minutas revisadas e enviadas para Ricardo e Clementi","criadoPor":""}],"setor":"055","quadra":"187"},"108":{"endereco":"R. Afonso Braz, 636, Vila Nova Conceição","ata":[{"data":"2025-08-06","texto":"passei essa área para o Pablo em 01/08, vou verificar se já conseguiu algo.","criadoPor":""}]},"45":{"endereco":"R. Bela Cintra, 1773, Jardins","ata":[{"data":"2025-06-03","texto":"Kamila está verificando com a Sandra que está retomando","criadoPor":""},{"data":"2026-01-09","texto":"Estudo recebido e conta atualizada, montei uma pré-apresentação caso seja necessário encaminhar para a Luciana","criadoPor":""},{"data":"2026-01-14","texto":"estamos esperando a reunião de PIPE para lembrarmos o Marcelo de falar com a Luciana","criadoPor":""},{"data":"2026-01-20","texto":"preciso fazer contas","criadoPor":""}]},"150":{"endereco":"R. Bela Cintra, Jardins","ata":[{"data":"2026-03-19","texto":"fiz contas de hotel.. R2V.. Mas pra mim não faz sentido.. Vou verificar com o Ale","criadoPor":""},{"data":"2026-03-24","texto":"passei para a meri negociarmos por 45mil/m²","criadoPor":""},{"data":"2026-03-30","texto":"fizemos uma proposta para o Lote 11 para sentirmos","criadoPor":""},{"data":"2026-04-02","texto":"Meri informou que as ppts estão refletindo sobre a proposta","criadoPor":""},{"data":"2026-04-08","texto":"ppt fez contraproposta absur","criadoPor":""}]},"115":{"endereco":"R. Bueno Brandão, 250, Vila Nova Conceição","ata":[{"data":"2025-08-13","texto":"enviamos e-mail e carta de intenção aos ppt, 1 /12 retornou pedindo reuniao","criadoPor":""},{"data":"2025-09-03","texto":"fizemos reuniao com a ppt do 12º (falou que está a venda por 25MM, permuta é uma possibilidade) e 11º (falou que já recebeu ppt de 11MM mas analisa permuta), estamos aguardando o retorno do síndico até 07/09 pa","criadoPor":""}]},"79":{"endereco":"R. Caminho do Engenho, 399, Vila Sonia","ata":[{"data":"2025-06-09","texto":"reunião realizada com lotes 3 e 5, aceitam 100% permuta porem precisamos localizar os demais proprietários","criadoPor":""}]},"87":{"endereco":"R. Cel Luis Barroso, 390, Santo Amaro","setor":"087","quadra":"073"},"102":{"endereco":"R. Cembira, 612, São Miguel","ata":[{"data":"2025-06-09","texto":"DESCARTADO: Localização e método de pagamento","criadoPor":""}]},"95":{"endereco":"R. das Ameixeiras, 102, Quadra Vl Mascote","ata":[{"data":"2025-06-10","texto":"Só faria sentido se 100% permuta financeira","criadoPor":""}]},"103":{"endereco":"R. dos Piemonteses, 13, Jd. Boa Vista","ata":[{"data":"2025-06-09","texto":"DESCARTADO: Localização e muita área","criadoPor":""}]},"17":{"endereco":"R. Gaivota, 398, Moema","ata":[{"data":"2025-06-03","texto":"agendado FUP para 04/06","criadoPor":""},{"data":"2025-06-11","texto":"Reunão com Marcos e Luciana ontem, falaram em R$7.500.000,00","criadoPor":""},{"data":"2025-10-03","texto":"estamos tentando negociar para não desistir!","criadoPor":""}],"setor":"041","quadra":"086"},"14":{"endereco":"R. Gomes de Carvalho, 471, Vila Olímpia","ata":[{"data":"2026-10-09","texto":"🔗 Mesclado com o cadastro duplicado \"R. Gomes de Carvalho, 471, Vila Olímpia\" — histórico daquele cadastro incorporado aqui; ele foi movido pra Lixeira.","criadoPor":"kamila"}]},"141":{"endereco":"R. Ibéria, Isolina Mazzei","ata":[{"data":"2026-01-22","texto":"pedi estudo para ARARA","criadoPor":""},{"data":"2026-02-03","texto":"a ARARA enviou opção 100% R2V, eu pedi uma revisão considerando E-HIS","criadoPor":""},{"data":"2026-02-10","texto":"Arara enviou o estudo revisado, atualizei a conta e pedi pro Ale verificar","criadoPor":""},{"data":"2026-02-25","texto":"vou verificar com o Ale se ele conseguiu analisar a conta","criadoPor":""},{"data":"2026-03-05","texto":"Ale ficou de conversar com o Baixinho,","criadoPor":""}]},"110":{"endereco":"R. Jacques Felix, 345 (Kinoshita), Vila Nova Conceição","ata":[{"data":"2025-08-06","texto":"Enviei este terreno para Lotincorp hoje","criadoPor":""}]},"164":{"endereco":"R. João Cachoeira, 349, Itaim Bibi","ata":[{"data":"2026-05-27","texto":"estou entrando em contato com o representando dos ppts do CD08","criadoPor":""},{"data":"2026-06-01","texto":"estou tentando retorno do Artur (representante do Sergio CD08) e Nathalie","criadoPor":""}],"setor":"016","quadra":"090"},"104":{"endereco":"R. Joaquim Floriano, 137, Itaim Bibi","ata":[{"data":"2026-10-09","texto":"🔗 Mesclado com o cadastro duplicado \"Rua Joaquim Floriano, 137\" — histórico daquele cadastro incorporado aqui; ele foi movido pra Lixeira.","criadoPor":"kamila"}],"setor":"016","quadra":"121"},"146":{"endereco":"R. Julia Cortines, Sacomã","ata":[{"data":"2026-03-03","texto":"conta bem difícil, vou mostar pro Ale mesmo assim.","criadoPor":""},{"data":"2026-03-30","texto":"estou verificando com o Renato para seguirmos com  negociaçao, considerando R$6mil/m² parcelado em muitas vezes, conseguindo avançar eu mostro pro Ale","criadoPor":""},{"data":"2026-04-01","texto":"renato retornou que os ppt não estão maduros pra vender e querem na casa de R","criadoPor":""}]},"134":{"endereco":"R. Lisboa, Pinheiros","ata":[{"data":"2025-12-04","texto":"aguardando Ale verificar com o corretor, pois ele disse ser ZC com quebra e não é","criadoPor":""},{"data":"2025-12-09","texto":"ZC não faz sentido","criadoPor":""}]},"147":{"endereco":"R. Maj Sertorio, Higienópolis","ata":[{"data":"2026-03-05","texto":"fiz as contar conforme orientações do Ale, preciso fazer apresentação para levar no Pipe","criadoPor":""},{"data":"2026-03-12","texto":"estamos verificando com a TAEL, qual é a deles","criadoPor":""},{"data":"2026-03-23","texto":"agendado reuniao na TAEL pra próxima quinta-feira","criadoPor":""},{"data":"2026-03-30","texto":"reagendado com a TAEL para amanha às 9h30","criadoPor":""},{"data":"2026-04-01","texto":"fizemos reuniao com o Helio da TAEL,","criadoPor":""}]},"144":{"endereco":"R. Maranhão, 404, Higienópolis","ata":[{"data":"2026-02-09","texto":"o Fabio Pileggi irá se reunir com os proprietários que são da incorporadora TAEL para entender qual a condição de","criadoPor":""},{"data":"2026-02-10","texto":"fabio informou que é 30% de permuta financeira + loja de 500m² , apresentamos no pipe e precisamos fazer conta com 1D e levantar o vizinho cultura inglesa","criadoPor":""},{"data":"2026-02-25","texto":"estou age","criadoPor":""}]},"112":{"endereco":"R. Marques de São Vicente, 1628, Barra Funda","ata":[{"data":"2025-08-13","texto":"Verificar conta","criadoPor":""}]},"36":{"endereco":"R. Oscar Freire, 518, Jardins","ata":[{"data":"2026-10-13","texto":"🔗 Mesclado com o cadastro duplicado \"R. Oscar Freire, 518, Jardins\" — histórico daquele cadastro incorporado aqui; ele foi movido pra Lixeira.","criadoPor":"kamila"}],"setor":"014","quadra":"013"},"132":{"endereco":"R. Pamplona 1754 (tv ouro branco), Jardins","ata":[{"data":"2025-10-03","texto":"negociando","criadoPor":""},{"data":"2025-10-13","texto":"Bob está tentando a farmácia","criadoPor":""},{"data":"2025-10-24","texto":"Estou cobrando o retorno do Bob sobre os ppts","criadoPor":""}]},"114":{"endereco":"R. Pascal, 1623, Campo Belo","ata":[{"data":"2025-08-13","texto":"Médio Alto - Descartar","criadoPor":""}]},"123":{"endereco":"R. Pedroso Alvarenga, 1061, Itaim Bibi","ata":[{"data":"2026-10-09","texto":"🔗 Mesclado com o cadastro duplicado \"R. Pedroso Alvarenga, 1061, Itaim Bibi\" — histórico daquele cadastro incorporado aqui; ele foi movido pra Lixeira.","criadoPor":"kamila"}],"setor":"016","quadra":"075"},"158":{"endereco":"R. Pio XI, 1587, Alto da Lapa","ata":[{"data":"2026-04-10","texto":"Baixinho enviou o terreno, estamos verificando sobre a antena e o Ale ficou de ver sobre os preços dos lançamentos na região","criadoPor":""},{"data":"2026-04-28","texto":"precisamos mostrar na reunião de NN pra ver se a localização faz sentido","criadoPor":""},{"data":"2026-05-07","texto":"aguardando reunião de NN pra apresentar e sentir se faz sentido","criadoPor":""},{"data":"2026-05-12","texto":"não foi ap","criadoPor":""}]},"66":{"endereco":"R. Tabapuã,527, Itaim Bibi","ata":[{"data":"2026-10-09","texto":"🔗 Mesclado com o cadastro duplicado \"R. Tabapuã,527\" — histórico daquele cadastro incorporado aqui; ele foi movido pra Lixeira.","criadoPor":"kamila"}],"setor":"016","quadra":"102"},"40":{"endereco":"R. Tatui, 145, Jardins","ata":[{"data":"2025-06-03","texto":"Kamila está tentando agendar com o Messina","criadoPor":""}],"setor":"014","quadra":"102"},"75":{"endereco":"R. Thomas Delonay, 280, Santo Amaro","ata":[{"data":"2025-06-03","texto":"Em pipe foi conversar que o projeto está em revisão, interessante a diretoria conhecer o local pessoalmente, pois não se animaram","criadoPor":""}]},"136":{"endereco":"R. Treze de Maio, Bela Vista","ata":[{"data":"2025-12-04","texto":"contas validadas com o Ale que está tratando com o corretor","criadoPor":""},{"data":"2025-12-09","texto":"Ale está seguindo com as tratativas","criadoPor":""},{"data":"2025-12-17","texto":"Ale está seguindo com as tratativas, pelo que entendi alterou de permuta financeira para R$25MM","criadoPor":""},{"data":"2026-01-08","texto":"aguardando o Ale retornar para verificar sobre o estudo","criadoPor":""},{"data":"2026-01-14","texto":"vou verificar com","criadoPor":""}]},"83":{"endereco":"R. Visconde de Itaboraí, 90, Tatuapé","ata":[{"data":"2025-08-06","texto":"eu solicitei estudo para Arara em 05/08 ficaram de enviar estudo em 13/08, a ideia é mostrar no PIPE e se gostarem formalizaremos a proposta.","criadoPor":""},{"data":"2025-08-29","texto":"enviado proposta para 29/08","criadoPor":""},{"data":"2025-09-09","texto":"Cobrando retorno da Hannali sobre a proposta enviada","criadoPor":""},{"data":"2025-09-12","texto":"Hannalli informou que retornará até","criadoPor":""}]},"140":{"endereco":"R.da Mooca, Mooca","ata":[{"data":"2026-01-22","texto":"fizemos conta Yuny, mas não animaram, enviei para o Carlos que ficou de enviar para uma empresa para fazer parceira","criadoPor":""},{"data":"2026-02-02","texto":"RBR está recebendo propostas, fizemos uma conta com 100% permuta financeira para PIPE","criadoPor":""},{"data":"2026-02-10","texto":"Marcelo sugeriu de visitar o terreno e o Ale vai verificar com a RBR sobre o","criadoPor":""}]},"119":{"endereco":"Rua Afonso Braz, 637, Vila Nova Conceição","ata":[{"data":"2025-08-13","texto":"\"sobra ~750m², pois ppt que tem maior área não quer vender","criadoPor":""}]},"120":{"endereco":"Rua Barra do Peixe, 18, Vila Nova Conceição","ata":[{"data":"2025-08-13","texto":"Fabio Pillegi trouxe, vamos seguir?","criadoPor":""}]},"156":{"endereco":"Rua João Cachoeira, 441, Itaim Bibi","ata":[{"data":"2026-10-09","texto":"🔗 Mesclado com o cadastro duplicado \"Rua João Cachoeira, 441\" — histórico daquele cadastro incorporado aqui; ele foi movido pra Lixeira.","criadoPor":"kamila"}],"setor":"016","quadra":"100"},"125":{"endereco":"Rua Joaquim Floriano, 469, Itaim Bibi","ata":[{"data":"2025-08-29","texto":"cobrando retorno do Bob","criadoPor":""},{"data":"2025-09-03","texto":"Cobrando retorno do Bob","criadoPor":""},{"data":"2025-09-12","texto":"condições que o Bob passou não faz sentido, não conseguimos viabilizar","criadoPor":""}],"setor":"016","quadra":"120"},"126":{"endereco":"Rua Joaquim Floriano, 643, Itaim Bibi","ata":[{"data":"2026-10-09","texto":"🔗 Mesclado com o cadastro duplicado \"Rua Joaquim Floriano, 643\" — histórico daquele cadastro incorporado aqui; ele foi movido pra Lixeira.","criadoPor":"kamila"}],"setor":"016","quadra":"119"},"153":{"endereco":"Rua Joaquim Floriano, 736, Itaim Bibi","ata":[{"data":"2026-03-25","texto":"eu pedi para o Pablo levantar","criadoPor":""},{"data":"2026-04-28","texto":"enviamos uma carta de intenção ao ppt do imóvel maior, estamos aguardando retorno","criadoPor":""},{"data":"2026-05-07","texto":"ppt retornou o Pablo que não tem interesse na venda","criadoPor":""}]},"152":{"endereco":"Rua Pamplona, 1171","ata":[{"data":"2026-03-25","texto":"eu pedi para o Angelo levantar","criadoPor":""},{"data":"2026-04-28","texto":"cobrando retorno do Angelo","criadoPor":""},{"data":"2026-05-07","texto":"cobrando mais retornos do Angelo, para vermos se tem um cenário possível","criadoPor":""},{"data":"2026-05-12","texto":"Angelo está tentando, mas sem sucesso","criadoPor":""},{"data":"2026-05-20","texto":"Angelo retornou que a Brio tem alguns imóveis, estou vendo com o Ale se ele sabe de algo","criadoPor":""}],"setor":"009","quadra":"089"},"124":{"endereco":"Rua. Dr. Renato Paes de Barros, 397, Itaim Bibi","ata":[{"data":"2025-08-29","texto":"cobrando retorno da Maypo","criadoPor":""},{"data":"2025-09-03","texto":"Maypo retornou que conseguiu os contatos porém estão assinados com outra incorporadora","criadoPor":""}],"setor":"016","quadra":"092"}};
+async function restaurarAtasBackup(){
+  if(terrenos.length < 450){ alert('Os terrenos ainda não carregaram por completo ('+terrenos.length+' de ~535).\n\nDê Ctrl+F5, espere o contador do topo chegar em 535 e tente de novo.'); return; }
+  const dados = _ATA_RESTAURAR_BACKUP;
+  const plano=[]; let nEnt=0;
+  Object.entries(dados).forEach(([id,rec])=>{
+    const t = terrenos.find(x=>String(x.id)===String(id)); if(!t) return;
+    const upd={}, partes=[];
+    if(rec.ata && rec.ata.length && !(Array.isArray(t.ata) && t.ata.length)){ upd.ata=rec.ata; partes.push(rec.ata.length+' entradas de ata'); nEnt+=rec.ata.length; }
+    if(rec.setor && !t.setor){ upd.setor=rec.setor; upd.quadra=rec.quadra||t.quadra||''; partes.push('setor/quadra'); }
+    if(rec.lat!=null && t.lat==null){ upd.lat=rec.lat; upd.lng=rec.lng; partes.push('coordenadas'); }
+    if(partes.length) plano.push({t,upd,partes});
+  });
+  if(!plano.length){ alert('Nada a restaurar — os campos já estão preenchidos.'); return; }
+  const msg = `Restaurar do backup de 16/10/2026?\n\n${plano.length} terrenos, ${nEnt} entradas de ata.\n(Só preenche campos hoje VAZIOS; nada existente é sobrescrito.)\n\n`+plano.slice(0,25).map(p=>'• '+p.t.endereco+' — '+p.partes.join(', ')).join('\n')+(plano.length>25?`\n… e mais ${plano.length-25}`:'');
+  if(!confirm(msg)) return;
+  let ok=0, falhas=[];
+  for(const p of plano){
+    try{ await dbUpdateTerreno(String(p.t.id), p.upd); ok++; }catch(e){ console.error('[restaurar]',p.t.endereco,e); falhas.push(p.t.endereco); }
+  }
+  showToast('♻️ '+ok+' terrenos restaurados'+(falhas.length?' — falhas: '+falhas.length:''));
+  if(falhas.length) alert('Falharam:\n'+falhas.join('\n'));
+}
+function diagnosticoPoligonos(){
+  const sem = terrenos.filter(t=>{
+    let p=t.polygons; if(typeof p==='string'){ try{p=JSON.parse(p)}catch(e){return true} }
+    let q=t.polygon; if(typeof q==='string'){ try{q=JSON.parse(q)}catch(e){q=null} }
+    return !((p&&p.length)||(q&&q.length));
+  });
+  const ativos = sem.filter(t=>t.status!=='8.Descartado');
+  const linhas = sem.slice(0,60).map(t=>`${t.endereco||'—'} | ${t.status||''} | campos: ${Object.keys(t).filter(k=>/poly|sql|lote/i.test(k)).join(',')||'nenhum'}`).join('\n');
+  const txt = `Total carregado: ${terrenos.length}\nLixeira: ${(_terrenosLixeira||[]).length}\nSem polígono: ${sem.length} (não descartados: ${ativos.length})\nCom lat/lng entre os sem polígono: ${sem.filter(t=>t.lat).length}\n\nPrimeiros 60:\n${linhas}`;
+  console.log(txt);
+  try{
+    const todos = terrenos.map(t=>{
+      let p=t.polygons; if(typeof p==='string'){ try{p=JSON.parse(p)}catch(e){p=null} }
+      let q=t.polygon; if(typeof q==='string'){ try{q=JSON.parse(q)}catch(e){q=null} }
+      return { id:t.id, endereco:t.endereco||'', status:t.status||'', temPoligono:!!((p&&p.length)||(q&&q.length)), nPoligonos:(p&&p.length)||((q&&q.length)?1:0), lat:t.lat??null, lng:t.lng??null, nAta:(Array.isArray(t.ata)?t.ata.length:0), temObs:!!(t.obs||t.observacoes), area:t.area??null, setor:t.setor||'', quadra:t.quadra||'', corretor:t.corretor||'', responsavel:t.responsavel||'', zoneamento:t.zoneamento||'', nTodos:(Array.isArray(t.todos)?t.todos.length:0), chaves:Object.keys(t).length, camposGeo:Object.keys(t).filter(k=>/poly|sql|lote|lat|lng/i.test(k)) };
+    });
+    const blob=new Blob([JSON.stringify(todos,null,1)],{type:'application/json'});
+    const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='diagnostico_poligonos.json'; document.body.appendChild(a); a.click(); a.remove();
+  }catch(e){ console.error(e); }
+  const d=document.createElement('div');
+  d.style.cssText='position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:99999;display:flex;align-items:center;justify-content:center;';
+  d.onclick=e=>{ if(e.target===d) d.remove(); };
+  d.innerHTML='<div style="background:#fff;border-radius:10px;padding:16px;width:min(720px,92vw);max-height:80vh;display:flex;flex-direction:column;gap:8px;"><b>🔍 Diagnóstico de polígonos</b><textarea readonly style="flex:1;min-height:320px;font:12px Consolas,monospace;"></textarea><div style="display:flex;gap:8px;"><button class="btn-export" onclick="const t=this.parentNode.previousSibling;t.select();document.execCommand(\'copy\');">Copiar</button><button class="btn-export" onclick="this.closest(\'div[style*=fixed]\').remove()">Fechar</button></div></div>';
+  d.querySelector('textarea').value=txt;
+  document.body.appendChild(d);
+}
 function abrirLixeira(){
   renderLixeira();
   document.getElementById('lixeira-modal-bg')?.classList.add('active');
@@ -14069,7 +14883,7 @@ function _recuperarDadosLixeira(){
     const p = plano.get(alvo.id) || { alvo, upd:{}, fontes:[], ataNova:[] };
     // polígono (só se o ativo não tem nenhum)
     if(!_temPoly(alvo) && !p.upd.polygons && _temPoly(l)){
-      p.upd.polygons = !_vazio(l.polygons) ? l.polygons : (typeof l.polygon==='string' ? l.polygon : JSON.stringify(l.polygon));
+      p.upd.polygons = !_vazio(l.polygons) ? (typeof l.polygons==='string' ? l.polygons : JSON.stringify(l.polygons)) : (typeof l.polygon==='string' ? l.polygon : JSON.stringify(l.polygon));
       p.upd.polygon = null;
     }
     campos.forEach(k=>{ if(_vazio(alvo[k]) && _vazio(p.upd[k]) && !_vazio(l[k])) p.upd[k] = l[k]; });
@@ -14112,7 +14926,7 @@ function _recuperarDadosLixeira(){
   if(!confirm(`Recuperar dados em ${itens.length} terreno(s)?\n\n${resumo}${itens.length>15?'\n…':''}\n\nNada é apagado; só são preenchidos campos vazios.`)) return;
   let ok=0, erro=0;
   Promise.all(itens.map(p=> dbUpdateTerreno(p.alvo.id, sanitize(p.upd)).then(()=>{ Object.assign(p.alvo, p.upd); ok++; }).catch(e=>{ console.error('recuperar', p.alvo.id, e); erro++; })))
-    .then(()=>{ try{ refreshLayers(); }catch(_){} renderList(); showToast(`🔧 Recuperado em ${ok} terreno(s)${erro?` · ${erro} erro(s)`:''}`, 6000); });
+    .then(()=>{ itens.forEach(p=>{ if(typeof p.alvo.polygons==='string'){ try{ p.alvo.polygons = JSON.parse(p.alvo.polygons); }catch(_){} } }); try{ refreshLayers(); }catch(_){} renderList(); showToast(`🔧 Recuperado em ${ok} terreno(s)${erro?` · ${erro} erro(s)`:''}`, 6000); });
 }
 
 function _restaurarDaLixeira(id){
@@ -17665,6 +18479,19 @@ const OUCFL_FP = {
   '3a':[1.2,0.8], '3b':[1.2,1.0], '3c':[2.5,1.0], '3d':[1.5,1.0], '3e':[2.5,1.5], // Hélio Pellegrino
   '4a':[0.9,0.6], '4b':[2.0,0.9], '4c':[2.0,1.2], '4d':[2.0,1.0], // Olimpíadas
 };
+// Tabela 1 completa (Lei 18.175/2024, art. 8º): por subsetor →
+// [A res, A com/serv, B (m² terreno/CEPAC, mudança de uso), C res, C com/serv (taxa de ocupação 50→70%)]
+const OUCFL_TAB1 = {
+  '1a':[1.2,0.8,2,1.2,0.8], '1b':[1.8,1.5,2,1.8,1.2], '1c':[2.6,1.7,2,2.6,1.7], '1d':[2.8,1.8,2,2.3,1.5],
+  '2a':[0.8,0.5,1.5,0.8,0.5], '2b':[0.9,0.6,1.5,0.9,0.6], '2c':[1.1,0.8,1.5,1.2,0.8], '2d':[1.3,0.5,1.5,0.8,0.5], '2e':[1.8,1.2,1.5,1.8,1.0],
+  '3a':[1.2,0.8,1.5,1.2,0.8], '3b':[1.2,1.0,1.5,1.2,0.8], '3c':[2.5,1.0,1.5,1.5,1.0], '3d':[1.5,1.0,1.5,1.5,1.0], '3e':[2.5,1.5,1.5,2.3,1.5],
+  '4a':[0.9,0.6,2,0.9,0.6], '4b':[2.0,0.9,2,1.4,0.9], '4c':[2.0,1.2,2,1.8,1.2], '4d':[2.0,1.0,2,1.5,1.0],
+};
+const OUCFL_SETOR_NOME = {'1':'Pinheiros','2':'Faria Lima','3':'Hélio Pelegrino','4':'Olimpíadas'};
+function _oucflTab1(subsetorRaw){
+  const m = String(subsetorRaw||'').trim().match(/^(\d)\s*([A-Za-z])/);
+  return m ? (OUCFL_TAB1[m[1]+m[2].toLowerCase()] || null) : null;
+}
 function _oucflFp(subsetorRaw){
   const m = String(subsetorRaw||'').trim().match(/^(\d)\s*([A-Za-z])/);
   if(!m) return null;
@@ -17844,7 +18671,7 @@ function _estudoRerender(panelIdx){
   const panel = document.getElementById('ap'+panelIdx);
   const t = terrenos.find(x=>x.id===panel?.dataset.tid);
   if(!t) return;
-  const preserveIds = ['em-doc','em-pd','em-pavtos','em-ua','em-circ','em-tr','em-mpv','em-apv','em-fcg','em-cab','em-pgv','em-uso','em-fs-manual','em-hispct','em-uahis','em-uaout','em-fp'];
+  const preserveIds = ['em-doc','em-pd','em-pavtos','em-ua','em-circ','em-tr','em-mpv','em-apv','em-fcg','em-cab','em-pgv','em-uso','em-fs-manual','em-hispct','em-uahis','em-uaout','em-fp','em-cepac-pnr','em-cepac-preco'];
   const preserveChecks = ['em-vagas-on'];
   const preserved = {};
   preserveIds.forEach(k=>{ const el=document.getElementById(k+'-'+panelIdx); if(el) preserved[k]=el.value; });
@@ -18907,7 +19734,7 @@ function renderEstudoMassaPreview(t, panelIdx){
                'Aplicar Cota de Solidariedade (CA vai a 4,8)' +
              '</label>')
           : '⚠️ Modalidade '+MODALIDADES[_est.modalidade].label.split(' — ')[0]+' dentro da Faria Lima tem regras próprias de HIS/HMP (art. 5º/15 — carta de crédito, alienação de HIS/HMP) ainda não mapeadas no app. CA abaixo segue o zoneamento padrão da zona, não o regime da OUC.') +
-        (_oucFp ? ('<br>Fp (Fator de Planejamento — CEPACs por m² adicional): <b>'+_oucFp[0]+'</b> residencial / <b>'+_oucFp[1]+'</b> comercial-serviço. Informativo pra estimar custo em CEPAC — não é limite construtivo. Fonte: Tabela 1, art. 8º.'+(_oucFL.areaInfluencia?(' Estimativa MAJORADA (+30%, área de influência): <b>'+(_oucFp[0]*1.3).toFixed(2)+'</b> residencial / <b>'+(_oucFp[1]*1.3).toFixed(2)+'</b> comercial-serviço — número exato do anexo (Decreto 64.112/2025) ainda não confirmado, isso é só uma projeção da regra de +30%.'):'')) : '') +
+        (_oucFp ? ('<br>Fator da Coluna A (m² de área adicional por 1 CEPAC): <b>'+_oucFp[0]+'</b> residencial / <b>'+_oucFp[1]+'</b> comercial-serviço. Informativo pra estimar custo em CEPAC — não é limite construtivo. Fonte: Tabela 1, art. 8º.'+(_oucFL.areaInfluencia?(' Estimativa MAJORADA (+30%, área de influência): <b>'+(_oucFp[0]*1.3).toFixed(2)+'</b> residencial / <b>'+(_oucFp[1]*1.3).toFixed(2)+'</b> comercial-serviço — número exato do anexo (Decreto 64.112/2025) ainda não confirmado, isso é só uma projeção da regra de +30%.'):'')) : '') +
         (_oucFL.areaInfluencia
           ? '<div style="font-size:10.5px;color:#166534;background:#f0fdf4;border-radius:6px;padding:6px 8px;margin-top:6px;">✅ Confirmado via GeoSampa (geoportal:oucfl_area_influencia): este lote está na <b>área de influência de transporte</b> — gabarito <b>SEM LIMITE</b> (art. 13, §6º, Lei 18.175/2024).</div>'
           : '<div style="font-size:10px;color:#9a3412;margin-top:6px;opacity:.85;">Confirmado via GeoSampa: este lote <b>NÃO</b> está na área de influência de transporte — gabarito segue o zoneamento padrão do lote (áreas de influência = raio 400m de estações Faria Lima/Pinheiros/CPTM Vila Olímpia/Cidade Jardim/Hebraica-Rebouças/Pinheiros, ou faixas de 250m dos corredores Cidade Jardim/Funchal-Chedid Jafet/Santo Amaro/Eusébio Matoso).</div>') +
@@ -19084,6 +19911,8 @@ function renderEstudoMassaPreview(t, panelIdx){
       '<div id="em-pgv-logradouros-'+panelIdx+'" style="margin:-2px 0 8px;"></div>' +
       '<div id="em-pgv-vizinhos-'+panelIdx+'" style="margin:-2px 0 8px;"></div>' +
       row('Fp — Fator de planejamento','em-fp-'+panelIdx,true,(_oucFp?_oucFp[0]:0.7),'number',0.05,0,2) +
+      (_oucFL ? row('% da área adicional não residencial (CEPAC)','em-cepac-pnr-'+panelIdx,true,0,'number',5,0,100) : '') +
+      (_oucFL ? row('Preço do CEPAC (R$) — mínimo do 6º leilão','em-cepac-preco-'+panelIdx,true,17601,'number',100,0,1000000) : '') +
       (_oucFL ? '<div style="font-size:10px;color:#9ca3af;margin:-2px 0 6px;">Na Faria Lima a outorga é paga em CEPAC, não pelo cálculo padrão abaixo — Fp'+(_oucFp?' preenchido com o valor residencial do subsetor '+_oucFL.subsetor+' (troque pra '+_oucFp[1]+' se for comercial/serviço)':' não encontrado pra este subsetor')+'; use só como referência pra estimar quantos CEPACs seriam necessários.</div>' : '') +
       '<div style="display:flex;justify-content:space-between;align-items:center;padding:5px 0;border-bottom:1px solid #f3f4f6;font-size:12px;gap:8px;">' +
         '<span style="color:#6b7280;flex:1;">Tipologia de uso</span>' +
@@ -19846,7 +20675,7 @@ function calcEstudo(panelIdx, area, ca, gab, fatorIncentivo){
   // ─── Outorga Onerosa & Cota de Solidariedade ─────────────────────────────
   // Hoisted pra fora do if — o Quadro-Resumo (mais abaixo) precisa do total
   // de outorga mesmo que o cálculo detalhado só rode dentro do bloco.
-  let _emOutorgaTotal = null, _emPgv = 0;
+  let _emOutorgaTotal = null, _emPgv = 0, _emCepac = null;
   const elOutorga = document.getElementById('em-outorga-'+panelIdx);
   if(elOutorga){
    try{
@@ -20069,6 +20898,94 @@ function calcEstudo(panelIdx, area, ca, gab, fatorIncentivo){
       '</div>';
     }
 
+    // ── CEPAC — OUC Faria Lima (Lei 13.769/2004, Tabela 1 do art. 8º, red. Lei 18.175/2024) ──
+    // 1 CEPAC = "Coluna A" m² de área adicional computável  →  CEPACs = área adicional ÷ fator.
+    // Em área de influência de transporte (art. 13, §6º, VI) a Coluna A é majorada em 30%.
+    try{
+      const _st = _estudoGetState(panelIdx);
+      const _fl = (_st && _st.ouc && typeof _st.ouc==='object' && _st.ouc.operacao==='FARIA LIMA') ? _st.ouc : null;
+      if(_fl && _st.modalidade==='r2v'){
+        const tb = _oucflTab1(_fl.subsetor);
+        const mm = String(_fl.subsetor||'').trim().match(/^(\d)/);
+        const setorNum = mm ? mm[1] : '';
+        const setorTxt = 'Setor '+(setorNum||'—')+(OUCFL_SETOR_NOME[setorNum]?(' — '+OUCFL_SETOR_NOME[setorNum]):'');
+        let ch = '<div style="border-top:1px dashed #fde68a;margin:12px 0 10px;"></div>' +
+          '<div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:10px;padding:10px 12px;">' +
+          '<div style="font-size:11px;font-weight:800;color:#c2410c;margin-bottom:6px;">🏛️ CEPAC — OUC Faria Lima</div>' +
+          '<div style="font-size:11px;color:#7c2d12;margin-bottom:6px;"><b>'+setorTxt+'</b> · Subsetor <b>'+(_fl.subsetor&&_fl.subsetor!=='NC'?_fl.subsetor:'—')+'</b>'+(_fl.areaInfluencia?' · <span style="background:#dcfce7;color:#166534;border-radius:4px;padding:0 5px;font-weight:700;">área de influência</span>':'')+'</div>';
+        if(!tb){
+          ch += '<div style="font-size:11px;color:#9a3412;">Subsetor não identificado na Tabela 1 — não foi possível calcular os CEPACs.</div>';
+        } else {
+          const pnrIn = parseFloat(String(document.getElementById('em-cepac-pnr-'+panelIdx)?.value||'0').replace(',','.'));
+          const pnr = Math.min(1, Math.max(0, (isNaN(pnrIn)?0:pnrIn)/100));
+          const maj = _fl.areaInfluencia ? 1.3 : 1;
+          const aRes = tb[0]*maj, aNr = tb[1]*maj;
+          const adic = potAdicional;
+          const cRes = (adic*(1-pnr))/aRes, cNr = pnr>0 ? (adic*pnr)/aNr : 0;
+          const cTot = cRes + cNr;
+          const fCep = v => Math.ceil(v-1e-9).toLocaleString('pt-BR');
+          ch += '<div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px;">' +
+            '<div style="background:#fff;border:1px solid #fed7aa;border-radius:8px;padding:6px 8px;"><div style="font-size:8px;font-weight:700;color:#b45309;text-transform:uppercase;">Fator A — residencial</div><div style="font-size:13px;font-weight:800;color:#92400e;font-family:var(--mono);">'+fN(aRes,2)+' m²/CEPAC'+(maj>1?' <span style="font-size:9px;color:#166534">('+fN(tb[0],2)+' × 1,3)</span>':'')+'</div></div>' +
+            '<div style="background:#fff;border:1px solid #fed7aa;border-radius:8px;padding:6px 8px;"><div style="font-size:8px;font-weight:700;color:#b45309;text-transform:uppercase;">Fator A — comercial/serviço</div><div style="font-size:13px;font-weight:800;color:#92400e;font-family:var(--mono);">'+fN(aNr,2)+' m²/CEPAC'+(maj>1?' <span style="font-size:9px;color:#166534">('+fN(tb[1],2)+' × 1,3)</span>':'')+'</div></div>' +
+          '</div>';
+          ch += outRow('Área adicional (acima do CA básico)', fI(adic)+' m²');
+          ch += outRow('CEPACs — parte residencial ('+Math.round((1-pnr)*100)+'%)', fCep(cRes));
+          if(pnr>0) ch += outRow('CEPACs — parte não residencial ('+Math.round(pnr*100)+'%)', fCep(cNr));
+          ch += outRow('Total de CEPACs (outorga)', fCep(cTot), true, '#c2410c');
+          const precoIn = parseFloat(String(document.getElementById('em-cepac-preco-'+panelIdx)?.value||'17601').replace(/\./g,'').replace(',','.'));
+          const preco = (isNaN(precoIn)||precoIn<=0) ? 17601 : precoIn;
+          const qtd = Math.ceil(cTot-1e-9);
+          const totalRs = qtd*preco;
+          ch += outRow('Preço do CEPAC', 'R$ '+Math.round(preco).toLocaleString('pt-BR'));
+          ch += outRow('Outorga em CEPAC (R$)', 'R$ '+Math.round(totalRs).toLocaleString('pt-BR'), true, '#c2410c');
+          if(adic>0) ch += outRow('Custo por m² adicional', 'R$ '+Math.round(totalRs/adic).toLocaleString('pt-BR')+'/m²');
+          _emOutorgaTotal = totalRs; _emPgv = _emPgv||0;
+          _emCepac = { qtd, preco, total: totalRs };
+          const _n2 = v => (+v).toLocaleString('pt-BR',{maximumFractionDigits:2});
+          // Quadro comparativo (estilo planilha): 100% não residencial x 100% residencial (+ mix informado)
+          {
+            const _p2 = v => (+v).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
+            const _cols = [
+              {t:'100% Não Resid.', bg:'#d9ead3', base:tb[1], pnrC:1},
+              {t:'100% Resid.',     bg:'#fff2cc', base:tb[0], pnrC:0},
+            ];
+            if(pnr>0 && pnr<1) _cols.push({t:'Mix ('+Math.round(pnr*100)+'% não res.)', bg:'#e5e7eb', base:null, pnrC:pnr});
+            const _calc = c => {
+              if(c.base!=null){ const fa=c.base*maj; const q=adic/fa; return {fa, q, v:q*preco}; }
+              const q=cRes+cNr; return {fa:null, q, v:q*preco};
+            };
+            const th = 'padding:4px 8px;border:1px solid #bbb;text-align:center;';
+            const tdl = 'padding:4px 8px;border:1px solid #bbb;font-weight:700;background:#f3f4f6;white-space:nowrap;';
+            const tdc = 'padding:4px 8px;border:1px solid #bbb;text-align:center;';
+            ch += '<div style="overflow-x:auto;margin:8px 0;"><table style="border-collapse:collapse;font-size:11px;width:100%;">' +
+              '<tr><td style="'+tdl+'">Cenário</td><td colspan="'+_cols.length+'" style="'+th+'font-weight:800;background:#7f7f7f;color:#fff;">Cálculo CEPAC</td></tr>' +
+              '<tr><td style="'+tdl+'"></td>'+_cols.map(c=>'<td style="'+th+'font-weight:800;background:'+c.bg+';">'+c.t+'</td>').join('')+'</tr>' +
+              '<tr><td style="'+tdl+'">Área Aca (m²)</td>'+_cols.map(c=>'<td style="'+tdc+'">'+_p2(adic)+'</td>').join('')+'</tr>' +
+              '<tr><td style="'+tdl+'">Fator base</td>'+_cols.map(c=>'<td style="'+tdc+'color:#1d4ed8;">'+(c.base!=null?_p2(c.base):'—')+'</td>').join('')+'</tr>' +
+              '<tr><td style="'+tdl+'">Fator ajustado'+(maj>1?' (×1,3)':'')+'</td>'+_cols.map(c=>'<td style="'+tdc+'">'+(c.base!=null?_p2(c.base*maj):'—')+'</td>').join('')+'</tr>' +
+              '<tr><td style="'+tdl+'">Qtd. CEPACs</td>'+_cols.map(c=>'<td style="'+tdc+'font-weight:700;">'+_p2(_calc(c).q)+'</td>').join('')+'</tr>' +
+              '<tr><td style="'+tdl+'">Valor (R$) @ R$ '+Math.round(preco).toLocaleString('pt-BR')+'</td>'+_cols.map(c=>'<td style="'+tdc+'font-weight:800;background:#00e5ee;">R$ '+_p2(_calc(c).v)+'</td>').join('')+'</tr>' +
+              '</table></div>';
+          }
+          ch += '<details open style="margin-top:8px;background:#fff;border:1px solid #fed7aa;border-radius:8px;padding:6px 10px;"><summary style="cursor:pointer;font-size:10.5px;font-weight:800;color:#c2410c;">📐 Memória de cálculo</summary>' +
+            '<div style="font-size:10.5px;color:#7c2d12;line-height:1.7;font-family:var(--mono);margin-top:4px;">' +
+            '1) Área computável total = <b>'+fI(compEst)+' m²</b><br>' +
+            '2) CA básico × terreno = '+_n2(caBasico)+' × '+fI(area)+' = <b>'+fI(caBasico*area)+' m²</b><br>' +
+            '3) Área adicional = (1) − (2) = <b>'+fI(adic)+' m²</b><br>' +
+            '4) Fator A (Tabela 1, subsetor '+(_fl.subsetor||'—')+'): res. '+_n2(tb[0])+(maj>1?' × 1,3 = '+_n2(aRes):'')+' · com/serv. '+_n2(tb[1])+(maj>1?' × 1,3 = '+_n2(aNr):'')+' m²/CEPAC<br>' +
+            '5) CEPAC res. = '+fI(adic*(1-pnr))+' ÷ '+_n2(aRes)+' = <b>'+_n2(cRes)+'</b>' + (pnr>0 ? '<br>&nbsp;&nbsp;&nbsp;CEPAC não res. = '+fI(adic*pnr)+' ÷ '+_n2(aNr)+' = <b>'+_n2(cNr)+'</b>' : '') + '<br>' +
+            '6) Total = '+_n2(cTot)+' → arredondado p/ cima = <b>'+qtd.toLocaleString('pt-BR')+' CEPACs</b><br>' +
+            '7) Valor = '+qtd.toLocaleString('pt-BR')+' × R$ '+Math.round(preco).toLocaleString('pt-BR')+' = <b>R$ '+Math.round(totalRs).toLocaleString('pt-BR')+'</b>' +
+            '</div></details>';
+          ch += '<div style="font-size:10px;color:#9a3412;margin-top:6px;line-height:1.5;">CEPACs = área adicional ÷ fator da Coluna A. Colunas B/C do subsetor (informativo): mudança de uso = <b>'+fN(tb[2],1)+'</b> m² de terreno/CEPAC; taxa de ocupação 50→70% = <b>'+fN(tb[3],1)+'</b> (res.) / <b>'+fN(tb[4],1)+'</b> (com/serv) m² de terreno/CEPAC.'+
+            (maj>1?' Fator A majorado em 30% por estar em área de influência de transporte (art. 13, §6º, VI, Lei 18.175/2024).':'')+
+            ' Preço do CEPAC editável (padrão R$ 17.601 = mínimo do 6º leilão; o valor real varia a cada leilão/negociação). Não considera incentivos gratuitos (fruição pública 20%, art. 13, II).</div>';
+        }
+        ch += '</div>';
+        html += ch;
+      }
+    }catch(eCep){ console.warn('[estudoDeMassa] CEPAC:', eCep); }
+
     elOutorga.innerHTML = html;
    }catch(eOut){
      // Mesma lógica de proteção do diagrama, logo acima: uma exceção aqui não
@@ -20288,7 +21205,9 @@ function calcEstudo(panelIdx, area, ca, gab, fatorIncentivo){
       const _subUnidAndar = torres>1
         ? ('× '+torres+' torres = '+fI(ua*torres)+' un/andar no total')
         : '';
-      const _outorgaTxt = _emPgv>0
+      const _outorgaTxt = _emCepac
+        ? (fR(_emCepac.total)+' ('+_emCepac.qtd.toLocaleString('pt-BR')+' CEPACs × R$ '+Math.round(_emCepac.preco).toLocaleString('pt-BR')+')')
+        : _emPgv>0
         ? (_emOutorgaTotal!=null ? fR(_emOutorgaTotal) : 'Preencha o valor do m² (passo de outorga)')
         : 'Não incide (dentro do CA básico)';
 
@@ -27071,6 +27990,7 @@ function _mprospecBuscarMesmoProprietario(propEnc){
       <div style="font-size:12px;color:var(--muted);margin-top:2px;">Um PPT pronto por terreno em negociação — atualizado automaticamente conforme os dados do cadastro. Marque mais de um pra unificar numa única apresentação (ex: reunião semanal com a diretoria).</div>
     </div>
     <div style="display:flex;align-items:center;gap:14px;flex-wrap:wrap;">
+      <input type="search" id="apresent-busca" placeholder="🔍 Buscar terreno (qualquer status)…" oninput="renderApresentacoes()" autocomplete="off" style="padding:8px 12px;border:1px solid var(--border,#d1d5db);border-radius:8px;font-size:12px;min-width:260px;background:var(--bg,#fff);color:var(--text);">
       <label style="display:flex;align-items:center;gap:6px;font-size:12px;color:var(--muted);cursor:pointer;user-select:none;">
         <input type="checkbox" id="apresent-select-all" onchange="_apresentToggleSelecionarTodos(this.checked)" style="width:16px;height:16px;cursor:pointer;">
         Selecionar todos
@@ -32578,15 +33498,28 @@ function _apresentUltimaAta(t){
 
 let _apresentSelecionados = new Set();
 
+// leaflet-image quebra ("Cannot read properties of undefined (reading 'match')") com qualquer camada de
+// tiles sem URL padrão {z}/{x}/{y} (WMS, camadas vetoriais em grade, imagens). Essas saem só durante o print.
+function _leafletImageIncompativel(l){
+  if(l instanceof L.ImageOverlay) return true;
+  if(l instanceof L.TileLayer){ if(l.wmsParams) return true; const u = l._url; return !(typeof u==='string' && /\{[xyz]\}/.test(u)); }
+  if(l instanceof L.GridLayer) return true;
+  return false;
+}
 function renderApresentacoes(){
   const lista = document.getElementById('apresent-lista');
   if(!lista) return;
-  const negociando = terrenos.filter(t=>t.status==='3.Negociando');
-  // Descarta seleções de terrenos que não estão mais em negociação.
-  const idsValidos = new Set(negociando.map(t=>t.id));
+  // Sem busca: só os em negociação (como sempre). Com busca: qualquer terreno, de qualquer status.
+  const _q = norm((document.getElementById('apresent-busca')||{}).value||'');
+  const negociando = _q
+    ? terrenos.filter(t=>!t._excluido && norm([t.endereco,t.apelido,t.bairro,t.corretor,t.responsavel,t.setor,t.quadra,(t.setor||'')+'.'+(t.quadra||'')].join(' ')).includes(_q))
+    : terrenos.filter(t=>t.status==='3.Negociando');
+  window._apresentVisiveis = negociando;
+  // Descarta seleções de terrenos que não existem mais.
+  const idsValidos = new Set(terrenos.map(t=>t.id));
   _apresentSelecionados.forEach(id=>{ if(!idsValidos.has(id)) _apresentSelecionados.delete(id); });
   if(!negociando.length){
-    lista.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px 0;">Nenhum terreno em negociação no momento.</div>';
+    lista.innerHTML = '<div style="text-align:center;color:var(--muted);padding:40px 0;">'+(_q?'Nenhum terreno encontrado para "'+escHtml(_q)+'".':'Nenhum terreno em negociação no momento.')+'</div>';
     _apresentAtualizarBotaoSemanal();
     return;
   }
@@ -32597,6 +33530,7 @@ function renderApresentacoes(){
       <div class="apresent-card-info">
         <div class="apresent-card-addr">${_labelEndereco(t,true)}</div>
         <div class="apresent-card-meta">
+          ${t.status!=='3.Negociando'?`<span style="font-weight:700;color:#92400e;">● ${escHtml(STATUS_LABELS[t.status]||t.status||'')}</span>`:''}
           ${t.area?`<span>📐 ${escHtml(t.area)}</span>`:''}
           ${t.zoneamento?`<span>🏙 ${escHtml(t.zoneamento)}</span>`:''}
           ${t.corretor?`<span>👤 ${escHtml(t.corretor)}</span>`:''}
@@ -32612,15 +33546,15 @@ function renderApresentacoes(){
 
 function _apresentToggleSelecao(id, checked){
   if(checked) _apresentSelecionados.add(id); else _apresentSelecionados.delete(id);
-  const negociando = terrenos.filter(t=>t.status==='3.Negociando');
+  const negociando = window._apresentVisiveis || terrenos.filter(t=>t.status==='3.Negociando');
   const selAllCb = document.getElementById('apresent-select-all');
   if(selAllCb) selAllCb.checked = negociando.length>0 && negociando.every(t=>_apresentSelecionados.has(t.id));
   _apresentAtualizarBotaoSemanal();
 }
 
 function _apresentToggleSelecionarTodos(checked){
-  const negociando = terrenos.filter(t=>t.status==='3.Negociando');
-  _apresentSelecionados = new Set(checked ? negociando.map(t=>t.id) : []);
+  const negociando = window._apresentVisiveis || terrenos.filter(t=>t.status==='3.Negociando');
+  negociando.forEach(t=>{ if(checked) _apresentSelecionados.add(t.id); else _apresentSelecionados.delete(t.id); });
   document.querySelectorAll('.apresent-check').forEach(cb=>{ cb.checked = checked; });
   _apresentAtualizarBotaoSemanal();
 }
@@ -32756,6 +33690,50 @@ async function _apresentCapturarMapa(t, modo){
   return dataUrl;
 }
 
+// Mapas dos slides/Material corretor como IMAGEM ESTÁTICA (ArcGIS export) — não depende do leaflet-image,
+// que travava com as camadas do mapa ("reading 'match'") e deixava os slides sem imagem.
+async function _apresentMapaEstatico(t, modo){
+  const polys = _apresentPoligonoCoords(t);
+  let pb = null;
+  if(polys){
+    const pts = polys.flat().filter(q=>Array.isArray(q) && isFinite(q[0]) && isFinite(q[1]));
+    if(pts.length){ const la=pts.map(q=>q[0]), ln=pts.map(q=>q[1]); pb={minLa:Math.min(...la),maxLa:Math.max(...la),minLn:Math.min(...ln),maxLn:Math.max(...ln)}; }
+  }
+  let centro = null;
+  if(modo==='satelite-poligono' && pb) centro = [(pb.minLa+pb.maxLa)/2, (pb.minLn+pb.maxLn)/2];
+  else if(t.lat!=null && t.lng!=null) centro = [t.lat, t.lng];
+  else if(pb) centro = [(pb.minLa+pb.maxLa)/2, (pb.minLn+pb.maxLn)/2];
+  if(!centro) return null;
+  const W=1600, H=900, cosL=Math.cos(centro[0]*Math.PI/180);
+  let hM = modo==='satelite-longe' ? 3500 : (modo==='rua' ? 450 : 350);
+  if(modo==='satelite-poligono' && pb){
+    const eH=(pb.maxLa-pb.minLa)*110540, eW=(pb.maxLn-pb.minLn)*111320*cosL;
+    hM = Math.max(160, eH*2.2, eW*2.2*H/W);
+  }
+  const dLat = hM/110540, dLng = dLat*(W/H)/cosL;
+  const bb = [centro[1]-dLng/2, centro[0]-dLat/2, centro[1]+dLng/2, centro[0]+dLat/2];
+  const serv = modo==='rua' ? 'World_Street_Map' : 'World_Imagery';
+  const url = `https://server.arcgisonline.com/ArcGIS/rest/services/${serv}/MapServer/export?bbox=${bb.join(',')}&bboxSR=4326&imageSR=4326&size=${W},${H}&format=jpg&f=image`;
+  const base = await Promise.race([_mcCarregaImg(url), new Promise((_,rej)=>setTimeout(()=>rej(new Error('tempo esgotado')),20000))]);
+  const c = document.createElement('canvas'); c.width=W; c.height=H;
+  const x = c.getContext('2d'); x.drawImage(base,0,0,W,H);
+  const px = q=>[ (q[1]-bb[0])/(bb[2]-bb[0])*W, (bb[3]-q[0])/(bb[3]-bb[1])*H ];
+  const cor = statusColor(t.status);
+  if(modo==='satelite-poligono' && polys){
+    polys.forEach(r=>{
+      if(!Array.isArray(r)) return;
+      x.beginPath(); r.forEach((q,i)=>{ const z=px(q); i?x.lineTo(z[0],z[1]):x.moveTo(z[0],z[1]); }); x.closePath();
+      x.globalAlpha=0.22; x.fillStyle=cor; x.fill(); x.globalAlpha=1; x.lineWidth=4; x.strokeStyle=cor; x.stroke();
+    });
+  } else {
+    const z = px(centro);
+    x.beginPath(); x.arc(z[0], z[1], 11, 0, Math.PI*2); x.fillStyle=cor;
+    x.shadowColor='rgba(0,0,0,.35)'; x.shadowBlur=6; x.shadowOffsetY=2; x.fill();
+    x.shadowColor='transparent'; x.shadowBlur=0; x.shadowOffsetY=0; x.lineWidth=3.5; x.strokeStyle='#fff'; x.stroke();
+  }
+  try{ return c.toDataURL('image/jpeg', 0.88); }catch(e){ console.warn('[apresentacao] canvas bloqueado (CORS)', e); return null; }
+}
+
 // Gera os 4 prints de um terreno, restaurando a vista/camada original do mapa
 // principal no final (pra não bagunçar o que a pessoa estava olhando).
 async function _apresentGerarImagensTerreno(t){
@@ -32772,13 +33750,21 @@ async function _apresentGerarImagensTerreno(t){
   map.off('moveend', _scheduleVecLoad);
   map.off('zoomend', _scheduleVecLoad);
 
+  // Camadas WMS/imagem do GeoSampa/COMAER (sem cabeçalho CORS) fazem o leaflet-image
+  // estourar "TypeError ... 'match'" e a captura trava até o tempo limite (várias
+  // dezenas de segundos). Tira essas camadas só durante os prints e devolve depois.
+  const _wmsTiradosAp = [];
+  map.eachLayer(l=>{ if(_leafletImageIncompativel(l)) _wmsTiradosAp.push(l); });
+  _wmsTiradosAp.forEach(l=>{ try{ map.removeLayer(l); }catch(_){} });
+
   let imgs;
   try{
     imgs = {};
-    imgs.perto    = await _apresentCapturarMapa(t, 'satelite-perto');
-    imgs.longe    = await _apresentCapturarMapa(t, 'satelite-longe');
-    imgs.rua      = await _apresentCapturarMapa(t, 'rua');
-    imgs.poligono = await _apresentCapturarMapa(t, 'satelite-poligono');
+    const _cap = async modo => { try{ const r = await _apresentMapaEstatico(t, modo); if(r) return r; }catch(e){ console.warn('[apresentacao] mapa estático falhou ('+modo+')', e); } return await _apresentCapturarMapa(t, modo); };
+    imgs.perto    = await _cap('satelite-perto');
+    imgs.longe    = await _cap('satelite-longe');
+    imgs.rua      = await _cap('rua');
+    imgs.poligono = await _cap('satelite-poligono');
 
     if(satAtivoOrig){
       if(map.hasLayer(osmBaseLayer)) map.removeLayer(osmBaseLayer);
@@ -32789,6 +33775,7 @@ async function _apresentGerarImagensTerreno(t){
     }
     map.setView(centerOrig, zoomOrig, {animate:false});
   } finally {
+    _wmsTiradosAp.forEach(l=>{ try{ if(!map.hasLayer(l)) map.addLayer(l); }catch(_){} });
     map.on('moveend', _scheduleVecLoad);
     map.on('zoomend', _scheduleVecLoad);
   }
@@ -33268,7 +34255,7 @@ async function gerarApresentacaoTerreno(terrenoId){
 async function gerarApresentacaoSelecionados(){
   const negociando = terrenos.filter(t=>t.status==='3.Negociando');
   const ids = _apresentSelecionados.size
-    ? negociando.filter(t=>_apresentSelecionados.has(t.id)).map(t=>t.id)
+    ? terrenos.filter(t=>_apresentSelecionados.has(t.id)).map(t=>t.id)
     : negociando.map(t=>t.id);
   if(!ids.length){ showToast('Nenhum terreno em negociação.'); return; }
   await _apresentGerarEAbrirPreview(ids, _apresentSelecionados.size ? 'Apresentacao_Selecionados' : 'Apresentacao_Semanal');
